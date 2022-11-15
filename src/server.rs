@@ -1,13 +1,9 @@
-// You can run this with `cargo run --bin server
-
-use std::io;
-use std::io::{stderr, stdout};
 use std::io::prelude::*;
-
+use std::io::stdin;
 
 use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, RequestRPC, ResponseRPC};
+use crate::utils::{log, send};
 
-#[allow(unused)]
 fn example_server_response() -> InitializeBuildResult {
     InitializeBuildResult {
         display_name: "test1".to_string(),
@@ -33,14 +29,12 @@ fn example_server_response() -> InitializeBuildResult {
 }
 
 pub fn run_server() {
-    stderr().write_all("Server has started\n".as_bytes()).unwrap();
+    log("Server has started\n");
 
-    let response_string = example_server_response().parse_to_string() + "\n";
-    let msg = format!("Basic response: {}", response_string);
-    stderr().write_all(msg.as_bytes()).unwrap();
+    let response_string = example_server_response().parse_to_string();
+    log(&format!("Basic response: {}\n", response_string));
 
-    let stdin = io::stdin();
-    for line in stdin.lock().lines() {
+    for line in stdin().lock().lines() {
         let line_string = line.unwrap();
 
         if line_string.is_empty() {
@@ -50,13 +44,11 @@ pub fn run_server() {
         let request = InitializeBuildParams::parse_from_string(&line_string);
         match request {
             Ok(r) => {
-                let msg = format!("Received proper request from client: {:?}\n", r);
-                stderr().write_all(msg.as_bytes()).unwrap();
-                stdout().write_all(response_string.as_bytes()).unwrap()
+                log(&format!("Received proper request from client: {:?}\n", r));
+                send(&response_string);
             }
             Err(_) => {
-                let msg = format!("Received some string from client: {}\n", line_string);
-                stderr().write_all(msg.as_bytes()).unwrap();
+                log(&format!("Received some string from client: {}\n", line_string));
             }
         }
     }
