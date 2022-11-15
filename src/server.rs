@@ -4,10 +4,8 @@ use std::io;
 use std::io::{stderr, stdout};
 use std::io::prelude::*;
 
-use jsonrpsee_types::Request;
-use serde_json::Result;
 
-use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, ResponseRPC};
+use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, RequestRPC, ResponseRPC};
 
 pub fn run_server() {
     stderr().write_all("Server has started\n".as_bytes()).unwrap();
@@ -47,7 +45,8 @@ pub fn run_server() {
             break;
         }
 
-        let request = parse_request_from_rpc(&line_string);
+        // let request = parse_request_from_rpc(&line_string);
+        let request = InitializeBuildParams::parse_from_string(&line_string);
         match request {
             Ok(r) => {
                 let msg = format!("Received proper request from client: {:?}\n", r);
@@ -60,9 +59,4 @@ pub fn run_server() {
             }
         }
     }
-}
-
-fn parse_request_from_rpc(request_string: &str) -> Result<InitializeBuildParams> {
-    let request: Request = serde_json::from_str(request_string)?;
-    serde_json::from_str(request.params.map_or("", |x| x.get()))
 }

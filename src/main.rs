@@ -10,13 +10,13 @@ use crate::server::run_server;
 mod bsp_types;
 
 #[allow(unused)]
-fn example_client_initialize_query() -> bsp_types::InitializeBuildParams<String> {
-    bsp_types::InitializeBuildParams {
+fn example_client_initialize_query() -> InitializeBuildParams<String> {
+    InitializeBuildParams {
         display_name: "rust-bsp-client".to_string(),
         version: "0.1.0".to_string(),
         bsp_version: "2.0.0-M5".to_string(),
         root_uri: "file:///home/krzysztof/Projects/rust-bsp-client".to_string(),
-        capabilities: bsp_types::BuildClientCapabilities {
+        capabilities: BuildClientCapabilities {
             language_ids: vec!["rust".to_string()],
         },
         data: None,
