@@ -10,7 +10,7 @@ use crate::server::run_server;
 mod bsp_types;
 
 #[allow(unused)]
-fn example_client_initialize_query() -> InitializeBuildParams<String> {
+fn example_client_initialize_query() -> InitializeBuildParams {
     InitializeBuildParams {
         display_name: "rust-bsp-client".to_string(),
         version: "0.1.0".to_string(),
@@ -32,17 +32,7 @@ fn run_client() {
     stderr().write_all("Client started\n".as_bytes()).unwrap();
     println!("Hello, it's me - client :>");
 
-    let basic_request: InitializeBuildParams<()> = InitializeBuildParams {
-        display_name: "test1".to_string(),
-        version: "test2".to_string(),
-        bsp_version: "test3".to_string(),
-        root_uri: "test4".to_string(),
-        capabilities: BuildClientCapabilities { language_ids: vec!["test5".to_string()] },
-        data: None,
-    };
-
-    let mut request_string = basic_request.parse_to_string();
-    request_string += "\n";
+    let request_string = example_client_initialize_query().parse_to_string() + "\n";
     let msg = format!("Basic request: {}", request_string);
     stderr().write_all(msg.as_bytes()).unwrap();
 

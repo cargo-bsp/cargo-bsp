@@ -7,10 +7,9 @@ use std::io::prelude::*;
 
 use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, RequestRPC, ResponseRPC};
 
-pub fn run_server() {
-    stderr().write_all("Server has started\n".as_bytes()).unwrap();
-
-    let basic_response: InitializeBuildResult<()> = InitializeBuildResult {
+#[allow(unused)]
+fn example_server_response() -> InitializeBuildResult {
+    InitializeBuildResult {
         display_name: "test1".to_string(),
         version: "test2".to_string(),
         bsp_version: "test3".to_string(),
@@ -30,10 +29,13 @@ pub fn run_server() {
             can_reload: None,
         },
         data: None,
-    };
+    }
+}
 
-    let mut response_string = basic_response.parse_to_string();
-    response_string += "\n";
+pub fn run_server() {
+    stderr().write_all("Server has started\n".as_bytes()).unwrap();
+
+    let response_string = example_server_response().parse_to_string() + "\n";
     let msg = format!("Basic response: {}", response_string);
     stderr().write_all(msg.as_bytes()).unwrap();
 
@@ -45,7 +47,6 @@ pub fn run_server() {
             break;
         }
 
-        // let request = parse_request_from_rpc(&line_string);
         let request = InitializeBuildParams::parse_from_string(&line_string);
         match request {
             Ok(r) => {
