@@ -19,7 +19,7 @@ fn example_client_initialize_query_json() -> String {
     serde_json::to_string(&example_client_initialize_query()).unwrap()
 }
 
-// runs /src/bin/server.rs binary which inherits I/O
+// runs /src/server.rs binary which inherits I/O
 fn spawn_server_process() -> Child {
     // Prepare to run `cargo run --bin server`
     let mut command = Command::new("cargo");
@@ -33,7 +33,6 @@ fn spawn_server_process() -> Child {
 }
 
 fn main() {
-
     println!("Starting server process");
     let mut server = spawn_server_process();
     println!(
@@ -42,6 +41,9 @@ fn main() {
     );
 
     // Note that serde parses Option(None) as null, does not skip it.
-    println!("\nPrinting example_client_initialize_query_json():{}", example_client_initialize_query_json());
+    println!(
+        "\nPrinting example_client_initialize_query_json():{}",
+        example_client_initialize_query_json()
+    );
     println!("Hello, world!");
 }
