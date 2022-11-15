@@ -1,28 +1,43 @@
 // You can run this with `cargo run --bin server
 
 use std::io;
+use std::io::{stderr, stdout};
 use std::io::prelude::*;
-use std::io::stderr;
-use jsonrpsee_types::{Id, Request, RequestSer};
-use serde_json::Result;
-use serde_json::value::RawValue;
 
-use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams};
+use jsonrpsee_types::Request;
+use serde_json::Result;
+
+use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, ResponseRPC};
 
 pub fn run_server() {
     stderr().write_all("Server has started\n".as_bytes()).unwrap();
-    println!("Hello, it's me - server :)");
 
-
-    let temp: InitializeBuildParams<()> = InitializeBuildParams {
+    let basic_response: InitializeBuildResult<()> = InitializeBuildResult {
         display_name: "test1".to_string(),
         version: "test2".to_string(),
         bsp_version: "test3".to_string(),
-        root_uri: "test4".to_string(),
-        capabilities: BuildClientCapabilities { language_ids: vec!["test5".to_string()] },
+        capabilities: BuildServerCapabilities {
+            compile_provider: None,
+            test_provider: None,
+            run_provider: None,
+            debug_provider: None,
+            inverse_sources_provider: None,
+            dependency_sources_provider: None,
+            dependency_modules_provider: None,
+            resources_provider: None,
+            output_paths_provider: None,
+            build_target_changed_provider: None,
+            jvm_run_environment_provider: None,
+            jvm_test_environment_provider: None,
+            can_reload: None,
+        },
         data: None,
     };
-    println!("{}", prepare_result(&temp));
+
+    let mut response_string = basic_response.parse_to_string();
+    response_string += "\n";
+    let msg = format!("Basic response: {}", response_string);
+    stderr().write_all(msg.as_bytes()).unwrap();
 
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
@@ -32,34 +47,22 @@ pub fn run_server() {
             break;
         }
 
-        let request = get_request(&line_string);
+        let request = parse_request_from_rpc(&line_string);
         match request {
             Ok(r) => {
-                let msg = format!("wczytałem {:?}, jesteście super!\n", r);
+                let msg = format!("Received proper request from client: {:?}\n", r);
                 stderr().write_all(msg.as_bytes()).unwrap();
+                stdout().write_all(response_string.as_bytes()).unwrap()
             }
             Err(_) => {
-                let msg = format!("wczytałem {}, jesteście z siebie dumni?\n", line_string);
+                let msg = format!("Received some string from client: {}\n", line_string);
                 stderr().write_all(msg.as_bytes()).unwrap();
             }
         }
     }
 }
 
-fn get_request(request_string: &str) -> Result<InitializeBuildParams> {
+fn parse_request_from_rpc(request_string: &str) -> Result<InitializeBuildParams> {
     let request: Request = serde_json::from_str(request_string)?;
     serde_json::from_str(request.params.map_or("", |x| x.get()))
 }
-
-fn prepare_result(struct_params: &InitializeBuildParams) -> String {
-    let string_params = serde_json::to_string(struct_params).unwrap();
-    let params = Some(RawValue::from_string(string_params).unwrap());
-
-    let method = "test6";
-    let id = Id::Number(0183);
-    let result = RequestSer::borrowed(&id, &method, params.as_deref());
-
-    serde_json::to_string(&result).unwrap()
-}
-
-// {"jsonrpc": "2.0", "method": "subtract", "params": { "displayName": "test1", "version": "test2", "bspVersion": "test3", "rootUri": "test4", "capabilities": { "languageIds": ["test5"] }}, "id": 3}

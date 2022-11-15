@@ -1,6 +1,7 @@
-use std::io::{stderr, Write, stdin};
+use std::io::{stderr, Write, stdin, stdout};
 use std::io::prelude::*;
 use nix::unistd::{dup2, pipe, fork, ForkResult};
+use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams, RequestRPC};
 
 mod server;
 
@@ -30,6 +31,22 @@ fn example_client_initialize_query_json() -> String {
 fn run_client() {
     stderr().write_all("Client started\n".as_bytes()).unwrap();
     println!("Hello, it's me - client :>");
+
+    let basic_request: InitializeBuildParams<()> = InitializeBuildParams {
+        display_name: "test1".to_string(),
+        version: "test2".to_string(),
+        bsp_version: "test3".to_string(),
+        root_uri: "test4".to_string(),
+        capabilities: BuildClientCapabilities { language_ids: vec!["test5".to_string()] },
+        data: None,
+    };
+
+    let mut request_string = basic_request.parse_to_string();
+    request_string += "\n";
+    let msg = format!("Basic request: {}", request_string);
+    stderr().write_all(msg.as_bytes()).unwrap();
+
+    stdout().write_all(request_string.as_bytes()).unwrap();
 
     let stdin = stdin();
     for line in stdin.lock().lines() {

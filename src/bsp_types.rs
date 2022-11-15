@@ -1,5 +1,29 @@
-use serde::{Deserialize, Serialize};
+use jsonrpsee_types::{Id, RequestSer, Response};
+use serde::{Serialize, Deserialize};
+use serde_json::value::RawValue;
 
+pub trait RequestRPC: Serialize {
+    fn parse_to_string(&self) -> String {
+        let string_params = serde_json::to_string(self).unwrap();
+        let params = Some(RawValue::from_string(string_params).unwrap());
+
+        let method = "test";
+        let result = RequestSer::borrowed(&Id::Number(0183), &method, params.as_deref());
+
+        serde_json::to_string(&result).unwrap()
+    }
+}
+
+pub trait ResponseRPC: Serialize {
+    fn parse_to_string(&self) -> String {
+        let string_params = serde_json::to_string(self).unwrap();
+        let params = Some(RawValue::from_string(string_params).unwrap());
+
+        let result = Response::new(params.as_deref(), Id::Number(0183));
+
+        serde_json::to_string(&result).unwrap()
+    }
+}
 
 /**  A resource identifier that is a valid URI according
 * to rfc3986: * https://tools.ietf.org/html/rfc3986 */
@@ -28,13 +52,15 @@ pub struct InitializeBuildParams<T = ()> {
     pub data: Option<T>,
 }
 
+impl RequestRPC for InitializeBuildParams {}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildClientCapabilities {
     /** The languages that this client supports.
-    * The ID strings for each language is defined in the LSP.
-    * The server must never respond with build targets for other
-    * languages than those that appear in this list. */
+             * The ID strings for each language is defined in the LSP.
+             * The server must never respond with build targets for other
+             * languages than those that appear in this list. */
     pub language_ids: Vec<String>,
 }
 
@@ -58,6 +84,8 @@ pub struct InitializeBuildResult<T = ()> {
     pub data: Option<T>,
 }
 
+impl ResponseRPC for InitializeBuildResult {}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildServerCapabilities {
@@ -74,36 +102,36 @@ pub struct BuildServerCapabilities {
     pub debug_provider: Option<DebugProvider>,
 
     /** The server can provide a list of targets that contain a
-      * single text document via the method buildTarget/inverseSources */
+               * single text document via the method buildTarget/inverseSources */
     pub inverse_sources_provider: Option<bool>,
 
     /** The server provides sources for library dependencies
-      * via method buildTarget/dependencySources */
+               * via method buildTarget/dependencySources */
     pub dependency_sources_provider: Option<bool>,
 
     /** The server can provide a list of dependency modules (libraries with meta information)
-      * via method buildTarget/dependencyModules */
+               * via method buildTarget/dependencyModules */
     pub dependency_modules_provider: Option<bool>,
 
     /** The server provides all the resource dependencies
-      * via method buildTarget/resources */
+               * via method buildTarget/resources */
     pub resources_provider: Option<bool>,
 
     /** The server provides all output paths
-      * via method buildTarget/outputPaths */
+               * via method buildTarget/outputPaths */
     pub output_paths_provider: Option<bool>,
 
     /** The server sends notifications to the client on build
-      * target change events via buildTarget/didChange */
+               * target change events via buildTarget/didChange */
     pub build_target_changed_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmRunEnvironment` requests with the
-      * necessary information required to launch a Java process to run a main class. */
+               * necessary information required to launch a Java process to run a main class. */
     pub jvm_run_environment_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmTestEnvironment` requests with the
-      * necessary information required to launch a Java process for testing or
-      * debugging. */
+               * necessary information required to launch a Java process for testing or
+               * debugging. */
     pub jvm_test_environment_provider: Option<bool>,
 
     /** Reloading the build state through workspace/reload is supported */
