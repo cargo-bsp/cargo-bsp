@@ -1,3 +1,5 @@
+// You can run this with `cargo run --bin server
+
 // use std::borrow::Borrow;
 use std::io;
 use std::io::prelude::*;
@@ -7,18 +9,24 @@ use std::io::prelude::*;
 use jsonrpsee_types::Request;
 use serde_json::Result;
 
+mod bsp_types;
 use crate::bsp_types::InitializeBuildParams;
 
 // use std::ops::Deref;
 
 // use serde_json::value::RawValue;
 
-pub fn run_server() {
+pub fn main() {
     println!("Hello, it's me - server :)");
 
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line_string = line.unwrap();
+
+        if line_string.is_empty() {
+            break;
+        }
+
         let request = get_request(&line_string);
         match request {
             Ok(r) => println!("wczytałem {:?}, jesteście super!", r),
