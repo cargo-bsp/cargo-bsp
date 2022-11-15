@@ -2,7 +2,7 @@ use jsonrpsee_types::{Id, RequestSer, Response};
 use serde::{Serialize, Deserialize};
 use serde_json::value::RawValue;
 
-pub trait RequestRPC: Serialize {
+pub trait RequestRPC where Self: Serialize {
     fn parse_to_string(&self) -> String {
         let string_params = serde_json::to_string(self).unwrap();
         let params = Some(RawValue::from_string(string_params).unwrap());
@@ -14,7 +14,7 @@ pub trait RequestRPC: Serialize {
     }
 }
 
-pub trait ResponseRPC: Serialize {
+pub trait ResponseRPC where Self: Serialize {
     fn parse_to_string(&self) -> String {
         let string_params = serde_json::to_string(self).unwrap();
         let params = Some(RawValue::from_string(string_params).unwrap());
