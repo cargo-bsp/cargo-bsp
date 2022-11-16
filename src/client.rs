@@ -9,7 +9,7 @@ fn example_client_initialize_query() -> InitializeBuildParams {
         display_name: "rust-bsp-client".to_string(),
         version: "0.1.0".to_string(),
         bsp_version: "2.0.0-M5".to_string(),
-        root_uri: "file:///home/krzysztof/Projects/rust-bsp-client".to_string(),
+        root_uri: "file:///home/jan/pawel/ii/Projects/rust-bsp-client".to_string(),
         capabilities: BuildClientCapabilities {
             language_ids: vec!["rust".to_string()],
         },

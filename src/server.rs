@@ -40,9 +40,7 @@ pub fn run_server() {
         if line_string.is_empty() {
             break;
         }
-
-        let request = InitializeBuildParams::parse_from_string(&line_string);
-        match request {
+        match InitializeBuildParams::parse_from_string(&line_string) {
             Ok(r) => {
                 log(&format!("Received proper request from client: {:?}\n", r));
                 send(&response_string);

@@ -1,8 +1,7 @@
-use std::io::{stderr, stdout, Write};
+use std::io::{stderr, Write};
 
 pub fn send(message: &str) {
-    stdout().write_all(message.as_bytes()).unwrap();
-    stdout().write_all("\n".as_bytes()).unwrap();
+    println!("{}", message);
 }
 
 pub fn log(message: &str) {
