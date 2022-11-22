@@ -8,7 +8,8 @@ mod bsp_types;
 mod client;
 mod utils;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let server_to_client = pipe().unwrap();
     let client_to_server = pipe().unwrap();
 
@@ -22,7 +23,7 @@ fn main() {
             Ok(ForkResult::Child) => {
                 dup2(client_to_server.0, 0).unwrap();
                 dup2(server_to_client.1, 1).unwrap();
-                run_server();
+                run_server().await;
             }
             Err(_) => println!("Fork failed"),
         }
