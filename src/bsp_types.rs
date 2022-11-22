@@ -1,22 +1,29 @@
 use std::fmt::Debug;
 
-use jsonrpsee_types::{Id, RequestSer};
+use jsonrpsee_core::Error;
+use jsonrpsee_core::traits::ToRpcParams;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
-pub trait RequestRPC<'a>
+pub struct RequestWrapper<T>
 where
-    Self: Serialize + Deserialize<'a> + Debug,
+    T: Serialize + MethodName,
 {
-    fn parse_to_string(&self) -> String {
-        let string_params = serde_json::to_string(self).unwrap();
-        let params = Some(RawValue::from_string(string_params).unwrap());
-
-        let method = "build/initialize";
-        let result = RequestSer::borrowed(&Id::Number(0183), &method, params.as_deref());
-
-        serde_json::to_string(&result).unwrap()
+    pub request_params: T,
+}
+impl<T> ToRpcParams for RequestWrapper<T>
+where
+    T: Serialize + MethodName,
+{
+    fn to_rpc_params(self) -> Result<Option<Box<RawValue>>, Error> {
+        serde_json::to_string(&self.request_params)
+            .map(|x| RawValue::from_string(x).ok())
+            .map_err(Into::into)
     }
+}
+
+pub trait MethodName {
+    fn get_method() -> &'static str;
 }
 
 /**  A resource identifier that is a valid URI according
@@ -46,7 +53,11 @@ pub struct InitializeBuildParams<T = ()> {
     pub data: Option<T>,
 }
 
-impl<'a> RequestRPC<'a> for InitializeBuildParams {}
+impl MethodName for InitializeBuildParams {
+    fn get_method() -> &'static str {
+        "build/initialize"
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

@@ -1,7 +1,13 @@
-use std::io::prelude::*;
 use std::io::stdin;
 
-use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams, RequestRPC};
+use jsonrpsee_core::Error;
+use jsonrpsee_core::traits::ToRpcParams;
+use jsonrpsee_types::{Id, RequestSer};
+use serde::Serialize;
+
+use crate::bsp_types::{
+    BuildClientCapabilities, InitializeBuildParams, MethodName, RequestWrapper,
+};
 use crate::utils::{log, send};
 
 fn example_client_initialize_query() -> InitializeBuildParams {
@@ -17,21 +23,41 @@ fn example_client_initialize_query() -> InitializeBuildParams {
     }
 }
 
-pub fn run_client() {
-    log("Client started\n");
+pub struct Client {
+    request_id: u64,
+}
 
-    let request_string = example_client_initialize_query().parse_to_string();
-    log(&format!("Basic request: {}\n", request_string));
+impl Client {
+    pub fn new() -> Self {
+        Self { request_id: 0 }
+    }
 
-    send(&request_string);
+    fn create_request_string<T>(&mut self, request: RequestWrapper<T>) -> Result<String, Error>
+    where
+        T: Send + Serialize + MethodName,
+    {
+        let id = Id::Number(self.request_id);
+        self.request_id += 1;
+        let method = T::get_method();
+        let params = request.to_rpc_params()?;
 
-    for line in stdin().lock().lines() {
-        let line_string = line.unwrap();
+        let request = RequestSer::borrowed(&id, &method, params.as_deref());
+        serde_json::to_string(&request).map_err(Error::ParseError)
+    }
 
-        if line_string.is_empty() {
-            break;
-        }
+    pub fn run(&mut self) {
+        log("Client started\n");
 
-        log(&format!("Received message from server: {}\n", line_string));
+        let request = example_client_initialize_query();
+        let request_string = self
+            .create_request_string(RequestWrapper {
+                request_params: request,
+            })
+            .unwrap();
+
+        send(&request_string);
+        let mut line = String::new();
+        stdin().read_line(&mut line).unwrap();
+        log(&format!("Received message from server: {}\n", line));
     }
 }
