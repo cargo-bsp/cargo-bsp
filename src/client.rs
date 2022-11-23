@@ -50,7 +50,7 @@ impl Client {
 
         let request_string = self
             .create_request_string(RequestWrapper {
-                request_params: request,
+                request_params: InitializeBuildParams::default(),
             })
             .unwrap();
 
