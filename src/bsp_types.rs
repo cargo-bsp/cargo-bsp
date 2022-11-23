@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use jsonrpsee_core::Error;
 use jsonrpsee_core::traits::ToRpcParams;
+use jsonrpsee_core::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
