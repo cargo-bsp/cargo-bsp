@@ -1,8 +1,8 @@
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::io::{Write, BufReader, BufRead};
-use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams, RequestRPC};
+// use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams, RequestRPC};
 
-mod bsp_types;
+use cargo_bsp::bsp_types::{InitializeBuildParams, BuildClientCapabilities, RequestRPC};
 
 fn example_client_initialize_query() -> InitializeBuildParams {
     InitializeBuildParams {

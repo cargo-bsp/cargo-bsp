@@ -1,8 +1,9 @@
 use std::io::prelude::*;
-use std::io::stdin;
+use std::io::{stdin, stderr};
 
-use crate::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult, RequestRPC, ResponseRPC};
-use crate::utils::{log, send};
+use cargo_bsp::utils::{log, send};
+use cargo_bsp::bsp_types::{BuildServerCapabilities, InitializeBuildParams, InitializeBuildResult,
+                           RequestRPC, ResponseRPC};
 
 fn example_server_response() -> InitializeBuildResult {
     InitializeBuildResult {
@@ -50,4 +51,12 @@ pub fn run_server() {
             }
         }
     }
+}
+
+pub fn main() {
+    let mut buf = String::new();
+    stdin().read_line(&mut buf).expect("Cannot read user input");
+    let msg = format!("Server has received a message: {:?}\n", buf);
+    stderr().write_all(msg.as_bytes()).expect("TODO: panic message");
+    println!("Server finished");
 }
