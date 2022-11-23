@@ -2,9 +2,10 @@
 name = "cargo-bsp"
 version = "0.1.0"
 edition = "2021"
-default-run = "cargo-bsp"
+default-run = "main"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 
 [dependencies]
 serde = "1.0.147"
@@ -12,5 +13,4 @@ serde_json = "1.0.89"
 jsonrpsee-server = "0.16.1"
 jsonrpsee-core = "0.16.1"
 jsonrpsee-types = "0.16.1"
-nix = "0.25.0"
 tokio = "1.22.0"
