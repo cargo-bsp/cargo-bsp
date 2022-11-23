@@ -23,7 +23,7 @@ where
 }
 
 pub trait MethodName {
-    fn get_method() -> &'static str;
+    fn get_method_name() -> &'static str;
 }
 
 /**  A resource identifier that is a valid URI according
@@ -54,7 +54,7 @@ pub struct InitializeBuildParams<T = ()> {
 }
 
 impl MethodName for InitializeBuildParams {
-    fn get_method() -> &'static str {
+    fn get_method_name() -> &'static str {
         "build/initialize"
     }
 }

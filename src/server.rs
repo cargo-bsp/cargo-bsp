@@ -20,7 +20,7 @@ impl Server {
     fn create_module() -> RpcModule<()> {
         let mut module = RpcModule::new(());
         module
-            .register_method(InitializeBuildParams::get_method(), |params, _| {
+            .register_method(InitializeBuildParams::get_method_name(), |params, _| {
                 params
                     .parse::<InitializeBuildParams>()
                     .map::<InitializeBuildResult<()>, _>(|_| InitializeBuildResult::default())
@@ -41,7 +41,7 @@ impl Server {
             send(&resp.result);
         } else {
             log(&format!(
-                "Received some string from client: {}\n response: {}\n",
+                "Received invalid request string from client: {}\n response: {}\n",
                 request_string, resp.result
             ));
         }
