@@ -1,14 +1,15 @@
 use nix::unistd::{dup2, fork, ForkResult, pipe};
 
-use crate::client::run_client;
-use crate::server::run_server;
+use crate::client::Client;
+use crate::server::Server;
 
-mod server;
 mod bsp_types;
 mod client;
+mod server;
 mod utils;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let server_to_client = pipe().unwrap();
     let client_to_server = pipe().unwrap();
 
@@ -17,12 +18,12 @@ fn main() {
             Ok(ForkResult::Parent { child: _child, .. }) => {
                 dup2(server_to_client.0, 0).unwrap();
                 dup2(client_to_server.1, 1).unwrap();
-                run_client();
+                Client::new().run()
             }
             Ok(ForkResult::Child) => {
                 dup2(client_to_server.0, 0).unwrap();
                 dup2(server_to_client.1, 1).unwrap();
-                run_server();
+                Server::new().run().await;
             }
             Err(_) => println!("Fork failed"),
         }

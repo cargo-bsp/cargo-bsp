@@ -1,37 +1,47 @@
-use std::io::prelude::*;
 use std::io::stdin;
 
-use crate::bsp_types::{BuildClientCapabilities, InitializeBuildParams, RequestRPC};
+use jsonrpsee_core::Error;
+use jsonrpsee_core::traits::ToRpcParams;
+use jsonrpsee_types::{Id, RequestSer};
+use serde::Serialize;
+
+use crate::bsp_types::{InitializeBuildParams, MethodName, RequestWrapper};
 use crate::utils::{log, send};
 
-fn example_client_initialize_query() -> InitializeBuildParams {
-    InitializeBuildParams {
-        display_name: "rust-bsp-client".to_string(),
-        version: "0.1.0".to_string(),
-        bsp_version: "2.0.0-M5".to_string(),
-        root_uri: "file:///home/jan/pawel/ii/Projects/rust-bsp-client".to_string(),
-        capabilities: BuildClientCapabilities {
-            language_ids: vec!["rust".to_string()],
-        },
-        data: None,
-    }
+pub struct Client {
+    request_id: u64,
 }
 
-pub fn run_client() {
-    log("Client started\n");
+impl Client {
+    pub fn new() -> Self {
+        Self { request_id: 0 }
+    }
 
-    let request_string = example_client_initialize_query().parse_to_string();
-    log(&format!("Basic request: {}\n", request_string));
+    fn create_request_string<T>(&mut self, request: RequestWrapper<T>) -> Result<String, Error>
+    where
+        T: Send + Serialize + MethodName,
+    {
+        let id = Id::Number(self.request_id);
+        self.request_id += 1;
+        let method = T::get_method_name();
+        let params = request.to_rpc_params()?;
 
-    send(&request_string);
+        let request = RequestSer::borrowed(&id, &method, params.as_deref());
+        serde_json::to_string(&request).map_err(Error::ParseError)
+    }
 
-    for line in stdin().lock().lines() {
-        let line_string = line.unwrap();
+    pub fn run(&mut self) {
+        log("Client started\n");
 
-        if line_string.is_empty() {
-            break;
-        }
+        let request_string = self
+            .create_request_string(RequestWrapper {
+                request_params: InitializeBuildParams::default(),
+            })
+            .unwrap();
 
-        log(&format!("Received message from server: {}\n", line_string));
+        send(&request_string);
+        let mut line = String::new();
+        stdin().read_line(&mut line).unwrap();
+        log(&format!("Received message from server: {}\n", line));
     }
 }
