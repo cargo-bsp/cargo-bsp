@@ -48,7 +48,6 @@ impl Client {
     pub fn run(&mut self) {
         log("Client started\n");
 
-        let request = example_client_initialize_query();
         let request_string = self
             .create_request_string(RequestWrapper {
                 request_params: request,
