@@ -30,7 +30,7 @@ impl Server {
             .register_method(InitializeBuildParams::get_method_name(), |params, _| {
                 params
                     .parse::<InitializeBuildParams>()
-                    .map::<InitializeBuildResult<()>, _>(|_| InitializeBuildResult::default())
+                    .map::<InitializeBuildResult, _>(|_| InitializeBuildResult::default())
                     .map_err(Into::into)
             })
             .unwrap();
