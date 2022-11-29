@@ -1,4 +1,3 @@
-
 //dev: can be implemented using wrapper like in lsp_types crate
 
 /*

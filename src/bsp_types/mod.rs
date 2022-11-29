@@ -25,8 +25,8 @@ pub use workspace_build_targets::*;
 mod build_target_sources;
 pub use build_target_sources::*;
 
-mod shutdown_build_request;
 mod reload_request;
+mod shutdown_build_request;
 
 mod inverse_sources_request;
 pub use inverse_sources_request::*;
