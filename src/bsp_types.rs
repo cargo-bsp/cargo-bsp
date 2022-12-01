@@ -1,41 +1,29 @@
 use std::fmt::Debug;
 
-use jsonrpsee_types::{Id, Request, RequestSer, Response};
+use jsonrpsee_core::traits::ToRpcParams;
+use jsonrpsee_core::Error;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 use serde_json::value::RawValue;
 
-pub trait RequestRPC<'a> where Self: Serialize + Deserialize<'a> + Debug {
-    fn parse_to_string(&self) -> String {
-        let string_params = serde_json::to_string(self).unwrap();
-        let params = Some(RawValue::from_string(string_params).unwrap());
-
-        let method = "test";
-        let result = RequestSer::borrowed(&Id::Number(0183), &method, params.as_deref());
-
-        serde_json::to_string(&result).unwrap()
-    }
-
-    fn parse_from_string(request_string: &'a str) -> Result<Self> {
-        let request: Request = serde_json::from_str(request_string)?;
-        serde_json::from_str(request.params.map_or("", |x| x.get()))
+pub struct RequestWrapper<T>
+where
+    T: Serialize + MethodName,
+{
+    pub request_params: T,
+}
+impl<T> ToRpcParams for RequestWrapper<T>
+where
+    T: Serialize + MethodName,
+{
+    fn to_rpc_params(self) -> Result<Option<Box<RawValue>>, Error> {
+        serde_json::to_string(&self.request_params)
+            .map(|x| RawValue::from_string(x).ok())
+            .map_err(Into::into)
     }
 }
 
-pub trait ResponseRPC<'a> where Self: Serialize + Deserialize<'a> + Debug {
-    fn parse_to_string(&self) -> String {
-        let string_params = serde_json::to_string(self).unwrap();
-        let params = Some(RawValue::from_string(string_params).unwrap());
-
-        let result = Response::new(params.as_deref(), Id::Number(0183));
-
-        serde_json::to_string(&result).unwrap()
-    }
-
-    fn parse_from_string(response_string: &'a str) -> Result<Self> {
-        let response: Response<Self> = serde_json::from_str(response_string)?;
-        Ok(response.result)
-    }
+pub trait MethodName {
+    fn get_method_name() -> &'static str;
 }
 
 /**  A resource identifier that is a valid URI according
@@ -43,7 +31,7 @@ pub trait ResponseRPC<'a> where Self: Serialize + Deserialize<'a> + Debug {
 type Uri = String;
 
 /** Client's initializing request */
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeBuildParams<T = ()> {
     /** Name of the client */
@@ -65,20 +53,24 @@ pub struct InitializeBuildParams<T = ()> {
     pub data: Option<T>,
 }
 
-impl<'a> RequestRPC<'a> for InitializeBuildParams {}
+impl MethodName for InitializeBuildParams {
+    fn get_method_name() -> &'static str {
+        "build/initialize"
+    }
+}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildClientCapabilities {
     /** The languages that this client supports.
-                * The ID strings for each language is defined in the LSP.
-                * The server must never respond with build targets for other
-                * languages than those that appear in this list. */
+     * The ID strings for each language is defined in the LSP.
+     * The server must never respond with build targets for other
+     * languages than those that appear in this list. */
     pub language_ids: Vec<String>,
 }
 
 /** Server's response for client's InitializeBuildParams request */
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeBuildResult<T = ()> {
     /** Name of the server */
@@ -97,9 +89,7 @@ pub struct InitializeBuildResult<T = ()> {
     pub data: Option<T>,
 }
 
-impl<'a> ResponseRPC<'a> for InitializeBuildResult {}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildServerCapabilities {
     /** The languages the server supports compilation via method buildTarget/compile. */
@@ -115,61 +105,61 @@ pub struct BuildServerCapabilities {
     pub debug_provider: Option<DebugProvider>,
 
     /** The server can provide a list of targets that contain a
-                  * single text document via the method buildTarget/inverseSources */
+     * single text document via the method buildTarget/inverseSources */
     pub inverse_sources_provider: Option<bool>,
 
     /** The server provides sources for library dependencies
-                  * via method buildTarget/dependencySources */
+     * via method buildTarget/dependencySources */
     pub dependency_sources_provider: Option<bool>,
 
     /** The server can provide a list of dependency modules (libraries with meta information)
-                  * via method buildTarget/dependencyModules */
+     * via method buildTarget/dependencyModules */
     pub dependency_modules_provider: Option<bool>,
 
     /** The server provides all the resource dependencies
-                  * via method buildTarget/resources */
+     * via method buildTarget/resources */
     pub resources_provider: Option<bool>,
 
     /** The server provides all output paths
-                  * via method buildTarget/outputPaths */
+     * via method buildTarget/outputPaths */
     pub output_paths_provider: Option<bool>,
 
     /** The server sends notifications to the client on build
-                  * target change events via buildTarget/didChange */
+     * target change events via buildTarget/didChange */
     pub build_target_changed_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmRunEnvironment` requests with the
-                  * necessary information required to launch a Java process to run a main class. */
+     * necessary information required to launch a Java process to run a main class. */
     pub jvm_run_environment_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmTestEnvironment` requests with the
-                  * necessary information required to launch a Java process for testing or
-                  * debugging. */
+     * necessary information required to launch a Java process for testing or
+     * debugging. */
     pub jvm_test_environment_provider: Option<bool>,
 
     /** Reloading the build state through workspace/reload is supported */
     pub can_reload: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileProvider {
     pub language_ids: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RunProvider {
     pub language_ids: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugProvider {
     pub language_ids: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TestProvider {
     pub language_ids: Vec<String>,
