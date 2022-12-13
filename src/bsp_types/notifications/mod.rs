@@ -41,6 +41,8 @@ pub enum MessageType {
 }
 
 /* Initialized Build notification params */
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct InitializedBuildParams {}
 
 impl MethodName for InitializedBuildParams {
