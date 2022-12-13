@@ -1,4 +1,4 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier, Uri, BuildClientCapabilities};
+use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

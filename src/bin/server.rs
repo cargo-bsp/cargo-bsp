@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::io::prelude::*;
 use std::io::{stderr, stdin, Write};
 use std::str::{from_utf8};
@@ -35,7 +36,7 @@ impl Server {
                 params
                     .parse::<InitializeBuildParams>()
                     .map::<InitializeBuildResult, _>(|_| InitializeBuildResult {
-                        display_name : "patryk".to_string(),
+                        display_name: "patryk".to_string(),
                         version: "0.0.1".to_string(),
                         bsp_version: "2.0.0".to_string(),
                         capabilities: Default::default(),
@@ -71,32 +72,46 @@ impl Server {
         };
     }
 
+    fn parse_headers(&mut self) -> usize {
+        let mut header = String::new();
+        let mut content_length = 0;
+
+        stdin().read_line(&mut header).expect("Failed to read headers");
+        self.log(format!("Got a header: {}\n", header).as_str());
+
+        let val= header.split(": ").collect::<Vec<&str>>()[1];
+        if val.as_bytes()[0].is_ascii_digit() {
+            content_length = from_str::<usize>(val).unwrap();
+            self.log(format!("Content length read: {}\n", content_length).as_str());
+        };
+
+        stdin().read_line(&mut header).expect("Failed to read newlines"); // reading newlines
+        content_length
+    }
+
     pub async fn run(&mut self) {
         loop {
-            let mut len_string = String::new();
-            stdin().read_line(&mut len_string).expect("Failed to read content length");
-            let mut content_length = 20;
-            self.log(format!("Got the first line: {}\n", len_string).as_str());
-
-            let xd = len_string.split_whitespace().last().unwrap_or("2137");
-            if xd.as_bytes()[0].is_ascii_digit() {
-                content_length = from_str::<usize>(xd).unwrap();
-                self.log(format!("Content length read: {}\n", content_length).as_str());
-            }
-
-            let mut buf = vec![0u8; content_length + 2];
-            stdin().read_exact(&mut buf).expect("Failed to read the actual request");
-            let actual_req = from_utf8(&buf).unwrap();
-            self.log(format!("Actual content of message: {}\n", actual_req).as_str());
-
-            self.handle(&actual_req).await;
+            let content_length = self.parse_headers();
+            let mut buf = vec![0u8; content_length];
+            stdin().read_exact(&mut buf).expect("Failed to read the actual content");
+            let content = from_utf8(&buf).unwrap();
+            self.log(format!("The actual content of message: {}\n", content).as_str());
+            self.handle(&content).await;
         }
     }
 
+    fn add_headers(&self, message: &str) -> String {
+        let mut prefix = String::from(format!("Content-Length: {}\r\n\r\n", message.len()));
+        prefix.push_str(message);
+        prefix
+    }
 
     fn send(&self, message: &str) {
-        println!("{}", message);
-        self.log(&format!("Sent to client: {:}\n", &message));
+        // something crashes with the content length
+        // client sends notifications event after timeout
+        let response = self.add_headers(message);
+        print!("{}", response);
+        self.log(&format!("Sent to client: {:}\n", &response));
     }
 
     fn log(&self, message: &str) {
