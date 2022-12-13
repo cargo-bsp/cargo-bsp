@@ -3,15 +3,7 @@ use jsonrpsee_core::Error;
 use serde::Serialize;
 use serde_json::value::RawValue;
 
-/*
 //dev: decide what to do wit shutdown_build_request and reload_request
-
-//dev: decide whether we want to expose initialize and similar modules
-mod initialize; //example: cargo_bsp::bsp_types::InitializeParams::new()
-pub use initialize::*;
-//---------------------
-pub mod initialize //example: cargo bsp::bsp_types::initialize::InitializeParams::new()
-*/
 
 mod basic_bsp_structures;
 pub use basic_bsp_structures::*;
@@ -57,6 +49,8 @@ pub use debug_request::*;
 
 mod clean_cache_request;
 pub use clean_cache_request::*;
+
+pub mod notifications;
 
 // Trait for all the request types and maybe in future notification types
 pub trait MethodName {

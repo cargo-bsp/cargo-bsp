@@ -1,11 +1,10 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
+use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InverseSourcesParams {
-    // pub text_document: TextDocumentIdentifier, //todo ask about this
-    pub text_document: u32, //something what works for now
+    pub text_document: TextDocumentIdentifier,
 }
 
 impl MethodName for InverseSourcesParams {

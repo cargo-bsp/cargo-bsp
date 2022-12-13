@@ -7,29 +7,8 @@ pub type Uri = String; //dev: lsp_types uses url crate
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub enum StatusCode {
-    /** Execution was successful. */
-    Ok = 1,
-    /** Execution failed. */
-    #[default]
-    Error = 2,
-    /** Execution was cancelled. */
-    Cancelled = 3,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct TaskId {
-    /** A unique identifier */
-    pub id: String,
-
-    /** The parent task ids, if any. A non-empty parents field means
-     * this task is a sub-task of every parent task id. The child-parent
-     * relationship of tasks makes it possible to render tasks in
-     * a tree-like user interface or inspect what caused a certain task
-     * execution. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<Vec<String>>,
+pub struct TextDocumentIdentifier {
+    pub uri: Uri,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -90,41 +69,39 @@ pub struct BuildTargetIdentifier {
     uri: Uri,
 }
 
-#[allow(dead_code)]
-mod build_target_data_kind {
+pub mod build_target_data_kind {
     /** The `data` field contains a `RustBuildTarget` object. */
-    static RUST: &str = "rust";
+    pub const RUST: &str = "rust";
 
     /** The `data` field contains a `CargoBuildTarget` object. */
-    static CARGO: &str = "cargo";
+    pub const CARGO: &str = "cargo";
 }
 
-#[allow(dead_code)]
-mod build_target_tag {
+pub mod build_target_tag {
     /** Target contains re-usable functionality for downstream targets. May have any
      * combination of capabilities. */
-    static LIBRARY: &str = "library";
+    pub const LIBRARY: &str = "library";
 
     /** Target contains source code for producing any kind of application, may have
      * but does not require the `canRun` capability. */
-    static APPLICATION: &str = "application";
+    pub const APPLICATION: &str = "application";
 
     /** Target contains source code for testing purposes, may have but does not
      * require the `canTest` capability. */
-    static TEST: &str = "test";
+    pub const TEST: &str = "test";
 
     /** Target contains source code for integration testing purposes, may have
      * but does not require the `canTest` capability.
      * The difference between "test" and "integration-test" is that
      * integration tests traditionally run slower compared to normal tests
      * and require more computing resources to execute. */
-    static INTEGRATION_TEST: &str = "integration-test";
+    pub const INTEGRATION_TEST: &str = "integration-test";
     /** Target contains source code to measure performance of a program, may have
      * but does not require the `canRun` build target capability. */
-    static BENCHMARK: &str = "benchmark";
+    pub const BENCHMARK: &str = "benchmark";
 
     /** Target should be ignored by IDEs. */
-    static NO_IDE: &str = "no-ide";
+    pub const NO_IDE: &str = "no-ide";
 
     /** Actions on the target such as build and test should only be invoked manually
      * and explicitly. For example, triggering a build on all targets in the workspace
@@ -133,7 +110,7 @@ mod build_target_tag {
      * The original motivation to add the "manual" tag comes from a similar functionality
      * that exists in Bazel, where targets with this tag have to be specified explicitly
      * on the command line. */
-    static MANUAL: &str = "manual";
+    pub const MANUAL: &str = "manual";
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
