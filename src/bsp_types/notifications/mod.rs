@@ -1,4 +1,4 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier};
+use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier, Uri, BuildClientCapabilities};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -22,10 +22,10 @@ pub struct TaskId {
     pub id: String,
 
     /** The parent task ids, if any. A non-empty parents field means
-     * this task is a sub-task of every parent task id. The child-parent
-     * relationship of tasks makes it possible to render tasks in
-     * a tree-like user interface or inspect what caused a certain task
-     * execution. */
+        * this task is a sub-task of every parent task id. The child-parent
+        * relationship of tasks makes it possible to render tasks in
+        * a tree-like user interface or inspect what caused a certain task
+        * execution. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parents: Option<Vec<String>>,
 }
@@ -41,6 +41,8 @@ pub enum MessageType {
 }
 
 /* Initialized Build notification params */
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct InitializedBuildParams {}
 
 impl MethodName for InitializedBuildParams {
@@ -123,9 +125,9 @@ pub struct PublishDiagnosticsParams {
     pub text_document: TextDocumentIdentifier,
 
     /** The build target where the diagnostics origin.
-     * It is valid for one text document to belong to multiple
-     * build targets, for example sources that are compiled against multiple
-     * platforms (JVM, JavaScript). */
+        * It is valid for one text document to belong to multiple
+        * build targets, for example sources that are compiled against multiple
+        * platforms (JVM, JavaScript). */
     pub build_target: BuildTargetIdentifier,
 
     /** The request id that originated this notification. */
@@ -136,7 +138,7 @@ pub struct PublishDiagnosticsParams {
     pub diagnostics: Vec<i32>, //TODO Vec<Diagnostic>
 
     /** Whether the client should clear the previous diagnostics
-     * mapped to the same `textDocument` and `buildTarget`. */
+        * mapped to the same `textDocument` and `buildTarget`. */
     pub reset: bool,
 }
 
