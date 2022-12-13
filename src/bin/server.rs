@@ -1,14 +1,11 @@
-use std::fmt::format;
 use std::io::prelude::*;
 use std::io::{stderr, stdin, Write};
-use std::str::{from_utf8};
 
 use jsonrpsee_server::RpcModule;
-use jsonrpsee_types::{Notification, NotificationSer};
+use jsonrpsee_types::{Notification};
 use serde_json::from_str;
 
 use cargo_bsp::bsp_types::{InitializeBuildParams, InitializeBuildResult, MethodName};
-use cargo_bsp::bsp_types::notifications::InitializedBuildParams;
 
 pub struct Server {
     module: RpcModule<()>,
@@ -63,6 +60,7 @@ impl Server {
                         "Received invalid request string from client: {}\n response: {}\n",
                         request_string, resp.result
                     ));
+                    // TODO send error message
                 }
             }
             Err(e) => if let jsonrpsee_core::Error::ParseError(_) = e {
@@ -89,12 +87,17 @@ impl Server {
         content_length
     }
 
+    pub fn read_n_chars(&self, no_chars: usize) -> String {
+        let mut buf = vec![0u8; no_chars];
+        stdin().read_exact(&mut buf).expect("Failed to read the actual content");
+        let content = String::from_utf8(buf).unwrap();
+        content
+    }
+
     pub async fn run(&mut self) {
         loop {
             let content_length = self.parse_headers();
-            let mut buf = vec![0u8; content_length];
-            stdin().read_exact(&mut buf).expect("Failed to read the actual content");
-            let content = from_utf8(&buf).unwrap();
+            let content = self.read_n_chars(content_length);
             self.log(format!("The actual content of message: {}\n", content).as_str());
             self.handle(&content).await;
         }
@@ -110,7 +113,7 @@ impl Server {
         // something crashes with the content length
         // client sends notifications event after timeout
         let response = self.add_headers(message);
-        print!("{}", response);
+        println!("{}", response);
         self.log(&format!("Sent to client: {:}\n", &response));
     }
 
