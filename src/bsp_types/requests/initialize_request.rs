@@ -1,4 +1,4 @@
-use crate::bsp_types::{MethodName, Uri, BuildServerCapabilities, BuildClientCapabilities};
+use crate::bsp_types::{BuildClientCapabilities, BuildServerCapabilities, MethodName, Uri};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

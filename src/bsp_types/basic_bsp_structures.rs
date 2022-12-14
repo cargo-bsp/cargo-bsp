@@ -15,9 +15,9 @@ pub struct TextDocumentIdentifier {
 #[serde(rename_all = "camelCase")]
 pub struct BuildClientCapabilities {
     /** The languages that this client supports.
-        * The ID strings for each language is defined in the LSP.
-        * The server must never respond with build targets for other
-        * languages than those that appear in this list. */
+     * The ID strings for each language is defined in the LSP.
+     * The server must never respond with build targets for other
+     * languages than those that appear in this list. */
     pub language_ids: Vec<String>,
 }
 
@@ -41,43 +41,43 @@ pub struct BuildServerCapabilities {
     pub debug_provider: Option<DebugProvider>,
 
     /** The server can provide a list of targets that contain a
-        * single text document via the method buildTarget/inverseSources */
+     * single text document via the method buildTarget/inverseSources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inverse_sources_provider: Option<bool>,
 
     /** The server provides sources for library dependencies
-        * via method buildTarget/dependencySources */
+     * via method buildTarget/dependencySources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependency_sources_provider: Option<bool>,
 
     /** The server can provide a list of dependency modules (libraries with meta information)
-        * via method buildTarget/dependencyModules */
+     * via method buildTarget/dependencyModules */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependency_modules_provider: Option<bool>,
 
     /** The server provides all the resource dependencies
-        * via method buildTarget/resources */
+     * via method buildTarget/resources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resources_provider: Option<bool>,
 
     /** The server provides all output paths
-        * via method buildTarget/outputPaths */
+     * via method buildTarget/outputPaths */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_paths_provider: Option<bool>,
 
     /** The server sends notifications to the client on build
-        * target change events via buildTarget/didChange */
+     * target change events via buildTarget/didChange */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub build_target_changed_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmRunEnvironment` requests with the
-        * necessary information required to launch a Java process to run a main class. */
+     * necessary information required to launch a Java process to run a main class. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jvm_run_environment_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmTestEnvironment` requests with the
-        * necessary information required to launch a Java process for testing or
-        * debugging. */
+     * necessary information required to launch a Java process for testing or
+     * debugging. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jvm_test_environment_provider: Option<bool>,
 
@@ -114,20 +114,20 @@ pub struct TestProvider {
 #[serde(rename_all = "camelCase")]
 pub struct BuildTarget {
     /** The target’s unique identifier */
-    id: BuildTargetIdentifier,
+    pub id: BuildTargetIdentifier,
 
     /** A human readable name for this target.
      * May be presented in the user interface.
      * Should be unique if possible.
      * The id.uri is used if None. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    display_name: Option<String>,
+    pub display_name: Option<String>,
 
     /** The directory where this target belongs to. Multiple build targets are allowed to map
      * to the same base directory, and a build target is not required to have a base directory.
      * A base directory does not determine the sources of a target, see buildTarget/sources. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    base_directory: Option<Uri>,
+    pub base_directory: Option<Uri>,
 
     /** Free-form string tags to categorize or label this build target.
      * For example, can be used by the client to:
@@ -136,26 +136,26 @@ pub struct BuildTarget {
      * - display icons or colors in the user interface.
      * Pre-defined tags are listed in `build_target_tag` but clients and servers
      * are free to define new tags for custom purposes. */
-    tags: Vec<String>,
+    pub tags: Vec<String>,
 
     /** The capabilities of this build target. */
-    capabilities: BuildTargetCapabilities,
+    pub capabilities: BuildTargetCapabilities,
 
     /** The set of languages that this target contains.
      * The ID string for each language is defined in the LSP. */
-    language_ids: Vec<String>,
+    pub language_ids: Vec<String>,
 
     /** The direct upstream build target dependencies of this build target */
-    dependencies: Vec<BuildTargetIdentifier>,
+    pub dependencies: Vec<BuildTargetIdentifier>,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    data_kind: Option<String>,
+    pub data_kind: Option<String>,
 
     /** Language-specific metadata about this target.
      * See ScalaBuildTarget as an example. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<Value>,
+    pub data: Option<Value>,
 }
 
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
@@ -165,7 +165,7 @@ pub struct BuildTarget {
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
-    uri: Uri,
+    pub uri: Uri,
 }
 
 pub mod build_target_data_kind {

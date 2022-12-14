@@ -3,8 +3,8 @@ use std::io::{stderr, stdin, Write};
 
 use jsonrpsee_server::RpcModule;
 
-use cargo_bsp::bsp_types::{MethodName};
 use cargo_bsp::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use cargo_bsp::bsp_types::MethodName;
 
 pub struct Server {
     module: RpcModule<()>,
