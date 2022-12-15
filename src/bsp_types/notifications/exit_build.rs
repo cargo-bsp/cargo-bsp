@@ -1,3 +1,13 @@
+use crate::bsp_types::notifications::Notification;
+
+#[derive(Debug)]
+pub enum ExitBuild {}
+
+impl Notification for ExitBuild {
+    type Params = ();
+    const METHOD: &'static str = "build/exit";
+}
+
 /* Exit Build Notification params */
 //dev: same as shutdown build request params are null -
 // can be implemented using wrapper like in lsp_types crate
