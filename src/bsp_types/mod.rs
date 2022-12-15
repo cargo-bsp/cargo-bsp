@@ -8,9 +8,6 @@ use serde_json::value::RawValue;
 mod basic_bsp_structures;
 pub use basic_bsp_structures::*;
 
-mod workspace_build_targets;
-pub use workspace_build_targets::*;
-
 pub mod requests;
 
 pub mod notifications;

@@ -1,19 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-mod initialize_notifications;
-pub use initialize_notifications::*;
+mod initialized_build;
+pub use initialized_build::*;
 
-mod messages_notifications;
-pub use messages_notifications::*;
+mod exit_build;
+pub use exit_build::*;
 
-mod task_notifications;
-pub use task_notifications::*;
+mod messages;
+pub use messages::*;
 
-mod build_target_notification;
-pub use build_target_notification::*;
+mod tasks;
+pub use tasks::*;
 
-mod publish_diagnostics_notification;
-pub use publish_diagnostics_notification::*;
+mod did_change_build_target;
+pub use did_change_build_target::*;
+
+mod publish_diagnostics;
+pub use publish_diagnostics::*;
 
 /* Included in notifications of tasks or requests to signal the completion state. */
 #[derive(Debug, Serialize, Deserialize, Default)]

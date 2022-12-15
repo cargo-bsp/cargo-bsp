@@ -1,38 +1,41 @@
-mod initialize_request;
-pub use initialize_request::*;
+mod initialize;
+pub use initialize::*;
 
-mod build_target_sources;
-pub use build_target_sources::*;
+mod build_target;
+pub use build_target::*;
 
-mod reload_request;
-mod shutdown_build_request;
+mod reload;
+mod shutdown_build;
 
-mod inverse_sources_request;
-pub use inverse_sources_request::*;
+mod inverse_sources;
+pub use inverse_sources::*;
 
-mod dependency_sources_request;
-pub use dependency_sources_request::*;
+mod dependency_sources;
+pub use dependency_sources::*;
 
-mod resources_request;
-pub use resources_request::*;
+mod dependency_modules;
+pub use dependency_modules::*;
 
-mod resource_request;
-pub use resource_request::*;
+mod resources;
+pub use resources::*;
 
-mod output_paths_request;
-pub use output_paths_request::*;
+mod output_paths;
+pub use output_paths::*;
 
-mod compile_request;
-pub use compile_request::*;
+mod compile;
+pub use compile::*;
 
-mod test_request;
-pub use test_request::*;
+mod test;
+pub use test::*;
 
-mod run_request;
-pub use run_request::*;
+mod run;
+pub use run::*;
 
-mod debug_request;
-pub use debug_request::*;
+mod debug;
+pub use debug::*;
 
-mod clean_cache_request;
-pub use clean_cache_request::*;
+mod clean_cache;
+pub use clean_cache::*;
+
+mod workspace_build_targets;
+pub use workspace_build_targets::*;
