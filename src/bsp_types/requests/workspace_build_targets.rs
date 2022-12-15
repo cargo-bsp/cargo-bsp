@@ -1,5 +1,16 @@
-use crate::bsp_types::{BuildTarget, MethodName};
 use serde::{Deserialize, Serialize};
+
+use crate::bsp_types::{BuildTarget, MethodName};
+use crate::bsp_types::requests::Request;
+
+#[derive(Debug)]
+pub enum WorkspaceBuildTargets {}
+
+impl Request for WorkspaceBuildTargets {
+    type Params = ();
+    type Result = WorkspaceBuildTargetsResult;
+    const METHOD: &'static str = "workspace/buildTargets";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
