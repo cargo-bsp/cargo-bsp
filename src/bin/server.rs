@@ -5,7 +5,8 @@ use jsonrpsee_server::RpcModule;
 use jsonrpsee_types::{Notification};
 use serde_json::from_str;
 
-use cargo_bsp::bsp_types::{InitializeBuildParams, InitializeBuildResult, MethodName};
+use cargo_bsp::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use cargo_bsp::bsp_types::MethodName;
 
 pub struct Server {
     module: RpcModule<()>,

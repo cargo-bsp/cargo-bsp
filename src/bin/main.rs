@@ -1,6 +1,6 @@
 use std::process::{Child, Command, Stdio};
 
-use cargo_bsp::bsp_types::InitializeBuildParams;
+use cargo_bsp::bsp_types::requests::InitializeBuildParams;
 use cargo_bsp::client::Client;
 
 fn test_first_query(mut cl: Client) {
