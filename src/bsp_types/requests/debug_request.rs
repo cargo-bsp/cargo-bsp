@@ -6,7 +6,7 @@ use serde_json::Value;
 #[serde(rename_all = "camelCase")]
 pub struct DebugSessionParams {
     /** A sequence of build targets affected by the debugging action. */
-    pub targets: Vec<BuildTargetIdentifier>, //TODO was List[BuildTargetIdentifier] is this the same as BuildTargetIdentifier[]
+    pub targets: Vec<BuildTargetIdentifier>,
 
     /** The kind of data to expect in the `data` field. */
     pub data_kind: String,
