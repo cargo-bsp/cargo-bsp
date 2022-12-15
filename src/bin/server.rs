@@ -3,7 +3,8 @@ use std::io::{stderr, stdin, Write};
 
 use jsonrpsee_server::RpcModule;
 
-use cargo_bsp::bsp_types::{InitializeBuildParams, InitializeBuildResult, MethodName};
+use cargo_bsp::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use cargo_bsp::bsp_types::MethodName;
 
 pub struct Server {
     module: RpcModule<()>,
@@ -30,7 +31,7 @@ impl Server {
             .register_method(InitializeBuildParams::get_method_name(), |params, _| {
                 params
                     .parse::<InitializeBuildParams>()
-                    .map::<InitializeBuildResult<()>, _>(|_| InitializeBuildResult::default())
+                    .map::<InitializeBuildResult, _>(|_| InitializeBuildResult::default())
                     .map_err(Into::into)
             })
             .unwrap();
