@@ -1,6 +1,16 @@
 use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use crate::bsp_types::requests::Request;
+
+#[derive(Debug)]
+pub enum Test {}
+
+impl Request for Test {
+    type Params = TestParams;
+    type Result = TestResult;
+    const METHOD: &'static str = "buildTarget/test";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

@@ -9,11 +9,11 @@ use crossbeam_channel::Receiver;
 use communication::{Connection, Notification, Request};
 
 use crate::{bsp_types, communication};
-use crate::bsp_types::requests::{ResourcesResult, SourcesResult, WorkspaceBuildTargetsResult};
+use crate::bsp_types::notifications::Notification as _;
 use crate::logger::log;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::Result;
+use crate::server::{handlers, Result};
 
 pub fn main_loop(connection: Connection) -> Result<()> {
     log("initial config");
@@ -23,11 +23,11 @@ pub fn main_loop(connection: Connection) -> Result<()> {
 impl GlobalState {
     fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
-            // if let communication::Message::Notification(not) = &event {
-            //     if not.method == bsp_types::notifications::Exit::METHOD {
-            //         return Ok(());
-            //     }
-            // }
+            if let communication::Message::Notification(not) = &event {
+                if not.method == bsp_types::notifications::ExitBuild::METHOD {
+                    return Ok(());
+                }
+            }
             self.handle_message(event)?
         }
 
@@ -79,9 +79,14 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(|_, _| { Ok(WorkspaceBuildTargetsResult::default()) })
-            .on_sync_mut::<bsp_types::requests::Sources>(|_, _| { Ok(SourcesResult::default()) })
-            .on_sync_mut::<bsp_types::requests::Resources>(|_, _| { Ok(ResourcesResult::default()) })
+            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(handlers::handle_workspace_build_targets)
+            .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
+            .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
+            .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
+            .on_sync_mut::<bsp_types::requests::Compile>(handlers::handle_compile)
+            .on_sync_mut::<bsp_types::requests::Run>(handlers::handle_run)
+            .on_sync_mut::<bsp_types::requests::Test>(handlers::handle_test)
+            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }
 
