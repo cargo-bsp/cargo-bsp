@@ -8,6 +8,7 @@ mod build_target;
 pub use build_target::*;
 
 mod reload;
+pub use reload::*;
 
 mod shutdown_build;
 pub use shutdown_build::*;
@@ -44,6 +45,9 @@ pub use clean_cache::*;
 
 mod workspace_build_targets;
 pub use workspace_build_targets::*;
+
+mod java_extension;
+pub use java_extension::*;
 
 pub trait Request {
     type Params: DeserializeOwned + Serialize;

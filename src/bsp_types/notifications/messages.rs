@@ -2,6 +2,7 @@ use crate::bsp_types::MethodName;
 use super::TaskId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use crate::bsp_types::notifications::Notification;
 
 
 /* Show message notification */
@@ -28,6 +29,14 @@ impl MethodName for ShowMessageParams {
     fn get_method_name() -> &'static str {
         "build/showMessage"
     }
+}
+
+#[derive(Debug)]
+pub enum LogMessage {}
+
+impl Notification for LogMessage {
+    type Params = LogMessageParams;
+    const METHOD: &'static str = "build/logMessage";
 }
 
 /* Log message notification params */

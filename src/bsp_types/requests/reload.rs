@@ -1,5 +1,16 @@
 //dev: can be implemented using wrapper like in lsp_types crate
 
+use crate::bsp_types::requests::Request;
+
+#[derive(Debug)]
+pub enum Reload {}
+
+impl Request for Reload {
+    type Params = ();
+    type Result = ();
+    const METHOD: &'static str = "workspace/reload";
+}
+
 /*
 The reload request is sent from the client to instruct the build server to reload the build configuration.
 This request should be supported by build tools that keep their state in memory.
