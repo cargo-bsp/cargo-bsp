@@ -1,9 +1,33 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
-use super::{TaskId, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 use serde_json::Value;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::bsp_types::notifications::{Notification, StatusCode, TaskId};
+use crate::bsp_types::BuildTargetIdentifier;
+
+#[derive(Debug)]
+pub enum TaskStart {}
+
+impl Notification for TaskStart {
+    type Params = TaskStartParams;
+    const METHOD: &'static str = "build/taskStart";
+}
+
+#[derive(Debug)]
+pub enum TaskProgress {}
+
+impl Notification for TaskProgress {
+    type Params = TaskProgressParams;
+    const METHOD: &'static str = "build/taskProgress";
+}
+
+#[derive(Debug)]
+pub enum TaskFinish {}
+
+impl Notification for TaskFinish {
+    type Params = TaskFinishParams;
+    const METHOD: &'static str = "build/taskFinish";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -19,21 +43,17 @@ pub struct TaskStartParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified.
-           * Kind names for specific tasks like compile, test, etc are specified in the protocol. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    /** Optional metadata about the task.
-           * Objects for specific tasks like compile, test, etc are specified in the protocol. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-}
-
-impl MethodName for TaskStartParams {
-    fn get_method_name() -> &'static str {
-        "build/taskStart"
-    }
+    /** Serializes to:
+     * dataKind: String,
+     * data: Option<Value>
+     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+     * the kind of data is not specified. Kind names for specific tasks like compile, test,
+     * etc are specified in the protocol. Data kind options specified in task_data_kind module
+     *
+     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+     * etc are specified in the protocol. */
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestDataWithKind>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -47,7 +67,7 @@ pub struct TaskProgressParams {
     pub event_time: Option<i64>,
 
     /** Message describing the task progress.
-           * Information about the state of the task at the time the event is sent. */
+     * Information about the state of the task at the time the event is sent. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 
@@ -63,26 +83,20 @@ pub struct TaskProgressParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified.
-           * Kind names for specific tasks like compile, test, etc are specified in the protocol.
-     */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    /** Optional metadata about the task.
-           * Objects for specific tasks like compile, test, etc are specified in the protocol.
-     */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    /** Serializes to:
+     * dataKind: String,
+     * data: Option<Value>
+     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+     * the kind of data is not specified. Kind names for specific tasks like compile, test,
+     * etc are specified in the protocol. Data kind options specified in task_data_kind module
+     *
+     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+     * etc are specified in the protocol. */
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestDataWithKind>,
 }
 
-impl MethodName for TaskProgressParams {
-    fn get_method_name() -> &'static str {
-        "build/taskProgress"
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskFinishParams {
     /** Unique id of the task with optional reference to parent task id */
@@ -99,42 +113,36 @@ pub struct TaskFinishParams {
     /** Task completion status. */
     pub status: StatusCode,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified.
-           * Kind names for specific tasks like compile, test, etc are specified in the protocol.
-           * Data kind options specified in task_data_kind module */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    /** Optional metadata about the task.
-           * Objects for specific tasks like compile, test, etc are specified in the protocol. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    /** Serializes to:
+     * dataKind: String,
+     * data: Option<Value>
+     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+     * the kind of data is not specified. Kind names for specific tasks like compile, test,
+     * etc are specified in the protocol. Data kind options specified in task_data_kind module
+     *
+     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+     * etc are specified in the protocol. */
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestDataWithKind>,
 }
 
-impl MethodName for TaskFinishParams {
-    fn get_method_name() -> &'static str {
-        "build/taskFinish"
-    }
+//dev:: change data field in TaskStartParams, TaskProgressParams, TaskFinishParams when we want to add possibility to send data without datakind
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DataWithOptionalDataKind {
+    DataWithKind(TestDataWithKind),
+    JustData { data: Value },
 }
 
-pub mod task_data_kind {
-    /** `data` field must contain a CompileTask object. */
-    pub const COMPILE_TASK: &str = "compile-task";
-
-    /** `data` field must contain a CompileReport object. */
-    pub const COMPILE_REPORT: &str = "compile-report";
-
-    /** `data` field must contain a TestTask object. */
-    pub const TEST_TASK: &str = "test-task";
-
-    /** `data` field must contain a TestReport object. */
-    pub const TEST_REPORT: &str = "test-report";
-
-    /** `data` field must contain a TestStart object. */
-    pub const TEST_START: &str = "test-start";
-
-    /** `data` field must contain a TestFinish object. */
-    pub const TEST_FINISH: &str = "test-finish";
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum TestDataWithKind {
+    CompileTask(CompileTaskData),
+    CompileReport(CompileReportData),
+    TestTask(TestTaskData),
+    TestReport(TestReportData),
+    TestStart(TestStartData),
+    TestFinish(TestFinishData),
 }
 
 /* The beginning of a compilation unit may be signalled to the client with a build/taskStart
@@ -142,7 +150,7 @@ pub mod task_data_kind {
  * must be "compile-task" and the data field must include a CompileTask object. */
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct CompileTask {
+pub struct CompileTaskData {
     pub target: BuildTargetIdentifier,
 }
 
@@ -151,7 +159,7 @@ pub struct CompileTask {
  * compile-report and the data field must include a CompileReport object. */
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct CompileReport {
+pub struct CompileReportData {
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
 
@@ -176,10 +184,9 @@ pub struct CompileReport {
 /* The beginning of a testing unit may be signalled to the client with a build/taskStart notification.
  * When the testing unit is a build target, the notification's dataKind field must be
  * test-task and the data field must include a TestTask object. */
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TestTask {
+pub struct TestTaskData {
     pub target: BuildTargetIdentifier,
 }
 
@@ -188,7 +195,7 @@ pub struct TestTask {
  * test-report and the data field must include a TestReport object. */
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TestReport {
+pub struct TestReportData {
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
 
@@ -212,18 +219,20 @@ pub struct TestReport {
     pub time: Option<i32>,
 }
 
-/* The beginning of a test suite may be signalled to the client with a build/taskStart notification.
- * When the test suite is a build target, the notification's dataKind field must be
- * test-start and the data field must include a TestStart object. */
-pub struct TestStart {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestStartData {
     /** Name or description of the test. */
     pub display_name: String,
 
     /** Source location of the test, as LSP location. */
-    pub location: Location,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<Location>,
 }
 
-pub struct TestFinish {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestFinishData {
     /** Name or description of the test. */
     pub display_name: String,
 
@@ -231,13 +240,16 @@ pub struct TestFinish {
     pub message: Option<String>,
 
     /** Completion status of the test. */
-    pub status: i32,
+    pub status: TestStatus,
 
     /** Source location of the test, as LSP location. */
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data_kind: Option<String>,
+
     /** Optionally, structured metadata about the test completion.
      * For example: stack traces, expected/actual values. */
     pub data: Option<Value>,

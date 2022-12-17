@@ -1,7 +1,8 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 use crate::bsp_types::requests::Request;
+use crate::bsp_types::BuildTargetIdentifier;
 
 #[derive(Debug)]
 pub enum Test {}
@@ -35,12 +36,6 @@ pub struct TestParams {
      * See ScalaTestParams as an example. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
-}
-
-impl MethodName for TestParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/test"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

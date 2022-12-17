@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 mod initialized_build;
 pub use initialized_build::*;

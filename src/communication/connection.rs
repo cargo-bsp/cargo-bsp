@@ -3,7 +3,12 @@
 
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::communication::{error::ProtocolError, msg::{ErrorCode, Message, Request, RequestId, Response}, stdio, stdio::IoThreads};
+use crate::communication::{
+    error::ProtocolError,
+    msg::{ErrorCode, Message, Request, RequestId, Response},
+    stdio,
+    stdio::IoThreads,
+};
 
 /// Connection is just a pair of channels of LSP messages.
 pub struct Connection {
@@ -140,13 +145,22 @@ impl Connection {
         }
         let resp = Response::new_ok(req.id.clone(), ());
         let _ = self.sender.send(resp.into());
-        match &self.receiver.recv_timeout(std::time::Duration::from_secs(30)) {
+        match &self
+            .receiver
+            .recv_timeout(std::time::Duration::from_secs(30))
+        {
             Ok(Message::Notification(n)) if n.is_exit() => (),
             Ok(msg) => {
-                return Err(ProtocolError(format!("unexpected message during shutdown: {:?}", msg)));
+                return Err(ProtocolError(format!(
+                    "unexpected message during shutdown: {:?}",
+                    msg
+                )));
             }
             Err(e) => {
-                return Err(ProtocolError(format!("unexpected error during shutdown: {}", e)));
+                return Err(ProtocolError(format!(
+                    "unexpected error during shutdown: {}",
+                    e
+                )));
             }
         }
         Ok(true)
