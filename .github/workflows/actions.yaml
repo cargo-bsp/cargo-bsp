@@ -11,15 +11,15 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
       - name: Run fmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
       - name: Check rustfmt
         uses: actions-rs/cargo@v1
         with:
