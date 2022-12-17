@@ -1,19 +1,23 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::bsp_types::notifications::Notification;
+use crate::bsp_types::BuildTargetIdentifier;
+
+#[derive(Debug)]
+pub enum DidChangeBuildTarget {}
+
+impl Notification for DidChangeBuildTarget {
+    type Params = DidChangeBuildTargetParams;
+    const METHOD: &'static str = "buildTarget/didChange";
+}
+
 /* Build Target Changed Notification params */
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct DidChangeBuildTarget {
+pub struct DidChangeBuildTargetParams {
     pub changes: Vec<BuildTargetEvent>,
-}
-
-impl MethodName for DidChangeBuildTarget {
-    fn get_method_name() -> &'static str {
-        "buildTarget/didChange"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

@@ -4,8 +4,8 @@ pub use msg::{ErrorCode, Message, Notification, Request, RequestId, Response, Re
 pub use req_queue::{Incoming, Outgoing, ReqQueue};
 pub use stdio::IoThreads;
 
-mod msg;
-mod stdio;
-mod error;
-mod req_queue;
 mod connection;
+mod error;
+mod msg;
+mod req_queue;
+mod stdio;

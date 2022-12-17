@@ -4,8 +4,8 @@ use serde::Serialize;
 mod initialize;
 pub use initialize::*;
 
-mod build_target;
-pub use build_target::*;
+mod build_target_sources;
+pub use build_target_sources::*;
 
 mod reload;
 pub use reload::*;

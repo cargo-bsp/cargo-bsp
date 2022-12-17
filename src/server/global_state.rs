@@ -4,8 +4,8 @@ use std::time::Instant;
 
 use crossbeam_channel::Sender;
 
-use crate::{bsp_types, communication};
 use crate::logger::log;
+use crate::{bsp_types, communication};
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
@@ -38,9 +38,10 @@ impl GlobalState {
         request: &communication::Request,
         request_received: Instant,
     ) {
-        self.req_queue
-            .incoming
-            .register(request.id.clone(), (request.method.clone(), request_received));
+        self.req_queue.incoming.register(
+            request.id.clone(),
+            (request.method.clone(), request_received),
+        );
     }
 
     pub(crate) fn respond(&mut self, response: communication::Response) {
@@ -52,7 +53,10 @@ impl GlobalState {
             }
 
             let duration = start.elapsed();
-            log(&format!("handled {} - ({}) in {:0.2?}", method, response.id, duration));
+            log(&format!(
+                "handled {} - ({}) in {:0.2?}",
+                method, response.id, duration
+            ));
             self.send(response.into());
         }
     }

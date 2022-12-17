@@ -4,12 +4,12 @@ use std::{fmt, panic};
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{bsp_types, communication};
 use crate::communication::ExtractError;
 use crate::logger::log;
-use crate::server::{from_json, LspError};
 use crate::server::global_state::GlobalState;
 use crate::server::Result;
+use crate::server::{from_json, LspError};
+use crate::{bsp_types, communication};
 
 pub(crate) struct RequestDispatcher<'a> {
     pub(crate) req: Option<communication::Request>,
@@ -24,18 +24,16 @@ impl<'a> RequestDispatcher<'a> {
         &mut self,
         f: fn(&mut GlobalState, R::Params) -> Result<R::Result>,
     ) -> &mut Self
-        where
-            R: bsp_types::requests::Request,
-            R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
-            R::Result: Serialize,
+    where
+        R: bsp_types::requests::Request,
+        R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
+        R::Result: Serialize,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,
             None => return self,
         };
-        let result = {
-            f(self.global_state, params)
-        };
+        let result = { f(self.global_state, params) };
         if let Ok(response) = result_to_response::<R>(req.id, result) {
             self.global_state.respond(response);
         }
@@ -56,9 +54,9 @@ impl<'a> RequestDispatcher<'a> {
     }
 
     fn parse<R>(&mut self) -> Option<(communication::Request, R::Params, String)>
-        where
-            R: bsp_types::requests::Request,
-            R::Params: DeserializeOwned + fmt::Debug,
+    where
+        R: bsp_types::requests::Request,
+        R::Params: DeserializeOwned + fmt::Debug,
     {
         let req = match &self.req {
             Some(req) if req.method == R::METHOD => self.req.take()?,
@@ -68,8 +66,7 @@ impl<'a> RequestDispatcher<'a> {
         let res = from_json(R::METHOD, &req.params);
         match res {
             Ok(params) => {
-                let panic_context =
-                    format!("\nrequest: {} {:#?}", R::METHOD, params);
+                let panic_context = format!("\nrequest: {} {:#?}", R::METHOD, params);
                 Some((req, params, panic_context))
             }
             Err(err) => {
@@ -89,15 +86,17 @@ fn result_to_response<R>(
     id: communication::RequestId,
     result: Result<R::Result>,
 ) -> Result<communication::Response>
-    where
-        R: bsp_types::requests::Request,
-        R::Params: DeserializeOwned,
-        R::Result: Serialize,
+where
+    R: bsp_types::requests::Request,
+    R::Params: DeserializeOwned,
+    R::Result: Serialize,
 {
     let res = match result {
         Ok(resp) => communication::Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
-            Ok(lsp_error) => communication::Response::new_err(id, lsp_error.code, lsp_error.message),
+            Ok(lsp_error) => {
+                communication::Response::new_err(id, lsp_error.code, lsp_error.message)
+            }
             Err(e) => communication::Response::new_err(
                 id,
                 communication::ErrorCode::InternalError as i32,
@@ -118,9 +117,9 @@ impl<'a> NotificationDispatcher<'a> {
         &mut self,
         f: fn(&mut GlobalState, N::Params) -> Result<()>,
     ) -> Result<&mut Self>
-        where
-            N: bsp_types::notifications::Notification,
-            N::Params: DeserializeOwned + Send,
+    where
+        N: bsp_types::notifications::Notification,
+        N::Params: DeserializeOwned + Send,
     {
         let not = match self.not.take() {
             Some(it) => it,
@@ -129,7 +128,7 @@ impl<'a> NotificationDispatcher<'a> {
         let params = match not.extract::<N::Params>(N::METHOD) {
             Ok(it) => it,
             Err(ExtractError::JsonError { method, error }) => {
-                panic!("Invalid request\nMethod: {method}\n error: {error}", )
+                panic!("Invalid request\nMethod: {method}\n error: {error}",)
             }
             Err(ExtractError::MethodMismatch(not)) => {
                 self.not = Some(not);

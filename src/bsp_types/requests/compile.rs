@@ -1,7 +1,8 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 use crate::bsp_types::requests::Request;
+use crate::bsp_types::BuildTargetIdentifier;
 
 /*
 NOTE THAT:
@@ -32,12 +33,6 @@ pub struct CompileParams {
     /** Optional arguments to the compilation process. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Vec<String>>,
-}
-
-impl MethodName for CompileParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/compile"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
