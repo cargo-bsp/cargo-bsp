@@ -6,8 +6,8 @@
 
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 
-use crate::bsp_types::BuildServerCapabilities;
 use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use crate::bsp_types::BuildServerCapabilities;
 use crate::communication::Connection;
 use crate::logger::log;
 use crate::server;
@@ -49,8 +49,10 @@ pub fn run_server() -> Result<()> {
 
     connection.initialize_finish(initialize_id, initialize_result)?;
 
-    log(&format!("Client '{}' {}", initialize_params.display_name, initialize_params.version));
-
+    log(&format!(
+        "Client '{}' {}",
+        initialize_params.display_name, initialize_params.version
+    ));
 
     server::main_loop(connection)?;
 

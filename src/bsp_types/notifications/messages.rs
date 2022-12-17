@@ -1,9 +1,23 @@
-use crate::bsp_types::MethodName;
-use super::TaskId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use crate::bsp_types::notifications::Notification;
 
+use crate::bsp_types::notifications::{Notification, TaskId};
+
+#[derive(Debug)]
+pub enum ShowMessage {}
+
+impl Notification for ShowMessage {
+    type Params = ShowMessageParams;
+    const METHOD: &'static str = "build/showMessage";
+}
+
+#[derive(Debug)]
+pub enum LogMessage {}
+
+impl Notification for LogMessage {
+    type Params = LogMessageParams;
+    const METHOD: &'static str = "build/logMessage";
+}
 
 /* Show message notification */
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -25,20 +39,6 @@ pub struct ShowMessageParams {
     pub message: String,
 }
 
-impl MethodName for ShowMessageParams {
-    fn get_method_name() -> &'static str {
-        "build/showMessage"
-    }
-}
-
-#[derive(Debug)]
-pub enum LogMessage {}
-
-impl Notification for LogMessage {
-    type Params = LogMessageParams;
-    const METHOD: &'static str = "build/logMessage";
-}
-
 /* Log message notification params */
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -57,12 +57,6 @@ pub struct LogMessageParams {
 
     /** The actual message. */
     pub message: String,
-}
-
-impl MethodName for LogMessageParams {
-    fn get_method_name() -> &'static str {
-        "build/logMessage"
-    }
 }
 
 #[derive(Debug, Serialize_repr, Deserialize_repr, Default)]

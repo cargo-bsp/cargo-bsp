@@ -7,9 +7,9 @@ pub use server_run::run_server;
 
 mod dispatch;
 mod global_state;
+mod handlers;
 mod main_loop;
 mod server_run;
-mod handlers;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -34,7 +34,11 @@ impl LspError {
 
 impl fmt::Display for LspError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Language Server request failed with {}. ({})", self.code, self.message)
+        write!(
+            f,
+            "Language Server request failed with {}. ({})",
+            self.code, self.message
+        )
     }
 }
 

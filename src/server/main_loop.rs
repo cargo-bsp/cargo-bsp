@@ -8,12 +8,12 @@ use crossbeam_channel::Receiver;
 
 use communication::{Connection, Notification, Request};
 
-use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
 use crate::logger::log;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::{handlers, Result};
+use crate::{bsp_types, communication};
 
 pub fn main_loop(connection: Connection) -> Result<()> {
     log("initial config");
@@ -34,7 +34,10 @@ impl GlobalState {
         Err("client exited without proper shutdown sequence".into())
     }
 
-    fn next_message(&self, inbox: &Receiver<communication::Message>) -> Option<communication::Message> {
+    fn next_message(
+        &self,
+        inbox: &Receiver<communication::Message>,
+    ) -> Option<communication::Message> {
         inbox.recv().ok()
     }
 
@@ -61,13 +64,20 @@ impl GlobalState {
 
     /// Handles a request.
     fn on_request(&mut self, req: Request) {
-        let mut dispatcher = RequestDispatcher { req: Some(req), global_state: self };
+        let mut dispatcher = RequestDispatcher {
+            req: Some(req),
+            global_state: self,
+        };
         dispatcher.on_sync_mut::<bsp_types::requests::ShutdownBuild>(|s, ()| {
             s.shutdown_requested = true;
             Ok(())
         });
 
-        if let RequestDispatcher { req: Some(req), global_state: this } = &mut dispatcher {
+        if let RequestDispatcher {
+            req: Some(req),
+            global_state: this,
+        } = &mut dispatcher
+        {
             if this.shutdown_requested {
                 this.respond(communication::Response::new_err(
                     req.id.clone(),
@@ -79,7 +89,9 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(handlers::handle_workspace_build_targets)
+            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(
+                handlers::handle_workspace_build_targets,
+            )
             .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
@@ -92,12 +104,15 @@ impl GlobalState {
 
     /// Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
-        NotificationDispatcher { not: Some(not), global_state: self }
-            .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-                log("Got exit notification");
-                Ok(())
-            })?
-            .finish();
+        NotificationDispatcher {
+            not: Some(not),
+            global_state: self,
+        }
+        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
+            log("Got exit notification");
+            Ok(())
+        })?
+        .finish();
         Ok(())
     }
 }
