@@ -6,6 +6,7 @@
 
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 
+use crate::bsp_types::BuildServerCapabilities;
 use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
 use crate::communication::Connection;
 use crate::logger::log;
@@ -26,7 +27,21 @@ pub fn run_server() -> Result<()> {
         display_name: "test".to_string(),
         version: "0.0.1".to_string(),
         bsp_version: "2.0.0".to_string(),
-        capabilities: Default::default(),
+        capabilities: BuildServerCapabilities {
+            compile_provider: None,
+            test_provider: None,
+            run_provider: None,
+            debug_provider: None,
+            inverse_sources_provider: Some(false),
+            dependency_sources_provider: Some(false),
+            dependency_modules_provider: Some(false),
+            resources_provider: Some(true),
+            output_paths_provider: Some(false),
+            build_target_changed_provider: Some(false),
+            jvm_run_environment_provider: Some(false),
+            jvm_test_environment_provider: Some(false),
+            can_reload: Some(false),
+        },
         data: None,
     };
 
