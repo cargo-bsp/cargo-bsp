@@ -61,6 +61,7 @@ impl GlobalState {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn cancel(&mut self, request_id: communication::RequestId) {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
             self.send(response.into());
