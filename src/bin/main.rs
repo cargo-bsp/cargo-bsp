@@ -28,7 +28,7 @@ mod tests {
         RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets,
         WorkspaceBuildTargetsResult,
     };
-    use cargo_bsp::bsp_types::{BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier};
+    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier};
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, RequestId, Response};
     use serde_json::{from_str, to_value};
@@ -74,6 +74,7 @@ mod tests {
         assert_eq!(child.wait().unwrap().code(), Some(0));
     }
 
+    // it fails as server doesnt support immediate shutdown
     #[test]
     fn immediate_shutdown() {
         let mut child = spawn_server();
@@ -190,7 +191,21 @@ mod tests {
             display_name: "test".to_string(),
             version: "0.0.1".to_string(),
             bsp_version: "2.0.0".to_string(),
-            capabilities: Default::default(),
+            capabilities: BuildServerCapabilities {
+                compile_provider: None,
+                test_provider: None,
+                run_provider: None,
+                debug_provider: None,
+                inverse_sources_provider: Some(false),
+                dependency_sources_provider: Some(false),
+                dependency_modules_provider: Some(false),
+                resources_provider: Some(true),
+                output_paths_provider: Some(false),
+                build_target_changed_provider: Some(false),
+                jvm_run_environment_provider: Some(false),
+                jvm_test_environment_provider: Some(false),
+                can_reload: Some(false),
+            },
             data: None,
         };
         Response {
