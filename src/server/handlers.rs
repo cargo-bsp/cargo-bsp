@@ -1,4 +1,5 @@
 use crate::bsp_types;
+use crate::bsp_types::notifications::StatusCode;
 use crate::server::global_state::GlobalState;
 use crate::server::Result;
 
@@ -100,6 +101,15 @@ pub(crate) fn handle_test(
             task: None,
             origin_id: params.origin_id.clone(),
             message: "INFO: Test completed successfully".to_string(),
+        },
+    );
+    global_state.send_notification::<bsp_types::notifications::TaskFinish>(
+        bsp_types::notifications::TaskFinishParams {
+            task_id: Default::default(),
+            event_time: None,
+            message: None,
+            status: StatusCode::Ok,
+            data: None,
         },
     );
     let result = bsp_types::requests::TestResult {
