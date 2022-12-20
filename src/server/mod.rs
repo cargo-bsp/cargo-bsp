@@ -27,6 +27,7 @@ pub struct LspError {
 }
 
 impl LspError {
+    #[allow(dead_code)]
     fn new(code: i32, message: String) -> LspError {
         LspError { code, message }
     }
