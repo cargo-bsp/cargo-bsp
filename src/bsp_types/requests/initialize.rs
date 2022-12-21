@@ -1,6 +1,17 @@
-use crate::bsp_types::{BuildClientCapabilities, BuildServerCapabilities, MethodName, Uri};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::{BuildClientCapabilities, BuildServerCapabilities, Uri};
+
+#[derive(Debug)]
+pub enum InitializeBuild {}
+
+impl Request for InitializeBuild {
+    type Params = InitializeBuildParams;
+    type Result = InitializeBuildResult;
+    const METHOD: &'static str = "build/initialize";
+}
 
 /** Client's initializing request */
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -24,12 +35,6 @@ pub struct InitializeBuildParams {
     /** Additional metadata about the client */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
-}
-
-impl MethodName for InitializeBuildParams {
-    fn get_method_name() -> &'static str {
-        "build/initialize"
-    }
 }
 
 /** Server's response for client's InitializeBuildParams request */

@@ -1,3 +1,4 @@
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 mod initialized_build;
@@ -17,6 +18,11 @@ pub use did_change_build_target::*;
 
 mod publish_diagnostics;
 pub use publish_diagnostics::*;
+
+pub trait Notification {
+    type Params: DeserializeOwned + Serialize;
+    const METHOD: &'static str;
+}
 
 /* Included in notifications of tasks or requests to signal the completion state. */
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -45,6 +51,3 @@ pub struct TaskId {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parents: Option<Vec<String>>,
 }
-
-
-

@@ -1,17 +1,22 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::BuildTargetIdentifier;
+
+#[derive(Debug)]
+pub enum DependencyModules {}
+
+impl Request for DependencyModules {
+    type Params = DependencyModulesParams;
+    type Result = DependencyModulesResult;
+    const METHOD: &'static str = "buildTarget/dependencyModules";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DependencyModulesParams {
     pub targets: Vec<BuildTargetIdentifier>,
-}
-
-impl MethodName for DependencyModulesParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/dependencyModules"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

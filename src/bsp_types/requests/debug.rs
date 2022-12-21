@@ -1,6 +1,17 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName, Uri};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::{BuildTargetIdentifier, Uri};
+
+#[derive(Debug)]
+pub enum DebugSession {}
+
+impl Request for DebugSession {
+    type Params = DebugSessionParams;
+    type Result = DebugSessionAddress;
+    const METHOD: &'static str = "debugSession/start";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -14,12 +25,6 @@ pub struct DebugSessionParams {
     /** Language-specific metadata for this execution.
      * See ScalaMainClass as an example. */
     pub data: Value,
-}
-
-impl MethodName for DebugSessionParams {
-    fn get_method_name() -> &'static str {
-        "debugSession/start"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
