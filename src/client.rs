@@ -1,48 +1,14 @@
+use std::io::prelude::*;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout};
 
-use jsonrpsee_core::traits::ToRpcParams;
-use jsonrpsee_core::Error;
-use jsonrpsee_types::{Id, RequestSer};
-use serde::Serialize;
-use serde_json::value::RawValue;
+use serde_json::from_str;
 
-use crate::bsp_types::requests::InitializeBuildParams;
+use crate::communication::Message;
 
 pub struct Client<'a> {
     buf_reader: BufReader<&'a mut ChildStdout>,
     child_stdin: ChildStdin,
-    request_id: u64,
-}
-
-// Trait for the client, to read method name
-pub trait MethodName {
-    fn get_method_name() -> &'static str;
-}
-
-// Simple Wrapper for requests
-pub struct RequestWrapper<T>
-where
-    T: Serialize + MethodName,
-{
-    pub request_params: T,
-}
-
-impl<T> ToRpcParams for RequestWrapper<T>
-where
-    T: Serialize + MethodName,
-{
-    fn to_rpc_params(self) -> Result<Option<Box<RawValue>>, Error> {
-        serde_json::to_string(&self.request_params)
-            .map(|x| RawValue::from_string(x).ok())
-            .map_err(Into::into)
-    }
-}
-
-impl MethodName for InitializeBuildParams {
-    fn get_method_name() -> &'static str {
-        "build/initialize"
-    }
 }
 
 impl<'a> Client<'a> {
@@ -50,50 +16,59 @@ impl<'a> Client<'a> {
         Self {
             buf_reader: BufReader::new(child.stdout.as_mut().unwrap()),
             child_stdin: child.stdin.take().unwrap(),
-            request_id: 0,
         }
     }
 
-    fn send(&mut self, msg: &str) {
-        let msg_with_endline = msg.to_owned() + "\n";
-        let no_bytes = match self.child_stdin.write(msg_with_endline.as_bytes()) {
-            Ok(no_bytes) => Some(no_bytes),
-            Err(_) => None,
+    fn add_headers(&self, message: &str) -> String {
+        let mut prefix = format!("Content-Length: {}\r\n\r\n", message.len());
+        prefix.push_str(message);
+        prefix
+    }
+
+    fn parse_headers(&mut self) -> usize {
+        let mut header = String::new();
+        let mut content_length = 0;
+        self.buf_reader
+            .read_line(&mut header)
+            .expect("Failed to read headers");
+
+        let val = header.split(": ").collect::<Vec<&str>>()[1];
+        if val.as_bytes()[0].is_ascii_digit() {
+            content_length = from_str::<usize>(val).unwrap();
         };
 
-        println!("Client has send: {:?}", no_bytes);
+        self.buf_reader
+            .read_line(&mut header)
+            .expect("Failed to read newlines");
+        content_length
     }
 
-    pub fn get_response(&mut self) -> Option<String> {
-        let mut buf = String::new();
-        match self.buf_reader.read_line(&mut buf) {
-            Ok(_) => Some(buf),
-            Err(_) => None,
+    fn read_n_chars(&mut self, no_chars: usize) -> String {
+        let mut buf = vec![0u8; no_chars];
+        self.buf_reader
+            .read_exact(&mut buf)
+            .expect("Failed to read the actual content");
+        String::from_utf8(buf).unwrap()
+    }
+
+    pub fn send(&mut self, msg: &str) {
+        let msg_with_headers = self.add_headers(msg);
+        self.child_stdin
+            .write_all(msg_with_headers.as_bytes())
+            .expect("Failed to send a message");
+        println!("Client has send a message:\n{}", msg_with_headers);
+    }
+
+    pub fn recv_resp(&mut self) -> String {
+        let content_length = self.parse_headers();
+        let content = self.read_n_chars(content_length);
+        match from_str(&content) {
+            Ok(Message::Response(resp)) => println!("Client got a response: {:?}\n", resp),
+            Ok(Message::Notification(notif)) => {
+                println!("Client got a notification: {:?}\n", notif)
+            }
+            _ => println!("Client got an invalid message: {}", content),
         }
-    }
-
-    pub fn send_request<T>(&mut self, request: T)
-    where
-        T: Send + Serialize + MethodName,
-    {
-        let request_string = self
-            .create_request_string(RequestWrapper {
-                request_params: request,
-            })
-            .unwrap();
-        self.send(&request_string);
-    }
-
-    fn create_request_string<T>(&mut self, request: RequestWrapper<T>) -> Result<String, Error>
-    where
-        T: Send + Serialize + MethodName,
-    {
-        let id = Id::Number(self.request_id);
-        self.request_id += 1;
-        let method = T::get_method_name();
-        let params = request.to_rpc_params()?;
-
-        let request = RequestSer::borrowed(&id, &method, params.as_deref());
-        serde_json::to_string(&request).map_err(Error::ParseError)
+        content
     }
 }

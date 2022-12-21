@@ -6,8 +6,8 @@
 
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 
-use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
 use crate::bsp_types::BuildServerCapabilities;
+use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
 use crate::communication::Connection;
 use crate::logger::log;
 use crate::server;
