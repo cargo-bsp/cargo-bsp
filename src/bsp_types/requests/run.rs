@@ -1,6 +1,17 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::BuildTargetIdentifier;
+
+#[derive(Debug)]
+pub enum Run {}
+
+impl Request for Run {
+    type Params = RunParams;
+    type Result = RunResult;
+    const METHOD: &'static str = "buildTarget/run";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -25,12 +36,6 @@ pub struct RunParams {
      * See ScalaMainClass as an example. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
-}
-
-impl MethodName for RunParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/run"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

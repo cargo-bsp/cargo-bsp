@@ -1,11 +1,17 @@
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+
 mod initialize;
 pub use initialize::*;
 
-mod build_target;
-pub use build_target::*;
+mod build_target_sources;
+pub use build_target_sources::*;
 
 mod reload;
+pub use reload::*;
+
 mod shutdown_build;
+pub use shutdown_build::*;
 
 mod inverse_sources;
 pub use inverse_sources::*;
@@ -39,3 +45,12 @@ pub use clean_cache::*;
 
 mod workspace_build_targets;
 pub use workspace_build_targets::*;
+
+mod java_extension;
+pub use java_extension::*;
+
+pub trait Request {
+    type Params: DeserializeOwned + Serialize;
+    type Result: DeserializeOwned + Serialize;
+    const METHOD: &'static str;
+}

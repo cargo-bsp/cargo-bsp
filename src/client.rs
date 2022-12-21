@@ -5,13 +5,44 @@ use jsonrpsee_core::traits::ToRpcParams;
 use jsonrpsee_core::Error;
 use jsonrpsee_types::{Id, RequestSer};
 use serde::Serialize;
+use serde_json::value::RawValue;
 
-use crate::bsp_types::{MethodName, RequestWrapper};
+use crate::bsp_types::requests::InitializeBuildParams;
 
 pub struct Client<'a> {
     buf_reader: BufReader<&'a mut ChildStdout>,
     child_stdin: ChildStdin,
     request_id: u64,
+}
+
+// Trait for the client, to read method name
+pub trait MethodName {
+    fn get_method_name() -> &'static str;
+}
+
+// Simple Wrapper for requests
+pub struct RequestWrapper<T>
+where
+    T: Serialize + MethodName,
+{
+    pub request_params: T,
+}
+
+impl<T> ToRpcParams for RequestWrapper<T>
+where
+    T: Serialize + MethodName,
+{
+    fn to_rpc_params(self) -> Result<Option<Box<RawValue>>, Error> {
+        serde_json::to_string(&self.request_params)
+            .map(|x| RawValue::from_string(x).ok())
+            .map_err(Into::into)
+    }
+}
+
+impl MethodName for InitializeBuildParams {
+    fn get_method_name() -> &'static str {
+        "build/initialize"
+    }
 }
 
 impl<'a> Client<'a> {
