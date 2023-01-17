@@ -1,16 +1,21 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName, Uri};
 use serde::{Deserialize, Serialize};
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::{BuildTargetIdentifier, Uri};
+
+#[derive(Debug)]
+pub enum Sources {}
+
+impl Request for Sources {
+    type Params = SourcesParams;
+    type Result = SourcesResult;
+    const METHOD: &'static str = "buildTarget/sources";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SourcesParams {
     pub targets: Vec<BuildTargetIdentifier>,
-}
-
-impl MethodName for SourcesParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/sources"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

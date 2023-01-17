@@ -1,12 +1,23 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::BuildTargetIdentifier;
 
 /*
 NOTE THAT:
 Response has error field defined as follows:
 error: JSON-RPC code and message set in case an exception happens during the request.
 */
+
+#[derive(Debug)]
+pub enum Compile {}
+
+impl Request for Compile {
+    type Params = CompileParams;
+    type Result = CompileResult;
+    const METHOD: &'static str = "buildTarget/compile";
+}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -22,12 +33,6 @@ pub struct CompileParams {
     /** Optional arguments to the compilation process. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Vec<String>>,
-}
-
-impl MethodName for CompileParams {
-    fn get_method_name() -> &'static str {
-        "buildTarget/compile"
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

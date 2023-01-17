@@ -1,5 +1,15 @@
-use crate::bsp_types::{BuildTargetIdentifier, MethodName, TextDocumentIdentifier};
 use serde::{Deserialize, Serialize};
+
+use crate::bsp_types::notifications::Notification;
+use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+
+#[derive(Debug)]
+pub enum PublishDiagnostics {}
+
+impl Notification for PublishDiagnostics {
+    type Params = PublishDiagnosticsParams;
+    const METHOD: &'static str = "build/publishDiagnostics";
+}
 
 /* Publish Diagnostics notification params */
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -9,9 +19,9 @@ pub struct PublishDiagnosticsParams {
     pub text_document: TextDocumentIdentifier,
 
     /** The build target where the diagnostics origin.
-           * It is valid for one text document to belong to multiple
-           * build targets, for example sources that are compiled against multiple
-           * platforms (JVM, JavaScript). */
+     * It is valid for one text document to belong to multiple
+     * build targets, for example sources that are compiled against multiple
+     * platforms (JVM, JavaScript). */
     pub build_target: BuildTargetIdentifier,
 
     /** The request id that originated this notification. */
@@ -22,15 +32,8 @@ pub struct PublishDiagnosticsParams {
     pub diagnostics: Vec<Diagnostic>,
 
     /** Whether the client should clear the previous diagnostics
-           * mapped to the same `textDocument` and `buildTarget`. */
+     * mapped to the same `textDocument` and `buildTarget`. */
     pub reset: bool,
 }
 
-impl MethodName for PublishDiagnosticsParams {
-    fn get_method_name() -> &'static str {
-        "build/publishDiagnostics"
-    }
-}
-
 pub type Diagnostic = lsp_types::Diagnostic;
-
