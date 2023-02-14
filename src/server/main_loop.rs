@@ -8,20 +8,24 @@ use crossbeam_channel::Receiver;
 
 use communication::{Connection, Notification, Request};
 
+use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
 use crate::logger::log;
+use crate::server::{handlers, Result};
+use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::{handlers, Result};
-use crate::{bsp_types, communication};
 
-pub fn main_loop(connection: Connection) -> Result<()> {
-    log("initial config");
-    GlobalState::new(connection.sender).run(connection.receiver)
+pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
+    GlobalState::new(connection.sender, config).run(connection.receiver)
 }
 
 impl GlobalState {
     fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
+        if self.config.linked_projects().is_empty() {
+            log("bsp cargo failed to discover workspace");
+        };
+
         while let Some(event) = self.next_message(&inbox) {
             if let communication::Message::Notification(not) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
@@ -108,11 +112,11 @@ impl GlobalState {
             not: Some(not),
             global_state: self,
         }
-        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-            log("Got exit notification");
-            Ok(())
-        })?
-        .finish();
+            .on::<bsp_types::notifications::ExitBuild>(|_, _| {
+                log("Got exit notification");
+                Ok(())
+            })?
+            .finish();
         Ok(())
     }
 }

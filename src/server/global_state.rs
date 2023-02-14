@@ -1,11 +1,14 @@
 // copy from rust-analyzer
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::Sender;
 
-use crate::logger::log;
 use crate::{bsp_types, communication};
+use crate::logger::log;
+use crate::project_model::ProjectWorkspace;
+use crate::server::config::Config;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
@@ -14,15 +17,21 @@ pub(crate) struct GlobalState {
     sender: Sender<communication::Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
+    pub(crate) config: Arc<Config>,
+    pub(crate) _workspaces: Arc<Vec<ProjectWorkspace>>,
 }
 
 impl GlobalState {
-    pub(crate) fn new(sender: Sender<communication::Message>) -> GlobalState {
-        GlobalState {
+    pub(crate) fn new(sender: Sender<communication::Message>, config: Config) -> GlobalState {
+        let mut this = GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-        }
+            config: Arc::new(config.clone()),
+            _workspaces: Arc::new(Vec::new()),
+        };
+        this.update_configuration(config);
+        this
     }
 
     pub(crate) fn send_notification<N: bsp_types::notifications::Notification>(
@@ -70,6 +79,10 @@ impl GlobalState {
 
     fn send(&mut self, message: communication::Message) {
         self.sender.send(message).unwrap()
+    }
+
+    pub(crate) fn update_configuration(&mut self, _config: Config) {
+        // TODO
     }
 }
 
