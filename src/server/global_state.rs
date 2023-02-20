@@ -3,12 +3,13 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender, unbounded};
 
 use crate::{bsp_types, communication};
 use crate::logger::log;
 use crate::project_model::ProjectWorkspace;
 use crate::server::config::Config;
+use crate::server::main_loop::ThreadMessage;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
@@ -18,16 +19,25 @@ pub(crate) struct GlobalState {
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
     pub(crate) config: Arc<Config>,
+    pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
     pub(crate) _workspaces: Arc<Vec<ProjectWorkspace>>,
+}
+
+/// snapshot of server state for request handlers
+pub(crate) struct _GlobalStateSnapshot {
+    pub(crate) config: Arc<Config>,
+    pub(crate) workspaces: Arc<Vec<ProjectWorkspace>>,
 }
 
 impl GlobalState {
     pub(crate) fn new(sender: Sender<communication::Message>, config: Config) -> GlobalState {
+        let threads_channel = unbounded();
         let mut this = GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
             config: Arc::new(config.clone()),
+            threads_chan: threads_channel,
             _workspaces: Arc::new(Vec::new()),
         };
         this.update_configuration(config);
