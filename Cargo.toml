@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/*"]
+
 [package]
 name = "cargo-bsp"
 version = "0.1.0"
@@ -15,3 +18,11 @@ crossbeam-channel = "0.5.6"
 rustc-hash = "1.1.0"
 anyhow = {version = "1.0.69", default-features = false}
 url = "2.3.1"
+
+command-group = "1.0.8"
+cargo_metadata = "0.15.0"
+rustc-hash = "1.1.0"
+jod-thread = "0.1.2"
+
+stdx = { path = "crates/stdx", version = "0.0.0" }
+paths = { path = "crates/paths", version = "0.0.0" }
