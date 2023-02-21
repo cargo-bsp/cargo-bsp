@@ -1,8 +1,8 @@
 // copy from rust-analyzer
 
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::logger::log;
 use crate::{bsp_types, communication};
@@ -14,6 +14,10 @@ pub(crate) struct GlobalState {
     sender: Sender<communication::Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
+
+    // pub(crate) flycheck: Arc<[FlycheckHandle]>,
+    // pub(crate) flycheck_sender: Sender<flycheck::Message>,
+    // pub(crate) flycheck_receiver: Receiver<flycheck::Message>,
 }
 
 impl GlobalState {

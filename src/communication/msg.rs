@@ -41,7 +41,7 @@ pub struct RequestId(IdRepr);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(untagged)]
-enum IdRepr {
+pub enum IdRepr {
     I32(i32),
     String(String),
 }

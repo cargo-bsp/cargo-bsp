@@ -63,6 +63,19 @@ pub(crate) fn handle_compile(
             message: "INFO: Build completed successfully".to_string(),
         },
     );
+    // TODO Potrzebuje requesta
+    // create a command config
+    // spawn a ReqActor
+    // add the actor to map ReqToActor ~ Kasia
+    //
+    //
+    // FlycheckHandle::spawn(
+    //     id,
+    //     Box::new(move |msg| sender.send(msg).unwrap()),
+    //     config.clone(),
+    //     root.to_path_buf(),
+    // )
+
     let result = bsp_types::requests::CompileResult {
         origin_id: params.origin_id,
         status_code: 1,
