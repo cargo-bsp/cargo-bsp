@@ -4,7 +4,7 @@ use std::{
     fs::{self, read_dir, ReadDir},
     io,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Result};
 use rustc_hash::FxHashSet;
@@ -51,7 +51,7 @@ impl ProjectManifest {
             }
         }
 
-        fn find_in_parent_dirs(path: &PathBuf, target_file_name: &str) -> Option<ManifestPath> {
+        fn find_in_parent_dirs(path: &Path, target_file_name: &str) -> Option<ManifestPath> {
             if path.file_name().unwrap_or_default() == target_file_name {
                 if let Ok(manifest) = ManifestPath::try_from(path.to_path_buf()) {
                     return Some(manifest);
