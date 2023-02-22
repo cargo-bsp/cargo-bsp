@@ -27,16 +27,14 @@ impl TryFrom<PathBuf> for ManifestPath {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub enum ProjectManifest {
-    CargoToml(ManifestPath),
-}
+pub struct ProjectManifest(ManifestPath);
 
 impl ProjectManifest {
     pub fn from_manifest_file(path: PathBuf) -> Result<ProjectManifest> {
         let path = ManifestPath::try_from(path)
             .map_err(|path| format_err!("bad manifest path: {}", path.display()))?;
         if path.file.file_name().unwrap_or_default() == "Cargo.toml" {
-            return Ok(ProjectManifest::CargoToml(path));
+            return Ok(ProjectManifest(path));
         }
         bail!("project root must point to Cargo.toml {}", path.file.display());
     }
@@ -44,7 +42,7 @@ impl ProjectManifest {
     // TODO check how it works when cargo.toml not only in the the main folder
     pub fn discover(path: &PathBuf) -> io::Result<Vec<ProjectManifest>> {
         return find_cargo_toml(path)
-            .map(|paths| paths.into_iter().map(ProjectManifest::CargoToml).collect());
+            .map(|paths| paths.into_iter().map(ProjectManifest).collect());
 
         fn find_cargo_toml(path: &PathBuf) -> io::Result<Vec<ManifestPath>> {
             match find_in_parent_dirs(path, "Cargo.toml") {

@@ -1,6 +1,4 @@
 // copy from rust-analyzer
 
 // TODO
-pub enum ProjectWorkspace {
-    Cargo {},
-}
+pub struct ProjectWorkspace {}
