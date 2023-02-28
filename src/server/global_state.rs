@@ -14,6 +14,7 @@ pub(crate) struct GlobalState {
     sender: Sender<communication::Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
+    pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
 
     // pub(crate) flycheck: Arc<[FlycheckHandle]>,
     // pub(crate) flycheck_sender: Sender<flycheck::Message>,
@@ -22,10 +23,12 @@ pub(crate) struct GlobalState {
 
 impl GlobalState {
     pub(crate) fn new(sender: Sender<communication::Message>) -> GlobalState {
+        let threads_channel = unbounded();
         GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
+            threads_chan: threads_channel,
         }
     }
 

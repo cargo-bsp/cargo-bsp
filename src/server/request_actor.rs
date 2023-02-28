@@ -96,7 +96,7 @@ pub enum TaskNotification {
 pub struct CargoMessage {}
 
 /// A [`RequestActor`] is a single check instance of a workspace.
-struct RequestActor {
+pub struct RequestActor {
     /// The workspace id of this flycheck instance.
     id: usize,
     sender: Box<dyn Fn(RPCMessage) + Send>,
@@ -120,7 +120,7 @@ enum Event {
 }
 
 impl RequestActor {
-    fn new(
+    pub fn new(
         id: usize,
         sender: Box<dyn Fn(RPCMessage) + Send>,
         config: CargoCommand,
@@ -133,7 +133,7 @@ impl RequestActor {
 
     fn report_progress(&self, progress: TaskNotification) {
         // create a notification with task_id from struct
-        todo!("Implement me");
+        todo!()
     }
 
     fn next_event(&self, inbox: &Receiver<Event>) -> Option<Event> {
@@ -144,7 +144,7 @@ impl RequestActor {
         }
     }
 
-    fn run(mut self, inbox: Receiver<Event>) {
+    pub fn run(mut self, inbox: Receiver<Event>) {
         let command = self.create_command();
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => {
