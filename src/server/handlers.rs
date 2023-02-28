@@ -1,7 +1,18 @@
+use std::path::PathBuf;
 use crate::bsp_types;
 use crate::bsp_types::notifications::StatusCode;
 use crate::server::global_state::GlobalState;
+use crate::server::request_actor::{CargoCommand, RequestActor};
 use crate::server::Result;
+use crate::server::communication::Request;
+
+use crate::server::RequestActor;
+
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use paths::AbsPathBuf;
+use crate::communication::Request;
+use crate::communication::RequestId;
+
 
 pub(crate) fn handle_workspace_build_targets(
     _: &mut GlobalState,
@@ -55,27 +66,30 @@ pub(crate) fn handle_compile(
     global_state: &mut GlobalState,
     params: bsp_types::requests::CompileParams,
 ) -> Result<bsp_types::requests::CompileResult> {
-    global_state.send_notification::<bsp_types::notifications::LogMessage>(
-        bsp_types::notifications::LogMessageParams {
-            message_type: bsp_types::notifications::MessageType::Log,
-            task: None,
-            origin_id: params.origin_id.clone(),
-            message: "INFO: Build completed successfully".to_string(),
-        },
+    // global_state.send_notification::<bsp_types::notifications::LogMessage>(
+    //     bsp_types::notifications::LogMessageParams {
+    //         message_type: bsp_types::notifications::MessageType::Log,
+    //         task: None,
+    //         origin_id: params.origin_id.clone(),
+    //         message: "INFO: Build completed successfully".to_string(),
+    //     },
+    // );
+    let (sender_to_cancel, receiver_to_cancel) = unbounded();
+    let (sender_to_main, _) = global_state.threads_chan.clone();
+    let req = Request {
+        id: RequestId::from(0),
+        method: "test".to_owned(),
+        params: serde_json::Value::Null,
+    };
+    let (abs_path, _) = AbsPathBuf::try_from("/home/patryk/bsp-2/cargo-bsp");
+    let actor = RequestActor::new(0,
+                                  Box::new(move |msg| sender.send(msg).unwrap()),
+                                  CargoCommand::Compile(params.clone()),
+                                  abs_path,
+                                  req,
     );
-    // TODO Potrzebuje requesta
-    // create a command config
-    // spawn a ReqActor
     // add the actor to map ReqToActor ~ Kasia
-    //
-    //
-    // FlycheckHandle::spawn(
-    //     id,
-    //     Box::new(move |msg| sender.send(msg).unwrap()),
-    //     config.clone(),
-    //     root.to_path_buf(),
-    // )
-
+    
     let result = bsp_types::requests::CompileResult {
         origin_id: params.origin_id,
         status_code: 1,
