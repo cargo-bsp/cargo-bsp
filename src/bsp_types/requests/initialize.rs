@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildClientCapabilities, BuildServerCapabilities, Uri};
+use crate::bsp_types::requests::Request;
 
 #[derive(Debug)]
 pub enum InitializeBuild {}
