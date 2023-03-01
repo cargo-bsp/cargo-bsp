@@ -114,7 +114,7 @@ pub struct RequestActor {
     task_id: TaskId, // we need to set it, maybe based on request
 }
 
-enum Event {
+pub enum Event {
     Cancel,
     CargoEvent(Option<CargoMessage>),
 }

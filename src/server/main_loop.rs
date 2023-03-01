@@ -16,6 +16,7 @@ use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
+use crate::communication::Message;
 
 // use lsp_types::lsif::Vertex::Event;
 
@@ -27,10 +28,11 @@ pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
 #[derive(Debug)]
 pub enum ThreadMessage {}
 
+
 #[derive(Debug)]
 enum Event {
     Bsp(communication::Message),
-    FromThread(ThreadMessage),
+    FromThread(Message),
 }
 
 impl GlobalState {

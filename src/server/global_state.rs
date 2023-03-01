@@ -9,17 +9,18 @@ use crate::{bsp_types, communication};
 use crate::logger::log;
 use crate::project_model::ProjectWorkspace;
 use crate::server::config::Config;
-use crate::server::main_loop::ThreadMessage;
+use crate::communication::Message;
+
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
 
 pub(crate) struct GlobalState {
-    sender: Sender<communication::Message>,
+    sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
     pub(crate) config: Arc<Config>,
-    pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
+    pub(crate) threads_chan: (Sender<Message>, Receiver<Message>),
     pub(crate) _workspaces: Arc<Vec<ProjectWorkspace>>,
 }
 
