@@ -4,26 +4,43 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, select};
 
 use communication::{Connection, Notification, Request};
 
+use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
 use crate::logger::log;
+use crate::server::{handlers, Result};
+use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::{handlers, Result};
-use crate::{bsp_types, communication};
+use crate::server::main_loop::Event::{Bsp, FromThread};
 
-pub fn main_loop(connection: Connection) -> Result<()> {
-    log("initial config");
-    GlobalState::new(connection.sender).run(connection.receiver)
+// use lsp_types::lsif::Vertex::Event;
+
+pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
+    GlobalState::new(connection.sender, config).run(connection.receiver)
+}
+
+// just a placeholder - to change (and move)
+#[derive(Debug)]
+pub enum ThreadMessage {}
+
+#[derive(Debug)]
+enum Event {
+    Bsp(communication::Message),
+    FromThread(ThreadMessage),
 }
 
 impl GlobalState {
     fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
+        if self.config.linked_projects().is_empty() {
+            log("bsp cargo failed to discover workspace");
+        };
+
         while let Some(event) = self.next_message(&inbox) {
-            if let communication::Message::Notification(not) = &event {
+            if let Bsp(communication::Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     return Ok(());
                 }
@@ -37,23 +54,31 @@ impl GlobalState {
     fn next_message(
         &self,
         inbox: &Receiver<communication::Message>,
-    ) -> Option<communication::Message> {
-        inbox.recv().ok()
+    ) -> Option<Event> {
+        select! {
+            recv(inbox) -> msg =>
+                msg.ok().map(Event::Bsp),
+
+            recv(self.threads_chan.1) -> task =>
+                Some(Event::FromThread(task.unwrap())),
+        }
     }
 
-    fn handle_message(&mut self, msg: communication::Message) -> Result<()> {
+    fn handle_message(&mut self, event: Event) -> Result<()> {
         let loop_start = Instant::now();
-        // NOTE: don't count blocking select! call as a loop-turn time
+        log(&format!("{:?} handle_message({:?})", loop_start, event));
 
-        log(&format!("{:?} handle_message({:?})", loop_start, msg));
-
-        match msg {
-            communication::Message::Request(req) => self.on_new_request(loop_start, req),
-            communication::Message::Notification(not) => {
-                self.on_notification(not)?;
+        match event {
+            Bsp(msg) => match msg {
+                communication::Message::Request(req) => self.on_new_request(loop_start, req),
+                communication::Message::Notification(not) => {
+                    self.on_notification(not)?;
+                }
+                communication::Message::Response(_) => {}
             }
-            communication::Message::Response(_) => {}
+            FromThread(_) => {}
         }
+
         Ok(())
     }
     /// Registers and handles a request. This should only be called once per incoming request.
@@ -108,11 +133,11 @@ impl GlobalState {
             not: Some(not),
             global_state: self,
         }
-        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-            log("Got exit notification");
-            Ok(())
-        })?
-        .finish();
+            .on::<bsp_types::notifications::ExitBuild>(|_, _| {
+                log("Got exit notification");
+                Ok(())
+            })?
+            .finish();
         Ok(())
     }
 }
