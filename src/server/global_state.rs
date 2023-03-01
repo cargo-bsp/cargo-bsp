@@ -20,13 +20,13 @@ pub(crate) struct GlobalState {
     pub(crate) shutdown_requested: bool,
     pub(crate) config: Arc<Config>,
     pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
-    pub(crate) _workspaces: Arc<Vec<ProjectWorkspace>>,
+    pub(crate) _workspace: Arc<ProjectWorkspace>,
 }
 
 /// snapshot of server state for request handlers
 pub(crate) struct _GlobalStateSnapshot {
     pub(crate) config: Arc<Config>,
-    pub(crate) workspaces: Arc<Vec<ProjectWorkspace>>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 impl GlobalState {
@@ -38,7 +38,7 @@ impl GlobalState {
             shutdown_requested: false,
             config: Arc::new(config.clone()),
             threads_chan: threads_channel,
-            _workspaces: Arc::new(Vec::new()),
+            _workspace: Arc::new(ProjectWorkspace::default()),
         };
         this.update_configuration(config);
         this
