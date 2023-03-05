@@ -20,6 +20,7 @@ use crate::communication::Message as RPCMessage;
 
 #[derive(Debug)]
 pub struct RequestHandle {
+    #[allow(dead_code)]
     sender_to_cancel: Sender<Event>,
     _thread: jod_thread::JoinHandle,
 }
@@ -39,6 +40,7 @@ impl RequestHandle {
         RequestHandle { sender_to_cancel, _thread: thread }
     }
 
+    #[allow(dead_code)]
     pub fn cancel(&self) {
         self.sender_to_cancel.send(Cancel).unwrap();
     }
@@ -47,6 +49,7 @@ impl RequestHandle {
 #[derive(Debug)]
 pub enum TaskNotification {
     Start(TaskStartParams),
+    #[allow(dead_code)]
     Progress(TaskProgressParams),
     Finish(TaskFinishParams),
 }
@@ -62,6 +65,7 @@ pub struct RequestActor {
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
     cargo_handle: Option<CargoHandle>,
+    #[allow(dead_code)]
     req_id: RequestId,
     params: Box<dyn CreateCommand + Send>,
 }
@@ -92,6 +96,7 @@ impl RequestActor {
         }));
     }
 
+    #[allow(dead_code)]
     fn report_task_progress(&self, task_id: TaskId, message: Option<String>) {
         // TODO improve this
         self.send_notification(TaskNotification::Progress(TaskProgressParams {
@@ -201,7 +206,7 @@ struct CargoHandle {
 }
 
 impl CargoHandle {
-    fn spawn(mut command: Command) -> std::io::Result<CargoHandle> {
+    fn spawn(mut command: Command) -> io::Result<CargoHandle> {
         command.stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
         let mut child = command.group_spawn().map(JodChild)?;
 
@@ -270,7 +275,7 @@ impl CargoActor {
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
                 if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
-                    self.sender.send(CargoMessage {});
+                    self.sender.send(CargoMessage {}).expect("TODO: panic message");
                 }
             },
             &mut |line| {
