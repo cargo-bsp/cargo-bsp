@@ -1,3 +1,4 @@
+use std::process::Command;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -53,4 +54,10 @@ pub trait Request {
     type Params: DeserializeOwned + Serialize;
     type Result: DeserializeOwned + Serialize;
     const METHOD: &'static str;
+}
+
+pub trait CreateCommand {
+    fn origin_id(&self) -> Option<String>;
+
+    fn create_command(&self) -> Command;
 }
