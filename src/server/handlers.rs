@@ -72,7 +72,7 @@ pub(crate) fn handle_compile(
     //     },
     // );
     let (sender_to_cancel, receiver_to_cancel) = unbounded::<CancelMessage>();
-    let (sender_to_main, _) = global_state.threads_chan.clone();
+    let sender_to_main = global_state.handlers_sender.clone();
     let req = Request {
         id: RequestId::from(0),
         method: "test".to_owned(),

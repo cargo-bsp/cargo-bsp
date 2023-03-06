@@ -10,28 +10,21 @@ use communication::{Connection, Notification, Request};
 
 use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
+use crate::communication::Message;
 use crate::logger::log;
 use crate::server::{handlers, Result};
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
-use crate::communication::Message;
-
-// use lsp_types::lsif::Vertex::Event;
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
 }
 
-// just a placeholder - to change (and move)
-#[derive(Debug)]
-pub enum ThreadMessage {}
-
-
 #[derive(Debug)]
 enum Event {
-    Bsp(communication::Message),
+    Bsp(Message),
     FromThread(Message),
 }
 
@@ -61,8 +54,8 @@ impl GlobalState {
             recv(inbox) -> msg =>
                 msg.ok().map(Event::Bsp),
 
-            recv(self.threads_chan.1) -> task =>
-                Some(Event::FromThread(task.unwrap())),
+            recv(self.handlers_receiver) -> msg =>
+                msg.ok().map(Event::FromThread),
         }
     }
 
@@ -72,11 +65,11 @@ impl GlobalState {
 
         match event {
             Bsp(msg) => match msg {
-                communication::Message::Request(req) => self.on_new_request(loop_start, req),
-                communication::Message::Notification(not) => {
+                Message::Request(req) => self.on_new_request(loop_start, req),
+                Message::Notification(not) => {
                     self.on_notification(not)?;
                 }
-                communication::Message::Response(_) => {}
+                Message::Response(_) => {}
             }
             FromThread(_) => {}
         }
@@ -129,7 +122,7 @@ impl GlobalState {
             .finish();
     }
 
-    /// Handles an incoming notification.
+    // Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
         NotificationDispatcher {
             not: Some(not),
