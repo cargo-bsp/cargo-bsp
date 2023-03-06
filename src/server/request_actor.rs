@@ -1,7 +1,10 @@
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 #![allow(unused_variables)]
 
-use std::{io, process::{ChildStderr, ChildStdout, Command, Stdio}};
+use std::{
+    io,
+    process::{ChildStderr, ChildStdout, Command, Stdio},
+};
 
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
@@ -13,9 +16,10 @@ use serde::Deserialize;
 
 use stdx::process::streaming_output;
 
-use crate::bsp_types::notifications::{StatusCode, TaskFinishParams, TaskId, TaskProgressParams,
-                                      TaskStartParams};
-use crate::bsp_types::requests::CreateCommand;
+use crate::bsp_types::notifications::{
+    StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
+};
+use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::communication::{RequestId, Response};
 use crate::communication::Message as RPCMessage;
 use crate::logger::log;
@@ -29,13 +33,16 @@ pub struct RequestHandle {
 }
 
 impl RequestHandle {
-    pub fn spawn(
+    pub fn spawn<R>(
         sender_to_main: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
-        params: Box<dyn CreateCommand + Send>,
+        params: R::Params,
     ) -> RequestHandle
+        where
+            R: Request + 'static,
+            R::Params: CreateCommand + Send,
     {
-        let actor = RequestActor::new(sender_to_main, req_id, params);
+        let actor: RequestActor<R> = RequestActor::new(sender_to_main, req_id, params);
         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()
             .spawn(move || actor.run(receiver_to_cancel))
@@ -59,7 +66,11 @@ pub enum TaskNotification {
 
 pub struct CargoMessage {}
 
-pub struct RequestActor {
+pub struct RequestActor<R>
+    where
+        R: Request,
+        R::Params: CreateCommand,
+{
     sender: Box<dyn Fn(RPCMessage) + Send>,
     // config: CargoCommand,
     /// CargoHandle exists to wrap around the communication needed to be able to
@@ -70,7 +81,7 @@ pub struct RequestActor {
     cargo_handle: Option<CargoHandle>,
     #[allow(dead_code)]
     req_id: RequestId,
-    params: Box<dyn CreateCommand + Send>,
+    params: R::Params,
 }
 
 pub enum Event {
@@ -78,13 +89,16 @@ pub enum Event {
     CargoEvent(Option<CargoMessage>),
 }
 
-impl RequestActor {
+impl<R> RequestActor<R>
+    where
+        R: Request,
+        R::Params: CreateCommand,
+{
     pub fn new(
         sender: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
-        params: Box<dyn CreateCommand + Send>,
-    ) -> RequestActor
-    {
+        params: R::Params,
+    ) -> RequestActor<R> {
         log("Spawning a new request actor");
         RequestActor { sender, cargo_handle: None, req_id, params }
     }

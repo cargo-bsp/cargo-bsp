@@ -5,6 +5,7 @@ use std::{fmt, panic};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{bsp_types, communication};
+use crate::bsp_types::requests::CreateCommand;
 use crate::communication::ExtractError;
 use crate::logger::log;
 use crate::server::{from_json, LspError};
@@ -41,23 +42,23 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
-    pub(crate) fn on_running_cargo<R>(
-        &mut self,
-        f: fn(&mut GlobalState, R::Params, &communication::RequestId) -> Result<RequestHandle>,
-    ) -> &mut Self
+    pub(crate) fn on_running_cargo<R>(&mut self) -> &mut Self
         where
-            R: bsp_types::requests::Request,
-            R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
+            R: bsp_types::requests::Request + 'static,
+            R::Params: CreateCommand + Send + fmt::Debug,
             R::Result: Serialize,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,
             None => return self,
         };
-        let result = { f(self.global_state, params, &req.id) };
-        if let Ok(handle) = result {
-            self.global_state.handlers.insert(req.id, handle);
-        }
+        let sender_to_main = self.global_state.handlers_sender.clone();
+        let request_handle = RequestHandle::spawn::<R>(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            req.id.clone(),
+            params,
+        );
+        self.global_state.handlers.insert(req.id, request_handle);
 
         self
     }
