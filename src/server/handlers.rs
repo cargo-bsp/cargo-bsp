@@ -1,15 +1,10 @@
-use std::path::PathBuf;
-use crate::bsp_types;
+use crate::{bsp_types, server};
 use crate::bsp_types::notifications::StatusCode;
 use crate::server::global_state::GlobalState;
-use crate::server::request_actor::{CargoCommand, RequestActor};
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use paths::AbsPathBuf;
-use crate::communication::{Message, Request};
+use crate::server::request_actor::RequestHandle;
+use crate::bsp_types::requests::{CompileParams, CreateCommand, RunParams, TestParams};
 use crate::communication::RequestId;
 use crate::server::Error;
-
-pub struct CancelMessage{}
 
 pub(crate) fn handle_workspace_build_targets(
     _: &mut GlobalState,
@@ -61,8 +56,10 @@ pub(crate) fn handle_extensions(
 
 pub(crate) fn handle_compile(
     global_state: &mut GlobalState,
-    params: bsp_types::requests::CompileParams,
-) -> Result<bsp_types::requests::CompileResult, Error> {
+    params: CompileParams,
+    id: &RequestId
+) -> server::Result<RequestHandle> {
+
     // global_state.send_notification::<bsp_types::notifications::LogMessage>(
     //     bsp_types::notifications::LogMessageParams {
     //         message_type: bsp_types::notifications::MessageType::Log,
@@ -71,34 +68,18 @@ pub(crate) fn handle_compile(
     //         message: "INFO: Build completed successfully".to_string(),
     //     },
     // );
-    let (sender_to_cancel, receiver_to_cancel) = unbounded::<CancelMessage>();
     let sender_to_main = global_state.handlers_sender.clone();
-    let req = Request {
-        id: RequestId::from(0),
-        method: "test".to_owned(),
-        params: serde_json::Value::Null,
-    };
-    let abs_path= AbsPathBuf::try_from("/home/patryk/bsp-2/cargo-bsp").unwrap();
-    let actor = RequestActor::new(0,
-                                  Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-                                  CargoCommand::Compile(params),
-                                  abs_path,
-                                  req,
+    let request_handle = RequestHandle::spawn(
+        Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+        id.clone(),
+        Box::new(params) as Box<dyn CreateCommand + Send>,
     );
-    // TODO add the actor to map ReqToActor ~ Kasia
-    
-    let result = bsp_types::requests::CompileResult {
-        origin_id: None,
-        status_code: 1,
-        data_kind: None,
-        data: None,
-    };
-    Ok(result)
+    Ok(request_handle)
 }
 
 pub(crate) fn handle_run(
     global_state: &mut GlobalState,
-    params: bsp_types::requests::RunParams,
+    params: RunParams,
 ) -> Result<bsp_types::requests::RunResult, Error> {
     global_state.send_notification::<bsp_types::notifications::LogMessage>(
         bsp_types::notifications::LogMessageParams {
@@ -117,7 +98,7 @@ pub(crate) fn handle_run(
 
 pub(crate) fn handle_test(
     global_state: &mut GlobalState,
-    params: bsp_types::requests::TestParams,
+    params: TestParams,
 ) -> Result<bsp_types::requests::TestResult, Error> {
     global_state.send_notification::<bsp_types::notifications::LogMessage>(
         bsp_types::notifications::LogMessageParams {

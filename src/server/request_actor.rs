@@ -1,117 +1,73 @@
-//! Flycheck provides the functionality needed to run `cargo check` or
-//! another compatible command (f.x. clippy) in a background thread and provide
-//! LSP diagnostics based on the output of the command.
+#![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
+#![allow(unused_variables)]
 
-#![warn(rust_2018_idioms, unused_lifetimes, semicolon_in_expressions_from_macros)]
-
-use std::{
-    fmt, io,
-    process::{ChildStderr, ChildStdout, Command, Stdio},
-    time::Duration,
-};
-
+use std::{io, process::{ChildStderr, ChildStdout, Command, Stdio}};
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
-use paths::AbsPathBuf;
-use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use stdx::process::streaming_output;
-
 use crate::logger::log;
-
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
-use crate::bsp_types::notifications::{TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams};
-use crate::bsp_types::requests::{CompileParams, DebugSessionParams, RunParams, TestParams};
-use crate::communication::{Message, Notification, Request, RequestId, Response};
+use crate::bsp_types::notifications::{StatusCode, TaskFinishParams, TaskId, TaskProgressParams,
+                                      TaskStartParams};
+use crate::bsp_types::requests::{CreateCommand};
+use crate::communication::{RequestId, Response};
 use crate::server::request_actor::Event::Cancel;
 use crate::communication::Message as RPCMessage;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum InvocationStrategy {
-    Once,
-    #[default]
-    PerWorkspace,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum InvocationLocation {
-    Root(AbsPathBuf),
-    #[default]
-    Workspace,
-}
-
-#[derive(Debug)]
-pub enum CargoCommand {
-    Compile(CompileParams),
-    Debug(DebugSessionParams),
-    Run(RunParams),
-    Test(TestParams),
-}
-
 #[derive(Debug)]
 pub struct RequestHandle {
-    // XXX: drop order is significant
-    sender: Sender<Event>,
+    #[allow(dead_code)]
+    sender_to_cancel: Sender<Event>,
     _thread: jod_thread::JoinHandle,
-    id: usize,
 }
 
 impl RequestHandle {
     pub fn spawn(
-        id: usize,
-        sender: Box<dyn Fn(RPCMessage) + Send>,
-        config: CargoCommand,
-        workspace_root: AbsPathBuf,
-        req: Request,
-    ) -> RequestHandle {
-        let actor = RequestActor::new(id, sender, config, workspace_root, req);
-        let (sender, receiver) = unbounded::<Event>();
+        sender_to_main: Box<dyn Fn(RPCMessage) + Send>,
+        req_id: RequestId,
+        params: Box<dyn CreateCommand + Send>,
+    ) -> RequestHandle
+    {
+        let actor = RequestActor::new(sender_to_main, req_id, params);
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()
-            .spawn(move || actor.run(receiver))
+            .spawn(move || actor.run(receiver_to_cancel))
             .expect("failed to spawn thread");
-        RequestHandle { id, sender, _thread: thread }
+        RequestHandle { sender_to_cancel, _thread: thread }
     }
 
-    /// Stop this cargo check worker.
+    #[allow(dead_code)]
     pub fn cancel(&self) {
-        self.sender.send(Cancel).unwrap();
-    }
-
-    pub fn id(&self) -> usize {
-        self.id
+        self.sender_to_cancel.send(Cancel).unwrap();
     }
 }
 
 #[derive(Debug)]
 pub enum TaskNotification {
     Start(TaskStartParams),
+    #[allow(dead_code)]
     Progress(TaskProgressParams),
     Finish(TaskFinishParams),
 }
 
 pub struct CargoMessage {}
 
-/// A [`RequestActor`] is a single check instance of a workspace.
 pub struct RequestActor {
-    /// The workspace id of this flycheck instance.
-    id: usize,
     sender: Box<dyn Fn(RPCMessage) + Send>,
-    config: CargoCommand,
-    /// Either the workspace root of the workspace we are flychecking,
-    /// or the project root of the project.
-    root: AbsPathBuf,
+    // config: CargoCommand,
     /// CargoHandle exists to wrap around the communication needed to be able to
-    /// run `cargo check` without blocking. Currently the Rust standard library
+    /// run `cargo build/run/test` without blocking. Currently the Rust standard library
     /// doesn't provide a way to read sub-process output without blocking, so we
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
     cargo_handle: Option<CargoHandle>,
-    req: Request,
-    task_id: TaskId, // we need to set it, maybe based on request
+    #[allow(dead_code)]
+    req_id: RequestId,
+    params: Box<dyn CreateCommand + Send>,
 }
 
 pub enum Event {
@@ -121,18 +77,51 @@ pub enum Event {
 
 impl RequestActor {
     pub fn new(
-        id: usize,
         sender: Box<dyn Fn(RPCMessage) + Send>,
-        config: CargoCommand,
-        workspace_root: AbsPathBuf,
-        req: Request,
-    ) -> RequestActor {
+        req_id: RequestId,
+        params: Box<dyn CreateCommand + Send>,
+    ) -> RequestActor
+    {
         log("Spawning a new request actor");
-        RequestActor { id, sender, config, root: workspace_root, cargo_handle: None, req, task_id: Default::default() }
+        RequestActor { sender, cargo_handle: None, req_id, params }
     }
 
-    fn report_progress(&self, progress: TaskNotification) {
-        // create a notification with task_id from struct
+    fn report_task_start(&self, task_id: TaskId) {
+        // TODO improve this
+        self.send_notification(TaskNotification::Start(TaskStartParams {
+            task_id,
+            event_time: None,
+            message: None,
+            data: None,
+        }));
+    }
+
+    #[allow(dead_code)]
+    fn report_task_progress(&self, task_id: TaskId, message: Option<String>) {
+        // TODO improve this
+        self.send_notification(TaskNotification::Progress(TaskProgressParams {
+            task_id,
+            event_time: None,
+            message,
+            total: None,
+            progress: None,
+            data: None,
+            unit: None,
+        }));
+    }
+
+    fn report_task_finish(&self, task_id: TaskId, status_code: StatusCode) {
+        // TODO improve this
+        self.send_notification(TaskNotification::Finish(TaskFinishParams {
+            task_id,
+            event_time: None,
+            message: None,
+            status: status_code,
+            data: None,
+        }));
+    }
+
+    fn send_notification(&self, progress: TaskNotification) {
         todo!()
     }
 
@@ -145,43 +134,31 @@ impl RequestActor {
     }
 
     pub fn run(mut self, inbox: Receiver<Event>) {
-        let command = self.create_command();
+        let command = self.params.create_command();
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => {
                 self.cargo_handle = Some(cargo_handle);
-                self.report_progress(TaskNotification::Start(TaskStartParams {
-                    task_id: Default::default(),
-                    event_time: None,
-                    message: None,
-                    data: None,
-                }));
+                self.report_task_start(TaskId { id: self.params.origin_id().unwrap(), parents: None });
             }
-            Err(error) => {
+            Err(err) => {
                 todo!()
             }
         }
-        'event: while let Some(event) = self.next_event(&inbox) {
+        while let Some(event) = self.next_event(&inbox) {
             match event {
                 Cancel => {
                     self.cancel_process();
                     return;
                 }
                 Event::CargoEvent(None) => {
-                    // tracing::debug!(flycheck_id = self.id, "flycheck finished");
-
                     // Watcher finished
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
                     if res.is_err() {
+                        self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None }, StatusCode::Error);
                         todo!()
                     }
-                    self.report_progress(TaskNotification::Finish(TaskFinishParams {
-                        task_id: Default::default(),
-                        event_time: None,
-                        message: None,
-                        status: Default::default(),
-                        data: None,
-                    }));
+                    self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None }, StatusCode::Ok);
                 }
                 Event::CargoEvent(Some(message)) => {
                     // handle information and create reponse/notification based on that
@@ -198,25 +175,21 @@ impl RequestActor {
 
     fn cancel_process(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
+            self.report_task_start(TaskId {
+                id: "TODO".to_string(),
+                parents: Some(vec![self.params.origin_id().unwrap()]),
+            });
             cargo_handle.cancel();
-            self.report_progress(TaskNotification::Finish(TaskFinishParams {
-                task_id: Default::default(),
-                event_time: None,
-                message: None,
-                status: Default::default(),
-                data: None,
-            }));
+            self.report_task_finish(TaskId {
+                id: "TODO".to_string(),
+                parents: Some(vec![self.params.origin_id().unwrap()]),
+            }, StatusCode::Cancelled, );
+            self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None },
+                                    StatusCode::Cancelled);
             // TODO
+        } else {
+            todo!()
         }
-    }
-
-    fn create_command(&self) -> Command {
-        match &self.config {
-            CargoCommand::Compile(params) => { todo!() }
-            CargoCommand::Debug(params) => { todo!() }
-            CargoCommand::Run(params) => { todo!() }
-            CargoCommand::Test(params) => { todo!() }
-        };
     }
 
     fn send(&self, msg: RPCMessage) { (self.sender)(msg); }
@@ -224,7 +197,6 @@ impl RequestActor {
 
 struct JodChild(GroupChild);
 
-/// A handle to a cargo process used for fly-checking.
 struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
     /// a read syscall dropping and therefore terminating the process is our best option.
@@ -234,7 +206,7 @@ struct CargoHandle {
 }
 
 impl CargoHandle {
-    fn spawn(mut command: Command) -> std::io::Result<CargoHandle> {
+    fn spawn(mut command: Command) -> io::Result<CargoHandle> {
         command.stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
         let mut child = command.group_spawn().map(JodChild)?;
 
@@ -303,7 +275,7 @@ impl CargoActor {
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
                 if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
-                    self.sender.send(CargoMessage {});
+                    self.sender.send(CargoMessage {}).expect("TODO: panic message");
                 }
             },
             &mut |line| {
