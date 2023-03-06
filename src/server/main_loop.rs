@@ -29,13 +29,13 @@ enum Event {
 }
 
 impl GlobalState {
-    fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
+    fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         if self.config.linked_projects().is_empty() {
             log("bsp cargo failed to discover workspace");
         };
 
         while let Some(event) = self.next_message(&inbox) {
-            if let Bsp(communication::Message::Notification(not)) = &event {
+            if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     return Ok(());
                 }
@@ -48,7 +48,7 @@ impl GlobalState {
 
     fn next_message(
         &self,
-        inbox: &Receiver<communication::Message>,
+        inbox: &Receiver<Message>,
     ) -> Option<Event> {
         select! {
             recv(inbox) -> msg =>
@@ -66,12 +66,17 @@ impl GlobalState {
         match event {
             Bsp(msg) => match msg {
                 Message::Request(req) => self.on_new_request(loop_start, req),
-                Message::Notification(not) => {
-                    self.on_notification(not)?;
-                }
+                Message::Notification(not) => self.on_notification(not)?,
                 Message::Response(_) => {}
             }
-            FromThread(_) => {}
+            FromThread(msg) => match &msg {
+                Message::Request(_) => {}
+                Message::Notification(not) => self.send_notification(not.to_owned()),
+                Message::Response(resp) => {
+                    self.handlers.remove(&resp.id);
+                    self.respond(resp.to_owned())
+                }
+            }
         }
 
         Ok(())
@@ -116,8 +121,8 @@ impl GlobalState {
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
             .on_running_cargo::<bsp_types::requests::Compile>(handlers::handle_compile)
-            .on_sync_mut::<bsp_types::requests::Run>(handlers::handle_run)
-            .on_sync_mut::<bsp_types::requests::Test>(handlers::handle_test)
+            .on_running_cargo::<bsp_types::requests::Run>(handlers::handle_run)
+            .on_running_cargo::<bsp_types::requests::Test>(handlers::handle_test)
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }

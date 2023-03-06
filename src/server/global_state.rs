@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 
-use crate::{bsp_types, communication};
+use crate::communication;
 use crate::communication::{Message, RequestId};
 use crate::logger::log;
 use crate::project_model::ProjectWorkspace;
@@ -26,17 +26,17 @@ pub(crate) struct GlobalState {
     pub(crate) handlers_sender: Sender<Message>,
     pub(crate) handlers_receiver: Receiver<Message>,
 
-    pub(crate) workspaces: Arc<Vec<ProjectWorkspace>>,
+    pub(crate) _workspace: Arc<ProjectWorkspace>,
 }
 
 /// snapshot of server state for request handlers
 pub(crate) struct _GlobalStateSnapshot {
     pub(crate) config: Arc<Config>,
-    pub(crate) workspaces: Arc<Vec<ProjectWorkspace>>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 impl GlobalState {
-    pub(crate) fn new(sender: Sender<communication::Message>, config: Config) -> GlobalState {
+    pub(crate) fn new(sender: Sender<Message>, config: Config) -> GlobalState {
         let (handlers_sender, handlers_receiver) = unbounded();
         let mut this = GlobalState {
             sender,
@@ -46,17 +46,13 @@ impl GlobalState {
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
-            workspaces: Arc::new(Vec::new()),
+            _workspace: Arc::new(ProjectWorkspace::default()),
         };
         this.update_configuration(config);
         this
     }
 
-    pub(crate) fn send_notification<N: bsp_types::notifications::Notification>(
-        &mut self,
-        params: N::Params,
-    ) {
-        let not = communication::Notification::new(N::METHOD.to_string(), params);
+    pub(crate) fn send_notification(&mut self, not: communication::Notification) {
         self.send(not.into());
     }
 
@@ -89,13 +85,13 @@ impl GlobalState {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn cancel(&mut self, request_id: communication::RequestId) {
+    pub(crate) fn cancel(&mut self, request_id: RequestId) {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
             self.send(response.into());
         }
     }
 
-    fn send(&mut self, message: communication::Message) {
+    fn send(&mut self, message: Message) {
         self.sender.send(message).unwrap()
     }
 

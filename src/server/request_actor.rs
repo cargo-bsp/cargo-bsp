@@ -2,21 +2,24 @@
 #![allow(unused_variables)]
 
 use std::{io, process::{ChildStderr, ChildStdout, Command, Stdio}};
-use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
-use serde::Deserialize;
-use stdx::process::streaming_output;
-use crate::logger::log;
+
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
+use command_group::{CommandGroup, GroupChild};
+use crossbeam_channel::{never, Receiver, select, Sender, unbounded};
+use serde::Deserialize;
+
+use stdx::process::streaming_output;
+
 use crate::bsp_types::notifications::{StatusCode, TaskFinishParams, TaskId, TaskProgressParams,
                                       TaskStartParams};
-use crate::bsp_types::requests::{CreateCommand};
+use crate::bsp_types::requests::CreateCommand;
 use crate::communication::{RequestId, Response};
-use crate::server::request_actor::Event::Cancel;
 use crate::communication::Message as RPCMessage;
+use crate::logger::log;
+use crate::server::request_actor::Event::Cancel;
 
 #[derive(Debug)]
 pub struct RequestHandle {
@@ -168,6 +171,7 @@ impl RequestActor {
                         error: None,
                     });
                     self.send(resp);
+                    // shouldn't we break the loop after sending response message?
                 }
             }
         }
