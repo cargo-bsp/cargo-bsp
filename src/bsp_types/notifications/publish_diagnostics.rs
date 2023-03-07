@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bsp_types::notifications::Notification;
-use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier, OriginId};
 
 #[derive(Debug)]
 pub enum PublishDiagnostics {}
@@ -26,7 +26,7 @@ pub struct PublishDiagnosticsParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<OriginId>,
 
     /** The diagnostics to be published by the client. */
     pub diagnostics: Vec<Diagnostic>,
