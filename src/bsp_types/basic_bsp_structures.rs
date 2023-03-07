@@ -110,7 +110,7 @@ pub struct TestProvider {
     pub language_ids: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTarget {
     /** The target’s unique identifier */
@@ -158,10 +158,54 @@ pub struct BuildTarget {
     pub data: Option<Value>,
 }
 
+impl From<&cargo_metadata::Target> for BuildTarget {
+    fn from(cargo_target: &cargo_metadata::Target) -> Self {
+        //TODO: map cargo_target to BuildTarget properly
+        let mut tags = vec![];
+        if cargo_target.kind.contains(&"lib".to_string()) {
+            tags.push(build_target_tag::LIBRARY.to_string());
+        }
+        if cargo_target.kind.contains(&"bin".to_string()) {
+            tags.push(build_target_tag::APPLICATION.to_string());
+        }
+        if cargo_target.kind.contains(&"test".to_string()) {
+            tags.push(build_target_tag::TEST.to_string());
+        }
+        // if cargo_target.kind.contains(&"example".to_string()) {
+        //     tags.push(build_target_tag::EXAMPLE.to_string());
+        // }
+        // if cargo_target.kind.contains(&"bench".to_string()) {
+        //     tags.push(build_target_tag::BENCHMARK.to_string());
+        // }
+        // if cargo_target.kind.contains(&"custom-build".to_string()) {
+        //     tags.push(build_target_tag::CUSTOM_BUILD.to_string());
+        // }
+        // if cargo_target.kind.contains(&"proc-macro".to_string()) {
+        //     tags.push(build_target_tag::PROC_MACRO.to_string());
+        // }
+        BuildTarget { 
+            id: BuildTargetIdentifier { 
+                uri: cargo_target.src_path.to_string(),
+            },
+            display_name: Some(cargo_target.name.clone()),
+            base_directory: None, // Some(cargo_target.src_path.to_string()),
+            tags,
+            capabilities: BuildTargetCapabilities {
+                can_compile: true,
+                can_run: true,
+                can_test: true,
+                can_debug: true,
+            },
+            language_ids: vec!["rust".to_string()],
+            ..BuildTarget::default()
+        }
+    }
+}
+
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
 * within the workspace. Clients should not infer metadata out of the URI structure such as the path
 * or query parameters, use BuildTarget instead.*/
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
@@ -212,7 +256,7 @@ pub mod build_target_tag {
     pub const MANUAL: &str = "manual";
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetCapabilities {
     /** This target can be compiled by the BSP server. */

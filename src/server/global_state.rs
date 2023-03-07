@@ -20,7 +20,7 @@ pub(crate) struct GlobalState {
     pub(crate) shutdown_requested: bool,
     pub(crate) config: Arc<Config>,
     pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
-    pub(crate) _workspace: Arc<ProjectWorkspace>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 /// snapshot of server state for request handlers
@@ -36,11 +36,11 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: Arc::new(config.clone()),
+            config: Arc::new(config),
             threads_chan: threads_channel,
-            _workspace: Arc::new(ProjectWorkspace::default()),
+            workspace: Arc::new(ProjectWorkspace::default()),
         };
-        this.update_configuration(config);
+        this.update_workspace_data();
         this
     }
 
@@ -91,8 +91,9 @@ impl GlobalState {
         self.sender.send(message).unwrap()
     }
 
-    pub(crate) fn update_configuration(&mut self, _config: Config) {
-        // TODO
+    pub(crate) fn update_workspace_data(&mut self) {
+        //get a manifest path from config and pass it to new Project Workspace
+       self.workspace = Arc::new(ProjectWorkspace::from(self.config.linked_projects().get(0).unwrap().file.clone()));
     }
 }
 

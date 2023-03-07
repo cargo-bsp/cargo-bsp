@@ -29,14 +29,14 @@ impl ProjectManifest {
         }
 
         fn find_cargo_toml(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
-            match find_in_parent_dirs(path, "Cargo.toml") {
+            match find_in_parent_dirs(path) {
                 Some(it) => Ok(vec![it]),
                 None => Ok(find_cargo_toml_in_child_dir(read_dir(path)?)),
             }
         }
 
-        fn find_in_parent_dirs(path: &Path, target_file_name: &str) -> Option<PathBuf> {
-            if path.file_name().unwrap_or_default() == target_file_name {
+        fn find_in_parent_dirs(path: &Path) -> Option<PathBuf> {
+            if path.file_name().unwrap_or_default() ==  "Cargo.toml" {
                 if let Ok(path) = valid_path(path.to_path_buf()) {
                     return Some(path);
                 }
@@ -45,7 +45,7 @@ impl ProjectManifest {
             let mut curr = Some(path.to_path_buf());
 
             while let Some(path) = curr {
-                let candidate = path.join(target_file_name);
+                let candidate = path.join( "Cargo.toml");
                 if fs::metadata(&candidate).is_ok() {
                     if let Ok(manifest) = valid_path(candidate) {
                         return Some(manifest);
