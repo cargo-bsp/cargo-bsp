@@ -4,12 +4,14 @@ use std::{fmt, panic};
 
 use serde::{de::DeserializeOwned, Serialize};
 
+use crate::{bsp_types, communication};
+use crate::bsp_types::requests::CreateCommand;
 use crate::communication::ExtractError;
 use crate::logger::log;
-use crate::server::global_state::GlobalState;
-use crate::server::Result;
 use crate::server::{from_json, LspError};
-use crate::{bsp_types, communication};
+use crate::server::global_state::GlobalState;
+use crate::server::request_actor::RequestHandle;
+use crate::server::Result;
 
 pub(crate) struct RequestDispatcher<'a> {
     pub(crate) req: Option<communication::Request>,
@@ -18,8 +20,7 @@ pub(crate) struct RequestDispatcher<'a> {
 
 impl<'a> RequestDispatcher<'a> {
     /// Dispatches the request onto the current thread, given full access to
-    /// mutable global state. Unlike all other methods here, this one isn't
-    /// guarded by `catch_unwind`, so, please, don't make bugs :-)
+    /// mutable global state.
     pub(crate) fn on_sync_mut<R>(
         &mut self,
         f: fn(&mut GlobalState, R::Params) -> Result<R::Result>,
@@ -37,6 +38,27 @@ impl<'a> RequestDispatcher<'a> {
         if let Ok(response) = result_to_response::<R>(req.id, result) {
             self.global_state.respond(response);
         }
+
+        self
+    }
+
+    pub(crate) fn on_running_cargo<R>(&mut self) -> &mut Self
+    where
+        R: bsp_types::requests::Request + 'static,
+        R::Params: CreateCommand + Send + fmt::Debug,
+        R::Result: Serialize,
+    {
+        let (req, params, _) = match self.parse::<R>() {
+            Some(it) => it,
+            None => return self,
+        };
+        let sender_to_main = self.global_state.handlers_sender.clone();
+        let request_handle = RequestHandle::spawn::<R>(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            req.id.clone(),
+            params,
+        );
+        self.global_state.handlers.insert(req.id, request_handle);
 
         self
     }

@@ -1,23 +1,29 @@
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 #![allow(unused_variables)]
 
-use std::{io, process::{ChildStderr, ChildStdout, Command, Stdio}};
-use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
-use serde::Deserialize;
-use stdx::process::streaming_output;
-use crate::logger::log;
+use std::{
+    io,
+    process::{ChildStderr, ChildStdout, Command, Stdio},
+};
+
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use crate::bsp_types::notifications::{StatusCode, TaskFinishParams, TaskId, TaskProgressParams,
-                                      TaskStartParams};
-use crate::bsp_types::requests::CreateCommand;
+use command_group::{CommandGroup, GroupChild};
+use crossbeam_channel::{never, Receiver, select, Sender, unbounded};
+use serde::Deserialize;
+use stdx::process::streaming_output;
+
+use crate::bsp_types::notifications::{
+    StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
+};
 use crate::bsp_types::OriginId;
+use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::communication::{RequestId, Response};
-use crate::server::request_actor::Event::Cancel;
 use crate::communication::Message as RPCMessage;
+use crate::logger::log;
+use crate::server::request_actor::Event::Cancel;
 
 #[derive(Debug)]
 pub struct RequestHandle {
@@ -27,18 +33,24 @@ pub struct RequestHandle {
 }
 
 impl RequestHandle {
-    pub fn spawn(
+    pub fn spawn<R>(
         sender_to_main: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
-        params: Box<dyn CreateCommand + Send>,
+        params: R::Params,
     ) -> RequestHandle
+    where
+        R: Request + 'static,
+        R::Params: CreateCommand + Send,
     {
-        let actor = RequestActor::new(sender_to_main, req_id, params);
+        let actor: RequestActor<R> = RequestActor::new(sender_to_main, req_id, params);
         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()
             .spawn(move || actor.run(receiver_to_cancel))
             .expect("failed to spawn thread");
-        RequestHandle { sender_to_cancel, _thread: thread }
+        RequestHandle {
+            sender_to_cancel,
+            _thread: thread,
+        }
     }
 
     #[allow(dead_code)]
@@ -57,7 +69,11 @@ pub enum TaskNotification {
 
 pub struct CargoMessage {}
 
-pub struct RequestActor {
+pub struct RequestActor<R>
+where
+    R: Request,
+    R::Params: CreateCommand,
+{
     sender: Box<dyn Fn(RPCMessage) + Send>,
     // config: CargoCommand,
     /// CargoHandle exists to wrap around the communication needed to be able to
@@ -68,7 +84,7 @@ pub struct RequestActor {
     cargo_handle: Option<CargoHandle>,
     #[allow(dead_code)]
     req_id: RequestId,
-    params: Box<dyn CreateCommand + Send>,
+    params: R::Params,
 }
 
 pub enum Event {
@@ -76,15 +92,23 @@ pub enum Event {
     CargoEvent(Option<CargoMessage>),
 }
 
-impl RequestActor {
+impl<R> RequestActor<R>
+where
+    R: Request,
+    R::Params: CreateCommand,
+{
     pub fn new(
         sender: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
-        params: Box<dyn CreateCommand + Send>,
-    ) -> RequestActor
-    {
+        params: R::Params,
+    ) -> RequestActor<R> {
         log("Spawning a new request actor");
-        RequestActor { sender, cargo_handle: None, req_id, params }
+        RequestActor {
+            sender,
+            cargo_handle: None,
+            req_id,
+            params,
+        }
     }
 
     fn report_task_start(&self, task_id: TaskId) {
@@ -139,7 +163,10 @@ impl RequestActor {
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => {
                 self.cargo_handle = Some(cargo_handle);
-                self.report_task_start(TaskId { id: self.params.origin_id().unwrap(), parents: None });
+                self.report_task_start(TaskId {
+                    id: self.params.origin_id().unwrap(),
+                    parents: None,
+                });
             }
             Err(err) => {
                 todo!()
@@ -156,10 +183,22 @@ impl RequestActor {
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
                     if res.is_err() {
-                        self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None }, StatusCode::Error);
+                        self.report_task_finish(
+                            TaskId {
+                                id: self.params.origin_id().unwrap(),
+                                parents: None,
+                            },
+                            StatusCode::Error,
+                        );
                         todo!()
                     }
-                    self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None }, StatusCode::Ok);
+                    self.report_task_finish(
+                        TaskId {
+                            id: self.params.origin_id().unwrap(),
+                            parents: None,
+                        },
+                        StatusCode::Ok,
+                    );
                 }
                 Event::CargoEvent(Some(message)) => {
                     // handle information and create reponse/notification based on that
@@ -169,6 +208,7 @@ impl RequestActor {
                         error: None,
                     });
                     self.send(resp);
+                    // shouldn't we break the loop after sending response message?
                 }
             }
         }
@@ -181,19 +221,29 @@ impl RequestActor {
                 parents: Some(vec![self.params.origin_id().unwrap()]),
             });
             cargo_handle.cancel();
-            self.report_task_finish(TaskId {
-                id: OriginId::from("TODO".to_string()),
-                parents: Some(vec![self.params.origin_id().unwrap()]),
-            }, StatusCode::Cancelled, );
-            self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None },
-                                    StatusCode::Cancelled);
+            self.report_task_finish(
+                TaskId {
+                    id: OriginId::from("TODO".to_string()),
+                    parents: Some(vec![self.params.origin_id().unwrap()]),
+                },
+                StatusCode::Cancelled,
+            );
+            self.report_task_finish(
+                TaskId {
+                    id: self.params.origin_id().unwrap(),
+                    parents: None,
+                },
+                StatusCode::Cancelled,
+            );
             // TODO
         } else {
             todo!()
         }
     }
 
-    fn send(&self, msg: RPCMessage) { (self.sender)(msg); }
+    fn send(&self, msg: RPCMessage) {
+        (self.sender)(msg);
+    }
 }
 
 struct JodChild(GroupChild);
@@ -208,7 +258,10 @@ struct CargoHandle {
 
 impl CargoHandle {
     fn spawn(mut command: Command) -> io::Result<CargoHandle> {
-        command.stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
+        command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null());
         let mut child = command.group_spawn().map(JodChild)?;
 
         let stdout = child.0.inner().stdout.take().unwrap();
@@ -220,7 +273,11 @@ impl CargoHandle {
             .name("CargoHandle".to_owned())
             .spawn(move || actor.run())
             .expect("failed to spawn thread");
-        Ok(CargoHandle { child, thread, receiver })
+        Ok(CargoHandle {
+            child,
+            thread,
+            receiver,
+        })
     }
 
     fn cancel(mut self) {
@@ -251,7 +308,11 @@ struct CargoActor {
 
 impl CargoActor {
     fn new(sender: Sender<CargoMessage>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
-        CargoActor { sender, stdout, stderr }
+        CargoActor {
+            sender,
+            stdout,
+            stderr,
+        }
     }
 
     fn run(self) -> io::Result<(bool, String)> {
@@ -276,7 +337,9 @@ impl CargoActor {
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
                 if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
-                    self.sender.send(CargoMessage {}).expect("TODO: panic message");
+                    self.sender
+                        .send(CargoMessage {})
+                        .expect("TODO: panic message");
                 }
             },
             &mut |line| {

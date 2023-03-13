@@ -34,9 +34,7 @@ pub fn run_server() -> Result<()> {
         .and_then(|it| it.to_file_path().ok())
     {
         Some(it) => it,
-        None => {
-            env::current_dir()?
-        }
+        None => env::current_dir()?,
     };
 
     let mut config = Config::new(root_path, initialize_params.capabilities);
@@ -63,7 +61,10 @@ pub fn run_server() -> Result<()> {
         let discovered = ProjectManifest::discover_all(config.root_path());
         log(&format!("discovered projects: {:?}", discovered));
         if discovered.is_empty() {
-            log(&format!("error: failed to find any projects in {:?}", config.root_path()));
+            log(&format!(
+                "error: failed to find any projects in {:?}",
+                config.root_path()
+            ));
         }
         config.discovered_projects = Some(discovered);
     }
