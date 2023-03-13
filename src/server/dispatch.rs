@@ -4,14 +4,14 @@ use std::{fmt, panic};
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{bsp_types, communication};
 use crate::bsp_types::requests::CreateCommand;
 use crate::communication::ExtractError;
 use crate::logger::log;
-use crate::server::{from_json, LspError};
 use crate::server::global_state::GlobalState;
 use crate::server::request_actor::RequestHandle;
 use crate::server::Result;
+use crate::server::{from_json, LspError};
+use crate::{bsp_types, communication};
 
 pub(crate) struct RequestDispatcher<'a> {
     pub(crate) req: Option<communication::Request>,

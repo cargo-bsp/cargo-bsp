@@ -1,6 +1,6 @@
-use std::process::Command;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::process::Command;
 
 mod initialize;
 pub use initialize::*;
@@ -50,8 +50,6 @@ pub use workspace_build_targets::*;
 mod java_extension;
 pub use java_extension::*;
 
-use crate::bsp_types::OriginId;
-
 pub trait Request {
     type Params: DeserializeOwned + Serialize;
     type Result: DeserializeOwned + Serialize;
@@ -59,7 +57,7 @@ pub trait Request {
 }
 
 pub trait CreateCommand {
-    fn origin_id(&self) -> Option<OriginId>;
+    fn origin_id(&self) -> Option<String>;
 
     fn create_command(&self) -> Command;
 }

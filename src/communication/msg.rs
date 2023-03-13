@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn serialize_request_with_null_params() {
         let msg = Message::Request(Request {
-            id: RequestId::from(3),
+            id: 3.into(),
             method: "build/shutdown".into(),
             params: serde_json::Value::Null,
         });

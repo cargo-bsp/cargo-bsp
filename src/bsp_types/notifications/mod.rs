@@ -19,8 +19,6 @@ pub use did_change_build_target::*;
 mod publish_diagnostics;
 pub use publish_diagnostics::*;
 
-use crate::bsp_types::OriginId;
-
 pub trait Notification {
     type Params: DeserializeOwned + Serialize;
     const METHOD: &'static str;
@@ -43,13 +41,13 @@ pub enum StatusCode {
 #[serde(rename_all = "camelCase")]
 pub struct TaskId {
     /** A unique identifier */
-    pub id: OriginId,
+    pub id: String,
 
     /** The parent task ids, if any. A non-empty parents field means
      * this task is a sub-task of every parent task id. The child-parent
      * relationship of tasks makes it possible to render tasks in
      * a tree-like user interface or inspect what caused a certain task
      * execution. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<Vec<OriginId>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parents: Vec<String>,
 }

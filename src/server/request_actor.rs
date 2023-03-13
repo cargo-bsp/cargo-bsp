@@ -18,12 +18,10 @@ use stdx::process::streaming_output;
 use crate::bsp_types::notifications::{
     StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
 };
-use crate::bsp_types::OriginId;
 use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::communication::{RequestId, Response};
 use crate::communication::Message as RPCMessage;
 use crate::logger::log;
-use crate::server::request_actor::Event::Cancel;
 
 #[derive(Debug)]
 pub struct RequestHandle {
@@ -55,7 +53,7 @@ impl RequestHandle {
 
     #[allow(dead_code)]
     pub fn cancel(&self) {
-        self.sender_to_cancel.send(Cancel).unwrap();
+        self.sender_to_cancel.send(Event::Cancel).unwrap();
     }
 }
 
@@ -89,7 +87,8 @@ where
 
 pub enum Event {
     Cancel,
-    CargoEvent(Option<CargoMessage>),
+    CargoEvent(CargoMessage),
+    CargoFinish,
 }
 
 impl<R> RequestActor<R>
@@ -154,7 +153,10 @@ where
         let cargo_chan = self.cargo_handle.as_ref().map(|cargo| &cargo.receiver);
         select! {
             recv(inbox) -> msg => msg.ok(),
-            recv(cargo_chan.unwrap_or(&never())) -> msg => Some(Event::CargoEvent(msg.ok())),
+            recv(cargo_chan.unwrap_or(&never())) -> msg => match msg {
+                Ok(msg) => Some(Event::CargoEvent(msg)),
+                Err(_) => Some(Event::CargoFinish),
+            }
         }
     }
 
@@ -165,7 +167,7 @@ where
                 self.cargo_handle = Some(cargo_handle);
                 self.report_task_start(TaskId {
                     id: self.params.origin_id().unwrap(),
-                    parents: None,
+                    parents: vec![],
                 });
             }
             Err(err) => {
@@ -174,41 +176,36 @@ where
         }
         while let Some(event) = self.next_event(&cancel_receiver) {
             match event {
-                Cancel => {
+                Event::Cancel => {
                     self.cancel_process();
                     return;
                 }
-                Event::CargoEvent(None) => {
+                Event::CargoFinish => {
                     // Watcher finished
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
-                    if res.is_err() {
-                        self.report_task_finish(
-                            TaskId {
-                                id: self.params.origin_id().unwrap(),
-                                parents: None,
-                            },
-                            StatusCode::Error,
-                        );
-                        todo!()
-                    }
-                    self.report_task_finish(
-                        TaskId {
-                            id: self.params.origin_id().unwrap(),
-                            parents: None,
-                        },
-                        StatusCode::Ok,
-                    );
-                }
-                Event::CargoEvent(Some(message)) => {
-                    // handle information and create reponse/notification based on that
-                    let resp = RPCMessage::Response(Response {
-                        id: RequestId::from(0),
+                    #[allow(unused_mut)]
+                    let mut resp = RPCMessage::Response(Response {
+                        id: self.req_id.clone().into(),
                         result: None,
                         error: None,
                     });
+                    let status_code = match res {
+                        Ok(_) => StatusCode::Ok,
+                        Err(err) => StatusCode::Error,
+                    };
+                    self.report_task_finish(
+                        TaskId {
+                            id: self.params.origin_id().unwrap(),
+                            parents: vec![],
+                        },
+                        status_code,
+                    );
                     self.send(resp);
-                    // shouldn't we break the loop after sending response message?
+                    return;
+                }
+                Event::CargoEvent(message) => {
+                    // handle information and create notification based on that
                 }
             }
         }
@@ -217,21 +214,21 @@ where
     fn cancel_process(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             self.report_task_start(TaskId {
-                id: OriginId::from("TODO".to_string()),
-                parents: Some(vec![self.params.origin_id().unwrap()]),
+                id: "TODO".to_string(),
+                parents: vec![self.params.origin_id().unwrap()],
             });
             cargo_handle.cancel();
             self.report_task_finish(
                 TaskId {
-                    id: OriginId::from("TODO".to_string()),
-                    parents: Some(vec![self.params.origin_id().unwrap()]),
+                    id: "TODO".to_string(),
+                    parents: vec![self.params.origin_id().unwrap()],
                 },
                 StatusCode::Cancelled,
             );
             self.report_task_finish(
                 TaskId {
                     id: self.params.origin_id().unwrap(),
-                    parents: None,
+                    parents: vec![],
                 },
                 StatusCode::Cancelled,
             );

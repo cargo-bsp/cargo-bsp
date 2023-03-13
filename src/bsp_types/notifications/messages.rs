@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::bsp_types::notifications::{Notification, TaskId};
-use crate::bsp_types::OriginId;
 
 #[derive(Debug)]
 pub enum ShowMessage {}
@@ -34,7 +33,7 @@ pub struct ShowMessageParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<OriginId>,
+    pub origin_id: Option<String>,
 
     /** The actual message. */
     pub message: String,
@@ -54,7 +53,7 @@ pub struct LogMessageParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<OriginId>,
+    pub origin_id: Option<String>,
 
     /** The actual message. */
     pub message: String,

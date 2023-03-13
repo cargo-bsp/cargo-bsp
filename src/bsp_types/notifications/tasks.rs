@@ -3,7 +3,7 @@ use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::bsp_types::notifications::{Notification, StatusCode, TaskId};
-use crate::bsp_types::{BuildTargetIdentifier, OriginId};
+use crate::bsp_types::{BuildTargetIdentifier};
 
 #[derive(Debug)]
 pub enum TaskStart {}
@@ -165,7 +165,7 @@ pub struct CompileReportData {
 
     /** An optional request id to know the origin of this report. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<OriginId>,
+    pub origin_id: Option<String>,
 
     /** The total number of reported errors compiling this target. */
     pub errors: i32,

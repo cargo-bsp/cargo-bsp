@@ -27,7 +27,6 @@ pub fn run_server() -> Result<()> {
     let (initialize_id, initialize_params) = connection.initialize_start()?;
     let initialize_params =
         from_json::<InitializeBuildParams>("InitializeParams", &initialize_params)?;
-    log(&format!("InitializeParams: {:#?}", initialize_params));
 
     let root_path = match Url::try_from(initialize_params.root_uri.as_str())
         .ok()
@@ -52,24 +51,16 @@ pub fn run_server() -> Result<()> {
 
     connection.initialize_finish(initialize_id, initialize_result)?;
 
-    log(&format!(
-        "Client '{}' {}",
-        initialize_params.display_name, initialize_params.version
-    ));
-
     if config.linked_projects().is_empty() {
         let discovered = ProjectManifest::discover_all(config.root_path());
-        log(&format!("discovered projects: {:?}", discovered));
         if discovered.is_empty() {
             log(&format!(
                 "error: failed to find any projects in {:?}",
                 config.root_path()
             ));
         }
-        config.discovered_projects = Some(discovered);
+        config.discovered_projects = discovered;
     }
-
-    log(&format!("config: {:?}", config));
 
     server::main_loop(config, connection)?;
 

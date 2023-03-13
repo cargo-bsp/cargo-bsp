@@ -126,6 +126,8 @@ impl GlobalState {
 
     // Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
+        // TODO handle cancel request
+
         NotificationDispatcher {
             not: Some(not),
             global_state: self,
