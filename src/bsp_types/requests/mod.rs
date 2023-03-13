@@ -50,6 +50,8 @@ pub use workspace_build_targets::*;
 mod java_extension;
 pub use java_extension::*;
 
+use crate::bsp_types::OriginId;
+
 pub trait Request {
     type Params: DeserializeOwned + Serialize;
     type Result: DeserializeOwned + Serialize;
@@ -57,7 +59,7 @@ pub trait Request {
 }
 
 pub trait CreateCommand {
-    fn origin_id(&self) -> Option<String>;
+    fn origin_id(&self) -> Option<OriginId>;
 
     fn create_command(&self) -> Command;
 }

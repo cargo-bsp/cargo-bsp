@@ -20,6 +20,10 @@ use crate::bsp_types::notifications::{
     StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
+use crate::bsp_types::notifications::{StatusCode, TaskFinishParams, TaskId, TaskProgressParams,
+                                      TaskStartParams};
+use crate::bsp_types::requests::CreateCommand;
+use crate::bsp_types::OriginId;
 use crate::communication::{RequestId, Response};
 use crate::communication::Message as RPCMessage;
 use crate::logger::log;
@@ -143,14 +147,14 @@ impl<R> RequestActor<R>
     }
 
     fn next_event(&self, inbox: &Receiver<Event>) -> Option<Event> {
-        let check_chan = self.cargo_handle.as_ref().map(|cargo| &cargo.receiver);
+        let cargo_chan = self.cargo_handle.as_ref().map(|cargo| &cargo.receiver);
         select! {
-            recv(inbox) -> msg => Some(Event::Cancel),
-            recv(check_chan.unwrap_or(&never())) -> msg => Some(Event::CargoEvent(Some(CargoMessage{}))),
+            recv(inbox) -> msg => msg.ok(),
+            recv(cargo_chan.unwrap_or(&never())) -> msg => Some(Event::CargoEvent(msg.ok())),
         }
     }
 
-    pub fn run(mut self, inbox: Receiver<Event>) {
+    pub fn run(mut self, cancel_receiver: Receiver<Event>) {
         let command = self.params.create_command();
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => {
@@ -161,7 +165,7 @@ impl<R> RequestActor<R>
                 todo!()
             }
         }
-        while let Some(event) = self.next_event(&inbox) {
+        while let Some(event) = self.next_event(&cancel_receiver) {
             match event {
                 Cancel => {
                     self.cancel_process();
@@ -194,12 +198,12 @@ impl<R> RequestActor<R>
     fn cancel_process(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             self.report_task_start(TaskId {
-                id: "TODO".to_string(),
+                id: OriginId::from("TODO".to_string()),
                 parents: Some(vec![self.params.origin_id().unwrap()]),
             });
             cargo_handle.cancel();
             self.report_task_finish(TaskId {
-                id: "TODO".to_string(),
+                id: OriginId::from("TODO".to_string()),
                 parents: Some(vec![self.params.origin_id().unwrap()]),
             }, StatusCode::Cancelled, );
             self.report_task_finish(TaskId { id: self.params.origin_id().unwrap(), parents: None },

@@ -28,7 +28,7 @@ mod tests {
         RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets,
         WorkspaceBuildTargetsResult,
     };
-    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider};
+    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider, OriginId};
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, RequestId, Response};
     use serde_json::{from_str, to_value};
@@ -286,7 +286,7 @@ mod tests {
     fn create_run_req(id: i32, origin_id: &str) -> Request {
         let params = RunParams {
             target: Default::default(),
-            origin_id: Some(origin_id.to_string()),
+            origin_id: Some(OriginId::from(origin_id.to_string())),
             arguments: None,
             data_kind: None,
             data: None,
@@ -300,7 +300,7 @@ mod tests {
 
     fn create_run_resp(id: i32, origin_id: &str) -> Response {
         let result = RunResult {
-            origin_id: Some(origin_id.to_string()),
+            origin_id: Some(OriginId::from(origin_id.to_string())),
             status_code: 1,
         };
         Response {
@@ -313,7 +313,7 @@ mod tests {
     fn create_test_req(id: i32, origin_id: &str) -> Request {
         let params = TestParams {
             targets: vec![],
-            origin_id: Some(origin_id.to_string()),
+            origin_id: Some(OriginId::from(origin_id.to_string())),
             arguments: None,
             data_kind: None,
             data: None,
@@ -327,7 +327,7 @@ mod tests {
 
     fn create_test_resp(id: i32, origin_id: &str) -> Response {
         let result = TestResult {
-            origin_id: Some(origin_id.to_string()),
+            origin_id: Some(OriginId::from(origin_id.to_string())),
             status_code: 1,
             data_kind: None,
             data: None,
