@@ -1,5 +1,4 @@
 [workspace]
-members = ["rust-analyzer/crates/*"]
 
 [package]
 name = "cargo-bsp"
@@ -21,5 +20,5 @@ url = "2.3.1"
 command-group = "1.0.8"
 cargo_metadata = "0.15.0"
 jod-thread = "0.1.2"
-stdx = { path = "./rust-analyzer/crates/stdx" }
-paths = { path = "./rust-analyzer/crates/paths"}
+stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx"}
+paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths"}
