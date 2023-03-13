@@ -46,7 +46,7 @@ impl GlobalState {
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
-            _workspace: Arc::new(ProjectWorkspace::default()),
+            _workspace: Arc::new(ProjectWorkspace {}),
         };
         this.update_configuration(config);
         this

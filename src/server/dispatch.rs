@@ -25,10 +25,10 @@ impl<'a> RequestDispatcher<'a> {
         &mut self,
         f: fn(&mut GlobalState, R::Params) -> Result<R::Result>,
     ) -> &mut Self
-        where
-            R: bsp_types::requests::Request,
-            R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
-            R::Result: Serialize,
+    where
+        R: bsp_types::requests::Request,
+        R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
+        R::Result: Serialize,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,
@@ -43,10 +43,10 @@ impl<'a> RequestDispatcher<'a> {
     }
 
     pub(crate) fn on_running_cargo<R>(&mut self) -> &mut Self
-        where
-            R: bsp_types::requests::Request + 'static,
-            R::Params: CreateCommand + Send + fmt::Debug,
-            R::Result: Serialize,
+    where
+        R: bsp_types::requests::Request + 'static,
+        R::Params: CreateCommand + Send + fmt::Debug,
+        R::Result: Serialize,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,
@@ -76,9 +76,9 @@ impl<'a> RequestDispatcher<'a> {
     }
 
     fn parse<R>(&mut self) -> Option<(communication::Request, R::Params, String)>
-        where
-            R: bsp_types::requests::Request,
-            R::Params: DeserializeOwned + fmt::Debug,
+    where
+        R: bsp_types::requests::Request,
+        R::Params: DeserializeOwned + fmt::Debug,
     {
         let req = match &self.req {
             Some(req) if req.method == R::METHOD => self.req.take()?,
@@ -108,10 +108,10 @@ fn result_to_response<R>(
     id: communication::RequestId,
     result: Result<R::Result>,
 ) -> Result<communication::Response>
-    where
-        R: bsp_types::requests::Request,
-        R::Params: DeserializeOwned,
-        R::Result: Serialize,
+where
+    R: bsp_types::requests::Request,
+    R::Params: DeserializeOwned,
+    R::Result: Serialize,
 {
     let res = match result {
         Ok(resp) => communication::Response::new_ok(id, &resp),
@@ -139,9 +139,9 @@ impl<'a> NotificationDispatcher<'a> {
         &mut self,
         f: fn(&mut GlobalState, N::Params) -> Result<()>,
     ) -> Result<&mut Self>
-        where
-            N: bsp_types::notifications::Notification,
-            N::Params: DeserializeOwned + Send,
+    where
+        N: bsp_types::notifications::Notification,
+        N::Params: DeserializeOwned + Send,
     {
         let not = match self.not.take() {
             Some(it) => it,
@@ -150,7 +150,7 @@ impl<'a> NotificationDispatcher<'a> {
         let params = match not.extract::<N::Params>(N::METHOD) {
             Ok(it) => it,
             Err(ExtractError::JsonError { method, error }) => {
-                panic!("Invalid request\nMethod: {method}\n error: {error}", )
+                panic!("Invalid request\nMethod: {method}\n error: {error}",)
             }
             Err(ExtractError::MethodMismatch(not)) => {
                 self.not = Some(not);

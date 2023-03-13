@@ -65,7 +65,7 @@ impl GlobalState {
                 Message::Request(req) => self.on_new_request(loop_start, req),
                 Message::Notification(not) => self.on_notification(not)?,
                 Message::Response(_) => {}
-            }
+            },
             FromThread(msg) => match &msg {
                 Message::Request(_) => {}
                 Message::Notification(not) => self.send_notification(not.to_owned()),
@@ -73,7 +73,7 @@ impl GlobalState {
                     self.handlers.remove(&resp.id);
                     self.respond(resp.to_owned())
                 }
-            }
+            },
         }
 
         Ok(())
@@ -130,11 +130,11 @@ impl GlobalState {
             not: Some(not),
             global_state: self,
         }
-            .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-                log("Got exit notification");
-                Ok(())
-            })?
-            .finish();
+        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
+            log("Got exit notification");
+            Ok(())
+        })?
+        .finish();
         Ok(())
     }
 }

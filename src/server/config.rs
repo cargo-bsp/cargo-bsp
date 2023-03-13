@@ -29,13 +29,11 @@ impl Config {
 impl Config {
     pub fn linked_projects(&self) -> Vec<ProjectManifest> {
         match self.discovered_projects.as_ref() {
-            Some(discovered_projects) => {
-                discovered_projects
-                    .iter()
-                    .cloned()
-                    .map(ProjectManifest::from)
-                    .collect()
-            }
+            Some(discovered_projects) => discovered_projects
+                .iter()
+                .cloned()
+                .map(ProjectManifest::from)
+                .collect(),
             None => Vec::new(),
         }
     }
