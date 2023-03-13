@@ -7,7 +7,7 @@ use crate::project_model::ProjectManifest;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub discovered_projects: Option<Vec<ProjectManifest>>,
+    pub discovered_projects: Vec<ProjectManifest>,
     pub caps: BuildClientCapabilities,
     root_path: PathBuf,
 }
@@ -15,7 +15,7 @@ pub struct Config {
 impl Config {
     pub fn new(root_path: PathBuf, caps: BuildClientCapabilities) -> Self {
         Config {
-            discovered_projects: None,
+            discovered_projects: vec![],
             caps,
             root_path,
         }
@@ -28,15 +28,10 @@ impl Config {
 
 impl Config {
     pub fn linked_projects(&self) -> Vec<ProjectManifest> {
-        match self.discovered_projects.as_ref() {
-            Some(discovered_projects) => {
-                discovered_projects
-                    .iter()
-                    .cloned()
-                    .map(ProjectManifest::from)
-                    .collect()
-            }
-            None => Vec::new(),
-        }
+        self.discovered_projects
+            .iter()
+            .cloned()
+            .map(ProjectManifest::from)
+            .collect()
     }
 }

@@ -1,25 +1,31 @@
 // copy from rust-analyzer
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 
-use crate::{bsp_types, communication};
+use crate::communication;
+use crate::communication::{Message, RequestId};
 use crate::logger::log;
 use crate::project_model::ProjectWorkspace;
 use crate::server::config::Config;
-use crate::server::main_loop::ThreadMessage;
+use crate::server::request_actor::RequestHandle;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
 
 pub(crate) struct GlobalState {
-    sender: Sender<communication::Message>,
+    sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
     pub(crate) config: Arc<Config>,
-    pub(crate) threads_chan: (Sender<ThreadMessage>, Receiver<ThreadMessage>),
+
+    pub(crate) handlers: HashMap<RequestId, RequestHandle>,
+    pub(crate) handlers_sender: Sender<Message>,
+    pub(crate) handlers_receiver: Receiver<Message>,
+
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
@@ -30,25 +36,23 @@ pub(crate) struct _GlobalStateSnapshot {
 }
 
 impl GlobalState {
-    pub(crate) fn new(sender: Sender<communication::Message>, config: Config) -> GlobalState {
-        let threads_channel = unbounded();
+    pub(crate) fn new(sender: Sender<Message>, config: Config) -> GlobalState {
+        let (handlers_sender, handlers_receiver) = unbounded();
         let mut this = GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: Arc::new(config),
-            threads_chan: threads_channel,
+            config: Arc::new(config.clone()),
+            handlers: HashMap::new(),
+            handlers_sender,
+            handlers_receiver,
             workspace: Arc::new(ProjectWorkspace::default()),
         };
         this.update_workspace_data();
         this
     }
 
-    pub(crate) fn send_notification<N: bsp_types::notifications::Notification>(
-        &mut self,
-        params: N::Params,
-    ) {
-        let not = communication::Notification::new(N::METHOD.to_string(), params);
+    pub(crate) fn send_notification(&mut self, not: communication::Notification) {
         self.send(not.into());
     }
 
@@ -81,13 +85,13 @@ impl GlobalState {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn cancel(&mut self, request_id: communication::RequestId) {
+    pub(crate) fn cancel(&mut self, request_id: RequestId) {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
             self.send(response.into());
         }
     }
 
-    fn send(&mut self, message: communication::Message) {
+    fn send(&mut self, message: Message) {
         self.sender.send(message).unwrap()
     }
 
