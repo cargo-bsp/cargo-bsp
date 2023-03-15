@@ -11,7 +11,7 @@ pub use cargo_metadata::diagnostic::{
     DiagnosticSpanMacroExpansion,
 };
 use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{never, Receiver, select, Sender, unbounded};
+use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
@@ -19,8 +19,8 @@ use crate::bsp_types::notifications::{
     StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::communication::{RequestId, Response};
 use crate::communication::Message as RPCMessage;
+use crate::communication::{RequestId, Response};
 use crate::logger::log;
 
 #[derive(Debug)]
@@ -243,12 +243,10 @@ where
     }
 }
 
-struct JodChild(GroupChild);
-
 struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
     /// a read syscall dropping and therefore terminating the process is our best option.
-    child: JodChild,
+    child: GroupChild,
     thread: jod_thread::JoinHandle<io::Result<(bool, String)>>,
     receiver: Receiver<CargoMessage>,
 }
@@ -259,10 +257,10 @@ impl CargoHandle {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
-        let mut child = command.group_spawn().map(JodChild)?;
+        let mut child = command.group_spawn()?;
 
-        let stdout = child.0.inner().stdout.take().unwrap();
-        let stderr = child.0.inner().stderr.take().unwrap();
+        let stdout = child.inner().stdout.take().unwrap();
+        let stderr = child.inner().stderr.take().unwrap();
 
         let (sender, receiver) = unbounded();
         let actor = CargoActor::new(sender, stdout, stderr);
@@ -278,13 +276,13 @@ impl CargoHandle {
     }
 
     fn cancel(mut self) {
-        let _ = self.child.0.kill();
-        let _ = self.child.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 
     fn join(mut self) -> io::Result<()> {
-        let _ = self.child.0.kill();
-        let exit_status = self.child.0.wait()?;
+        let _ = self.child.kill();
+        let exit_status = self.child.wait()?;
         let (read_at_least_one_message, error) = self.thread.join()?;
         if read_at_least_one_message || exit_status.success() {
             Ok(())
@@ -321,6 +319,9 @@ impl CargoActor {
         // Because cargo only outputs one JSON object per line, we can
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
+        //
+        // We return bool that indicates whether we read at least one message and a string that
+        // contains the error output.
 
         let mut error = String::new();
         let mut read_at_least_one_message = false;
@@ -333,11 +334,16 @@ impl CargoActor {
                 // Try to deserialize a message from Cargo or Rustc.
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
-                if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
-                    self.sender
-                        .send(CargoMessage {})
-                        .expect("TODO: panic message");
-                }
+                match JsonMessage::deserialize(&mut deserializer) {
+                    Ok(message) => {
+                        self.sender
+                            .send(CargoMessage {})
+                            .expect("TODO: panic message");
+                    }
+                    Err(e) => {
+                        // todo!("Log that we couldn't parse a message: {:?}", line")
+                    }
+                };
             },
             &mut |line| {
                 error.push_str(line);
