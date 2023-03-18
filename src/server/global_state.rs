@@ -9,7 +9,7 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use crate::communication;
 use crate::communication::{Message, RequestId};
 use crate::logger::log;
-use crate::project_model::ProjectWorkspace;
+use crate::project_model::{ProjectManifest, ProjectWorkspace};
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
 
@@ -42,7 +42,7 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: Arc::new(config.clone()),
+            config: Arc::new(config),
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
@@ -95,9 +95,15 @@ impl GlobalState {
         self.sender.send(message).unwrap()
     }
 
-    pub(crate) fn update_workspace_data(&mut self) {
+    fn update_project_manifest(&mut self) {
+         ProjectManifest::discover_all(self.config.root_path());
+    }
+
+    // update the workspace data - called when (to be yet added) cargo watch discovers changes
+    pub(crate) fn update_workspace_data(&mut self) { 
+        self.update_project_manifest();
         //get a manifest path from config and pass it to new Project Workspace
-       self.workspace = Arc::new(ProjectWorkspace::from(self.config.linked_projects().get(0).unwrap().file.clone()));
+        self.workspace = Arc::new(ProjectWorkspace::from(self.config.workspace_manifest.file.clone()));
     }
 }
 

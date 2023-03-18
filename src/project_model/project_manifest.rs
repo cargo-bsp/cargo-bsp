@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use rustc_hash::FxHashSet;
+use crate::logger::log;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct ProjectManifest {
@@ -68,15 +69,26 @@ impl ProjectManifest {
 
     }
 
-    pub fn discover_all(path: &PathBuf) -> Vec<ProjectManifest> {
-        let mut res = ProjectManifest::discover(path)
+    pub fn discover_all(path: &PathBuf) -> ProjectManifest {
+        let res = ProjectManifest::discover(path)
             .unwrap_or_default()
             .into_iter()
             .collect::<FxHashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        res.sort();
-        res
+
+        match res.len() {
+            0 => {
+                log(&format!("error: Failed to find any projects in {:?}", path));
+                panic!("No Cargo.toml found")
+        },
+            x => {
+                if x != 1 {
+                    log(&format!("error: Discovered more than one workspace, proceeding with {:?}", res[0]));
+                }
+                res[0].clone()
+            }
+        }
     }
 
 

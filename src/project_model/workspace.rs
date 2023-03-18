@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use cargo_metadata::{CargoOpt, MetadataCommand, Package};
 use crate::bsp_types::BuildTarget;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ProjectWorkspace {
     pub _packages: Vec<Package>,
     pub build_targets: Vec<BuildTarget>,
