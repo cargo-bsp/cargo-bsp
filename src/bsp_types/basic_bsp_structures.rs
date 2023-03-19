@@ -7,8 +7,8 @@ pub type Uri = String; //dev: lsp_types uses url crate
 
 pub const RUST_ID: &str = "rust";
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+
 pub struct TextDocumentIdentifier {
     pub uri: Uri,
 }
@@ -170,8 +170,7 @@ pub struct RustBuildTarget {
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
 * within the workspace. Clients should not infer metadata out of the URI structure such as the path
 * or query parameters, use BuildTarget instead.*/
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
     pub uri: Uri,
@@ -228,4 +227,3 @@ pub struct BuildTargetCapabilities {
     /** This target can be debugged by the BSP server. */
     pub can_debug: bool,
 }
-

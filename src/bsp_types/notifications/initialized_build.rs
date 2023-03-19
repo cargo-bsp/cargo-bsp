@@ -11,6 +11,22 @@ impl Notification for InitializedBuild {
 }
 
 /* Initialized Build notification params */
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct InitializedBuildParams {}
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::test_serialization;
+
+    use super::*;
+
+    #[test]
+    fn initialized_build_method() {
+        assert_eq!(InitializedBuild::METHOD, "build/initialized");
+    }
+
+    #[test]
+    fn initialized_build_params() {
+        test_serialization(&InitializedBuildParams {}, r#"{}"#);
+    }
+}
