@@ -7,7 +7,7 @@ pub(crate) fn handle_workspace_build_targets(
     _: (),
 ) -> Result<bsp_types::requests::WorkspaceBuildTargetsResult> {
     Ok(bsp_types::requests::WorkspaceBuildTargetsResult {
-        targets: global_state.workspace.build_targets.clone(),
+        targets: global_state.workspace.get_build_targets(),
     })
 }
 

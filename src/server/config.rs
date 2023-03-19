@@ -13,7 +13,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(root_path: PathBuf, caps: BuildClientCapabilities, ) -> Self {
+    pub fn new(root_path: PathBuf, caps: BuildClientCapabilities) -> Self {
         Config {
             workspace_manifest: ProjectManifest::discover_all(&root_path),
             caps,
