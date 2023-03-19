@@ -13,17 +13,16 @@ pub struct ProjectWorkspace {
 
 impl ProjectWorkspace {
     pub fn new(packages: Vec<&Package>) -> ProjectWorkspace {
-        let packages: Vec<Package> = packages.into_iter().cloned().collect();
         let cargo_targets = ProjectWorkspace::cargo_targets(&packages);
         let targets = ProjectWorkspace::bsp_targets_from_metadata_packages(&packages);
         ProjectWorkspace {
-            _packages: packages,
+            _packages: packages.into_iter().cloned().collect(),
             _cargo_targets: cargo_targets,
             build_targets: targets,
         }
     }
 
-    fn cargo_targets(packages: &[Package]) -> Vec<cargo_metadata::Target> {
+    fn cargo_targets(packages: &[&Package]) -> Vec<cargo_metadata::Target> {
         packages
             .iter()
             .flat_map(|package| package.targets.iter())
@@ -32,7 +31,7 @@ impl ProjectWorkspace {
     }
 
     // If we decide to keep the targets as a vector of cargo_targets, we can use _cargo_targets
-    fn bsp_targets_from_metadata_packages(packages: &[Package]) -> Vec<BuildTarget> {
+    fn bsp_targets_from_metadata_packages(packages: &[&Package]) -> Vec<BuildTarget> {
         packages
             .iter()
             .flat_map(|package| package.targets.iter())

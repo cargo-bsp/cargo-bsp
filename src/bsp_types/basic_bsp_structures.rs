@@ -163,6 +163,42 @@ pub struct BuildTarget {
 }
 
 impl BuildTarget {
+    pub fn tags_and_capabilities_from_cargo_kind(cargo_target: &cargo_metadata::Target) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
+        let mut tags = vec![];
+        let mut capabilities = BuildTargetCapabilities::default();
+        cargo_target
+            .kind
+            .iter()
+            .for_each(|kind| match kind.as_str() {
+                "lib" => {
+                    tags.push(BuildTargetTag::Library);
+                    capabilities.set_compile().set_test().set_debug();
+                }
+                "bin" => {
+                    tags.push(BuildTargetTag::Application);
+                    capabilities.set_all();
+                }
+                "example" => {
+                    tags.push(BuildTargetTag::Application);
+                    capabilities.set_compile().set_run().set_debug();
+                }
+                "test" => {
+                    tags.push(BuildTargetTag::Test);
+                    capabilities.set_compile().set_run().set_debug();
+                }
+                "bench" => {
+                    tags.push(BuildTargetTag::Benchmark);
+                    capabilities.set_compile().set_run().set_debug();
+                }
+                "custom-build" => {
+                    todo!()
+                }
+                _ => (),
+            });
+
+        (tags, capabilities)
+    }
+
     pub fn discover_dependencies(_path: &Utf8Path) -> Vec<BuildTargetIdentifier> {
         vec![] //todo
     }
@@ -170,21 +206,8 @@ impl BuildTarget {
 
 impl From<&cargo_metadata::Target> for BuildTarget {
     fn from(cargo_target: &cargo_metadata::Target) -> Self {
-        let mut tags = vec![];
-        cargo_target
-            .kind
-            .iter()
-            .for_each(|kind| match kind.as_str() {
-                "lib" => tags.push(BuildTargetTag::Library),
-                "bin" => tags.push(BuildTargetTag::Application),
-                "example" => tags.push(BuildTargetTag::Application),
-                "test" => tags.push(BuildTargetTag::Test),
-                "bench" => tags.push(BuildTargetTag::Benchmark),
-                "custom-build" => todo!(),
-                _ => (),
-            });
-
-        let capabilities = BuildTargetCapabilities::from(&tags);
+        let (tags, capabilities) =
+            BuildTarget::tags_and_capabilities_from_cargo_kind(cargo_target);
 
         BuildTarget {
             id: BuildTargetIdentifier {
@@ -284,15 +307,38 @@ pub struct BuildTargetCapabilities {
     pub can_debug: bool,
 }
 
-impl From<&Vec<BuildTargetTag>> for BuildTargetCapabilities {
-    fn from(_tag: &Vec<BuildTargetTag>) -> Self {
-        //todo: map capabilities
 
-        BuildTargetCapabilities {
-            can_compile: true,
-            can_test: true,
-            can_run: true,
-            can_debug: true,
-        }
+impl BuildTargetCapabilities {
+    pub fn new() -> Self {
+        // set all to false
+        BuildTargetCapabilities::default()
+    }
+
+    pub fn set_all(&mut self) -> &mut Self {
+        self.can_compile = true;
+        self.can_test = true;
+        self.can_run = true;
+        self.can_debug = true;
+        self
+    }
+
+    pub fn set_compile(&mut self) -> &mut Self {
+        self.can_compile = true;
+        self
+    }
+
+    pub fn set_test(&mut self) -> &mut Self {
+        self.can_test = true;
+        self
+    }
+
+    pub fn set_run(&mut self) -> &mut Self {
+        self.can_run = true;
+        self
+    }
+
+    pub fn set_debug(&mut self) -> &mut Self {
+        self.can_debug = true;
+        self
     }
 }
