@@ -19,10 +19,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{from_str, to_value};
     use ntest::timeout;
+    use serde_json::{from_str, to_value};
 
-    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider};
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
@@ -30,6 +29,10 @@ mod tests {
         InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request as _, Run,
         RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets,
         WorkspaceBuildTargetsResult,
+    };
+    use cargo_bsp::bsp_types::{
+        BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
+        CompileProvider,
     };
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, Response};
@@ -201,7 +204,7 @@ mod tests {
             bsp_version: "2.0.0".to_string(),
             capabilities: BuildServerCapabilities {
                 compile_provider: Some(CompileProvider {
-                    language_ids: vec![]
+                    language_ids: vec![],
                 }),
                 test_provider: None,
                 run_provider: None,

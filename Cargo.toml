@@ -22,6 +22,7 @@ cargo_metadata = "0.15.0"
 jod-thread = "0.1.2"
 stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx" }
 paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths" }
+itertools = "0.10.5"
 
 [dev-dependencies]
 ntest = "*"
