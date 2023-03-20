@@ -15,9 +15,9 @@ use crate::communication::Connection;
 use crate::logger::log;
 use crate::project_model::ProjectManifest;
 use crate::server;
-use crate::server::{from_json, Result};
 use crate::server::caps::server_capabilities;
 use crate::server::config::Config;
+use crate::server::{from_json, Result};
 
 pub fn run_server() -> Result<()> {
     log("server will start");
