@@ -32,7 +32,7 @@ mod tests {
     };
     use cargo_bsp::bsp_types::{
         BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
-        CompileProvider,
+        CompileProvider, StatusCode,
     };
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, Response};
@@ -298,7 +298,7 @@ mod tests {
         let params = RunParams {
             target: Default::default(),
             origin_id: Some(origin_id.to_string()),
-            arguments: Some(vec![]),
+            arguments: vec![],
             data_kind: None,
             data: None,
         };
@@ -312,7 +312,7 @@ mod tests {
     fn create_run_resp(id: i32, origin_id: &str) -> Response {
         let result = RunResult {
             origin_id: Some(origin_id.to_string()),
-            status_code: 1,
+            status_code: StatusCode::Ok,
         };
         Response {
             id: id.into(),
@@ -325,7 +325,7 @@ mod tests {
         let params = TestParams {
             targets: vec![],
             origin_id: Some(origin_id.to_string()),
-            arguments: Some(vec![]),
+            arguments: vec![],
             data_kind: None,
             data: None,
         };
@@ -339,7 +339,7 @@ mod tests {
     fn create_test_resp(id: i32, origin_id: &str) -> Response {
         let result = TestResult {
             origin_id: Some(origin_id.to_string()),
-            status_code: 1,
+            status_code: StatusCode::Ok,
             data_kind: None,
             data: None,
         };

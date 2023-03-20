@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::bsp_types::notifications::{Notification, StatusCode, TaskId};
-use crate::bsp_types::BuildTargetIdentifier;
+use crate::bsp_types::notifications::{Notification, TaskId};
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
 pub enum TaskStart {}

@@ -1,9 +1,10 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::process::Command;
 
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::bsp_types::BuildTargetIdentifier;
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
 pub enum Run {}
@@ -24,7 +25,7 @@ impl CreateCommand for RunParams {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RunParams {
     /** The build target to run. */
@@ -36,8 +37,8 @@ pub struct RunParams {
     pub origin_id: Option<String>,
 
     /** Optional arguments to the executed application. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub arguments: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub arguments: Vec<String>,
 
     /** Kind of data to expect in the data field. If this field is not set, the kind of data is not specified. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,7 +50,7 @@ pub struct RunParams {
     pub data: Option<Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RunResult {
     /** An optional request id to know the origin of this report. */
@@ -57,5 +58,71 @@ pub struct RunResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: i32,
+    pub status_code: StatusCode,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+
+    use super::*;
+
+    #[test]
+    fn run_method() {
+        assert_eq!(Run::METHOD, "buildTarget/run");
+    }
+
+    #[test]
+    fn run_params() {
+        let test_data = RunParams {
+            target: BuildTargetIdentifier::default(),
+            origin_id: Some("test_originId".to_string()),
+            arguments: vec!["test_argument".to_string()],
+            data_kind: Some("test_dataKind".to_string()),
+            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+        };
+
+        test_deserialization(
+            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            &test_data,
+        );
+
+        let mut modified = test_data.clone();
+        modified.origin_id = None;
+        test_deserialization(
+            r#"{"target":{"uri":""},"arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            &modified,
+        );
+        modified = test_data.clone();
+        modified.arguments = vec![];
+        test_deserialization(
+            r#"{"target":{"uri":""},"originId":"test_originId","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            &modified,
+        );
+        modified = test_data.clone();
+        modified.data_kind = None;
+        test_deserialization(
+            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"data":{"dataKey":"dataValue"}}"#,
+            &modified,
+        );
+        modified.data = None;
+        test_deserialization(
+            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"]}"#,
+            &modified,
+        );
+    }
+
+    #[test]
+    fn run_result() {
+        let test_data = RunResult {
+            origin_id: Some("test_originId".to_string()),
+            status_code: StatusCode::default(),
+        };
+
+        test_serialization(&test_data, r#"{"originId":"test_originId","statusCode":2}"#);
+
+        let mut modified = test_data.clone();
+        modified.origin_id = None;
+        test_serialization(&modified, r#"{"statusCode":2}"#);
+    }
 }

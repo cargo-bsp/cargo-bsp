@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, Uri};
@@ -12,20 +13,17 @@ impl Request for Sources {
     const METHOD: &'static str = "buildTarget/sources";
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct SourcesParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SourcesResult {
     pub items: Vec<SourcesItem>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SourcesItem {
     pub target: BuildTargetIdentifier,
 
@@ -34,12 +32,11 @@ pub struct SourcesItem {
 
     /** The root directories from where source files should be relativized.
      * Example: ["file://Users/name/dev/metals/src/main/scala"] */
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     roots: Vec<Uri>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SourceItem {
     /** Either a text document or a directory. A directory entry must end with a forward
      * slash "/" and a directory entry implies that every nested text document within the
@@ -54,12 +51,91 @@ pub struct SourceItem {
     pub generated: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[repr(u8)]
 pub enum SourceItemKind {
     /** The source item references a normal file.  */
     #[default]
     File = 1,
     /** The source item references a directory. */
     Directory = 2,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+
+    use super::*;
+
+    #[test]
+    fn sources_method() {
+        assert_eq!(Sources::METHOD, "buildTarget/sources");
+    }
+
+    #[test]
+    fn sources_params() {
+        test_deserialization(
+            r#"{"targets":[{"uri":""}]}"#,
+            &SourcesParams {
+                targets: vec![BuildTargetIdentifier::default()],
+            },
+        );
+        test_deserialization(r#"{"targets":[]}"#, &SourcesParams { targets: vec![] });
+    }
+
+    #[test]
+    fn sources_result() {
+        test_serialization(
+            &SourcesResult {
+                items: vec![SourcesItem::default()],
+            },
+            r#"{"items":[{"target":{"uri":""},"sources":[]}]}"#,
+        );
+        test_serialization(&SourcesResult { items: vec![] }, r#"{"items":[]}"#);
+    }
+
+    #[test]
+    fn sources_item() {
+        let test_data = SourcesItem {
+            target: BuildTargetIdentifier::default(),
+            sources: vec![SourceItem::default()],
+            roots: vec![Uri::default()],
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"target":{"uri":""},"sources":[{"uri":"","kind":1,"generated":false}],"roots":[""]}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.sources = vec![];
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"sources":[],"roots":[""]}"#,
+        );
+        modified = test_data.clone();
+        modified.roots = vec![];
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"sources":[{"uri":"","kind":1,"generated":false}]}"#,
+        );
+    }
+
+    #[test]
+    fn source_item() {
+        test_serialization(
+            &SourceItem {
+                uri: "test_uri".to_string(),
+                kind: SourceItemKind::default(),
+                generated: false,
+            },
+            r#"{"uri":"test_uri","kind":1,"generated":false}"#,
+        );
+    }
+
+    #[test]
+    fn source_item_kind() {
+        test_serialization(&SourceItemKind::File, r#"1"#);
+        test_serialization(&SourceItemKind::Directory, r#"2"#);
+    }
 }

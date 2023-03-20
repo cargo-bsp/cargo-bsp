@@ -1,6 +1,5 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub use did_change_build_target::*;
 pub use exit_build::*;
@@ -19,19 +18,6 @@ mod tasks;
 pub trait Notification {
     type Params: DeserializeOwned + Serialize;
     const METHOD: &'static str;
-}
-
-/* Included in notifications of tasks or requests to signal the completion state. */
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
-#[repr(u8)]
-pub enum StatusCode {
-    /** Execution was successful. */
-    Ok = 1,
-    /** Execution failed. */
-    #[default]
-    Error = 2,
-    /** Execution was cancelled. */
-    Cancelled = 3,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -53,13 +39,6 @@ mod tests {
     use crate::bsp_types::tests::test_serialization;
 
     use super::*;
-
-    #[test]
-    fn status_code() {
-        test_serialization(&StatusCode::Ok, r#"1"#);
-        test_serialization(&StatusCode::Error, r#"2"#);
-        test_serialization(&StatusCode::Cancelled, r#"3"#);
-    }
 
     #[test]
     fn task_id() {

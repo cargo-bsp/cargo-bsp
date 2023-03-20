@@ -19,4 +19,12 @@ mod tests {
         let deserialized: SER = serde_json::from_str(&json_str).unwrap();
         assert_eq!(&deserialized, ms);
     }
+
+    pub(crate) fn test_deserialization<T>(json: &str, expected: &T)
+    where
+        T: for<'de> Deserialize<'de> + PartialEq + std::fmt::Debug,
+    {
+        let value = serde_json::from_str::<T>(json).unwrap();
+        assert_eq!(&value, expected);
+    }
 }
