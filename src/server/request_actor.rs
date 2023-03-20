@@ -7,6 +7,7 @@ use std::{
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
+use crate::bsp_types::mappings::create_diagnostics;
 use crate::bsp_types::BuildTargetIdentifier;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
@@ -21,9 +22,9 @@ use serde::Deserialize;
 use stdx::process::streaming_output;
 
 use crate::bsp_types::notifications::{
-    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics,
-    PublishDiagnosticsParams, StatusCode, TaskFinish, TaskFinishParams, TaskId, TaskProgress,
-    TaskProgressParams, TaskStart, TaskStartParams,
+    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, StatusCode,
+    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
+    TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::communication::Message as RPCMessage;
@@ -214,69 +215,73 @@ where
                 }
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
-                    match message {
-                        Message::CompilerArtifact(msg) => {
-                            self.report_task_progress(
-                                TaskId {
-                                    // TODO generate id when there is no origin_id
-                                    id: self.params.origin_id().unwrap(),
-                                    parents: vec![],
-                                },
-                                serde_json::to_string(&msg).ok(),
-                            );
-                        }
-                        Message::CompilerMessage(msg) => {
-                            let diagnostics = PublishDiagnosticsParams::from(
-                                &msg.message,
-                                self.params.origin_id(),
-                                // TODO change to actual BuildTargetIdentifier
-                                &BuildTargetIdentifier {
-                                    uri: "".to_string(),
-                                },
-                                AbsPath::assert(&self.root_path),
-                            );
-                            diagnostics.into_iter().for_each(|diagnostic| {
-                                // Count errors and warnings.
-                                diagnostic.diagnostics.iter().for_each(|d| {
-                                    if let Some(severity) = d.severity {
-                                        match severity {
-                                            DiagnosticSeverity::ERROR => errors += 1,
-                                            DiagnosticSeverity::WARNING => warnings += 1,
-                                            _ => (),
-                                        }
-                                    }
-                                });
-                                self.send_notification::<PublishDiagnostics>(diagnostic)
-                            });
-                        }
-                        Message::BuildScriptExecuted(msg) => {
-                            self.report_task_progress(
-                                TaskId {
-                                    // TODO generate id when there is no origin_id
-                                    id: self.params.origin_id().unwrap(),
-                                    parents: vec![],
-                                },
-                                serde_json::to_string(&msg).ok(),
-                            );
-                        }
-                        Message::BuildFinished(_) => {
-                            // TODO generate compile report
-                        }
-                        Message::TextLine(msg) => {
-                            self.send_notification::<LogMessage>(LogMessageParams {
-                                message_type: MessageType::Log,
-                                task: self.params.origin_id().map(|id| TaskId {
-                                    id,
-                                    parents: vec![],
-                                }),
-                                origin_id: self.params.origin_id(),
-                                message: msg,
-                            });
-                        }
-                        _ => {}
-                    }
+                    self.handle_cargo_information(message, &mut errors, &mut warnings);
                 }
             }
+        }
+    }
+
+    fn handle_cargo_information(&self, message: Message, errors: &mut i32, warnings: &mut i32) {
+        match message {
+            Message::CompilerArtifact(msg) => {
+                self.report_task_progress(
+                    TaskId {
+                        // TODO generate id when there is no origin_id
+                        id: self.params.origin_id().unwrap(),
+                        parents: vec![],
+                    },
+                    serde_json::to_string(&msg).ok(),
+                );
+            }
+            Message::CompilerMessage(msg) => {
+                let diagnostics = create_diagnostics(
+                    &msg.message,
+                    self.params.origin_id(),
+                    // TODO change to actual BuildTargetIdentifier
+                    &BuildTargetIdentifier {
+                        uri: "".to_string(),
+                    },
+                    AbsPath::assert(&self.root_path),
+                );
+                diagnostics.into_iter().for_each(|diagnostic| {
+                    // Count errors and warnings.
+                    diagnostic.diagnostics.iter().for_each(|d| {
+                        if let Some(severity) = d.severity {
+                            match severity {
+                                DiagnosticSeverity::ERROR => *errors += 1,
+                                DiagnosticSeverity::WARNING => *warnings += 1,
+                                _ => (),
+                            }
+                        }
+                    });
+                    self.send_notification::<PublishDiagnostics>(diagnostic)
+                });
+            }
+            Message::BuildScriptExecuted(msg) => {
+                self.report_task_progress(
+                    TaskId {
+                        // TODO generate id when there is no origin_id
+                        id: self.params.origin_id().unwrap(),
+                        parents: vec![],
+                    },
+                    serde_json::to_string(&msg).ok(),
+                );
+            }
+            Message::BuildFinished(_) => {
+                // TODO generate compile report
+            }
+            Message::TextLine(msg) => {
+                self.send_notification::<LogMessage>(LogMessageParams {
+                    message_type: MessageType::Log,
+                    task: self.params.origin_id().map(|id| TaskId {
+                        id,
+                        parents: vec![],
+                    }),
+                    origin_id: self.params.origin_id(),
+                    message: msg,
+                });
+            }
+            _ => {}
         }
     }
 
