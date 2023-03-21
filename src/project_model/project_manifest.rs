@@ -1,7 +1,10 @@
 // copy from rust-analyzer
 
-use std::{fs::{self, read_dir, ReadDir}, io};
 use std::path::{Path, PathBuf};
+use std::{
+    fs::{self, read_dir, ReadDir},
+    io,
+};
 
 use anyhow::Result;
 use rustc_hash::FxHashSet;
@@ -62,8 +65,6 @@ impl ProjectManifest {
                 .filter(|it| it.exists())
                 .collect()
         }
-
-
     }
 
     pub fn discover_all(path: &PathBuf) -> Result<ProjectManifest, &'static str> {
@@ -87,5 +88,3 @@ impl ProjectManifest {
         }
     }
 }
-
-

@@ -1,26 +1,34 @@
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 #![allow(unused_variables)]
 
+use std::path::{Path, PathBuf};
 use std::{
     io,
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
+use crate::bsp_types::mappings::create_diagnostics;
+use crate::bsp_types::BuildTargetIdentifier;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
+use cargo_metadata::Message;
 use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{never, Receiver, select, Sender, unbounded};
+use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
+use lsp_types::DiagnosticSeverity;
+use paths::AbsPath;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
 use crate::bsp_types::notifications::{
-    StatusCode, TaskFinishParams, TaskId, TaskProgressParams, TaskStartParams,
+    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, StatusCode,
+    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
+    TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::communication::{RequestId, Response};
 use crate::communication::Message as RPCMessage;
+use crate::communication::{RequestId, Response};
 use crate::logger::log;
 
 #[derive(Debug)]
@@ -35,12 +43,13 @@ impl RequestHandle {
         sender_to_main: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
         params: R::Params,
+        root_path: &Path,
     ) -> RequestHandle
     where
         R: Request + 'static,
         R::Params: CreateCommand + Send,
     {
-        let actor: RequestActor<R> = RequestActor::new(sender_to_main, req_id, params);
+        let actor: RequestActor<R> = RequestActor::new(sender_to_main, req_id, params, root_path);
         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()
             .spawn(move || actor.run(receiver_to_cancel))
@@ -56,16 +65,6 @@ impl RequestHandle {
         self.sender_to_cancel.send(Event::Cancel).unwrap();
     }
 }
-
-#[derive(Debug)]
-pub enum TaskNotification {
-    Start(TaskStartParams),
-    #[allow(dead_code)]
-    Progress(TaskProgressParams),
-    Finish(TaskFinishParams),
-}
-
-pub struct CargoMessage {}
 
 pub struct RequestActor<R>
 where
@@ -83,11 +82,12 @@ where
     #[allow(dead_code)]
     req_id: RequestId,
     params: R::Params,
+    root_path: PathBuf,
 }
 
 pub enum Event {
     Cancel,
-    CargoEvent(CargoMessage),
+    CargoEvent(Message),
     CargoFinish,
 }
 
@@ -100,6 +100,7 @@ where
         sender: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
         params: R::Params,
+        root_path: &Path,
     ) -> RequestActor<R> {
         log("Spawning a new request actor");
         RequestActor {
@@ -107,23 +108,23 @@ where
             cargo_handle: None,
             req_id,
             params,
+            root_path: root_path.to_path_buf(),
         }
     }
 
     fn report_task_start(&self, task_id: TaskId) {
         // TODO improve this
-        self.send_notification(TaskNotification::Start(TaskStartParams {
+        self.send_notification::<TaskStart>(TaskStartParams {
             task_id,
             event_time: None,
             message: None,
             data: None,
-        }));
+        });
     }
 
-    #[allow(dead_code)]
     fn report_task_progress(&self, task_id: TaskId, message: Option<String>) {
         // TODO improve this
-        self.send_notification(TaskNotification::Progress(TaskProgressParams {
+        self.send_notification::<TaskProgress>(TaskProgressParams {
             task_id,
             event_time: None,
             message,
@@ -131,21 +132,24 @@ where
             progress: None,
             data: None,
             unit: None,
-        }));
+        });
     }
 
     fn report_task_finish(&self, task_id: TaskId, status_code: StatusCode) {
         // TODO improve this
-        self.send_notification(TaskNotification::Finish(TaskFinishParams {
+        self.send_notification::<TaskFinish>(TaskFinishParams {
             task_id,
             event_time: None,
             message: None,
             status: status_code,
             data: None,
-        }));
+        });
     }
 
-    fn send_notification(&self, progress: TaskNotification) {
+    fn send_notification<T>(&self, progress: T::Params)
+    where
+        T: Notification,
+    {
         todo!()
     }
 
@@ -174,6 +178,11 @@ where
                 todo!()
             }
         }
+
+        // Errors and warnings for compile report.
+        let mut errors = 0;
+        let mut warnings = 0;
+
         while let Some(event) = self.next_event(&cancel_receiver) {
             match event {
                 Event::Cancel => {
@@ -186,7 +195,7 @@ where
                     let res = cargo_handle.join();
                     #[allow(unused_mut)]
                     let mut resp = RPCMessage::Response(Response {
-                        id: self.req_id.clone().into(),
+                        id: self.req_id.clone(),
                         result: None,
                         error: None,
                     });
@@ -206,8 +215,73 @@ where
                 }
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
+                    self.handle_cargo_information(message, &mut errors, &mut warnings);
                 }
             }
+        }
+    }
+
+    fn handle_cargo_information(&self, message: Message, errors: &mut i32, warnings: &mut i32) {
+        match message {
+            Message::CompilerArtifact(msg) => {
+                self.report_task_progress(
+                    TaskId {
+                        // TODO generate id when there is no origin_id
+                        id: self.params.origin_id().unwrap(),
+                        parents: vec![],
+                    },
+                    serde_json::to_string(&msg).ok(),
+                );
+            }
+            Message::CompilerMessage(msg) => {
+                let diagnostics = create_diagnostics(
+                    &msg.message,
+                    self.params.origin_id(),
+                    // TODO change to actual BuildTargetIdentifier
+                    &BuildTargetIdentifier {
+                        uri: "".to_string(),
+                    },
+                    AbsPath::assert(&self.root_path),
+                );
+                diagnostics.into_iter().for_each(|diagnostic| {
+                    // Count errors and warnings.
+                    diagnostic.diagnostics.iter().for_each(|d| {
+                        if let Some(severity) = d.severity {
+                            match severity {
+                                DiagnosticSeverity::ERROR => *errors += 1,
+                                DiagnosticSeverity::WARNING => *warnings += 1,
+                                _ => (),
+                            }
+                        }
+                    });
+                    self.send_notification::<PublishDiagnostics>(diagnostic)
+                });
+            }
+            Message::BuildScriptExecuted(msg) => {
+                self.report_task_progress(
+                    TaskId {
+                        // TODO generate id when there is no origin_id
+                        id: self.params.origin_id().unwrap(),
+                        parents: vec![],
+                    },
+                    serde_json::to_string(&msg).ok(),
+                );
+            }
+            Message::BuildFinished(_) => {
+                // TODO generate compile report
+            }
+            Message::TextLine(msg) => {
+                self.send_notification::<LogMessage>(LogMessageParams {
+                    message_type: MessageType::Log,
+                    task: self.params.origin_id().map(|id| TaskId {
+                        id,
+                        parents: vec![],
+                    }),
+                    origin_id: self.params.origin_id(),
+                    message: msg,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -243,14 +317,12 @@ where
     }
 }
 
-struct JodChild(GroupChild);
-
 struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
     /// a read syscall dropping and therefore terminating the process is our best option.
-    child: JodChild,
+    child: GroupChild,
     thread: jod_thread::JoinHandle<io::Result<(bool, String)>>,
-    receiver: Receiver<CargoMessage>,
+    receiver: Receiver<Message>,
 }
 
 impl CargoHandle {
@@ -259,10 +331,10 @@ impl CargoHandle {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
-        let mut child = command.group_spawn().map(JodChild)?;
+        let mut child = command.group_spawn()?;
 
-        let stdout = child.0.inner().stdout.take().unwrap();
-        let stderr = child.0.inner().stderr.take().unwrap();
+        let stdout = child.inner().stdout.take().unwrap();
+        let stderr = child.inner().stderr.take().unwrap();
 
         let (sender, receiver) = unbounded();
         let actor = CargoActor::new(sender, stdout, stderr);
@@ -278,13 +350,13 @@ impl CargoHandle {
     }
 
     fn cancel(mut self) {
-        let _ = self.child.0.kill();
-        let _ = self.child.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 
     fn join(mut self) -> io::Result<()> {
-        let _ = self.child.0.kill();
-        let exit_status = self.child.0.wait()?;
+        let _ = self.child.kill();
+        let exit_status = self.child.wait()?;
         let (read_at_least_one_message, error) = self.thread.join()?;
         if read_at_least_one_message || exit_status.success() {
             Ok(())
@@ -298,13 +370,13 @@ impl CargoHandle {
 }
 
 struct CargoActor {
-    sender: Sender<CargoMessage>,
+    sender: Sender<Message>,
     stdout: ChildStdout,
     stderr: ChildStderr,
 }
 
 impl CargoActor {
-    fn new(sender: Sender<CargoMessage>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
+    fn new(sender: Sender<Message>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
         CargoActor {
             sender,
             stdout,
@@ -321,6 +393,9 @@ impl CargoActor {
         // Because cargo only outputs one JSON object per line, we can
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
+        //
+        // We return bool that indicates whether we read at least one message and a string that
+        // contains the error output.
 
         let mut error = String::new();
         let mut read_at_least_one_message = false;
@@ -330,14 +405,17 @@ impl CargoActor {
             &mut |line| {
                 read_at_least_one_message = true;
 
-                // Try to deserialize a message from Cargo or Rustc.
+                // Try to deserialize a message from Cargo.
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
-                if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
-                    self.sender
-                        .send(CargoMessage {})
-                        .expect("TODO: panic message");
-                }
+                match Message::deserialize(&mut deserializer) {
+                    Ok(message) => {
+                        self.sender.send(message).expect("TODO: panic message");
+                    }
+                    Err(e) => {
+                        // todo!("Log that we couldn't parse a message: {:?}", line")
+                    }
+                };
             },
             &mut |line| {
                 error.push_str(line);
@@ -349,11 +427,4 @@ impl CargoActor {
             Err(e) => Err(io::Error::new(e.kind(), format!("{:?}: {}", e, error))),
         }
     }
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum JsonMessage {
-    Cargo(cargo_metadata::Message),
-    Rustc(Diagnostic),
 }

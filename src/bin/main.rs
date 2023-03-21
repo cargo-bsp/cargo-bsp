@@ -19,9 +19,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use ntest::timeout;
     use serde_json::{from_str, to_value};
 
-    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider};
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
@@ -29,6 +29,10 @@ mod tests {
         InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request as _, Run,
         RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets,
         WorkspaceBuildTargetsResult,
+    };
+    use cargo_bsp::bsp_types::{
+        BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
+        CompileProvider,
     };
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, Response};
@@ -68,6 +72,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_lifetime() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -87,6 +92,7 @@ mod tests {
     // }
 
     #[test]
+    #[timeout(1000)]
     fn initialize_fail() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -107,6 +113,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_build_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -128,6 +135,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_run_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -150,6 +158,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_test_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -195,7 +204,7 @@ mod tests {
             bsp_version: "2.0.0".to_string(),
             capabilities: BuildServerCapabilities {
                 compile_provider: Some(CompileProvider {
-                    language_ids: vec![]
+                    language_ids: vec![],
                 }),
                 test_provider: None,
                 run_provider: None,
@@ -289,7 +298,7 @@ mod tests {
         let params = RunParams {
             target: Default::default(),
             origin_id: Some(origin_id.to_string()),
-            arguments: vec![],
+            arguments: Some(vec![]),
             data_kind: None,
             data: None,
         };
@@ -316,7 +325,7 @@ mod tests {
         let params = TestParams {
             targets: vec![],
             origin_id: Some(origin_id.to_string()),
-            arguments: vec![],
+            arguments: Some(vec![]),
             data_kind: None,
             data: None,
         };
