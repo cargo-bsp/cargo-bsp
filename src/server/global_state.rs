@@ -9,7 +9,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use crate::communication;
 use crate::communication::{Message, RequestId};
 use crate::logger::log;
-use crate::project_model::{ProjectManifest, ProjectWorkspace};
+use crate::project_model::ProjectWorkspace;
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
 
