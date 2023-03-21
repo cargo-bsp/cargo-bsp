@@ -163,32 +163,32 @@ pub struct BuildTarget {
 }
 
 impl BuildTarget {
-    pub fn tags_and_capabilities_from_cargo_kind(cargo_target: &cargo_metadata::Target) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
+    fn tags_and_capabilities_from_cargo_kind(cargo_target: &cargo_metadata::Target) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
         let mut tags = vec![];
-        let mut capabilities = BuildTargetCapabilities::default();
+        let mut capabilities = BuildTargetCapabilities::new();
         cargo_target
             .kind
             .iter()
             .for_each(|kind| match kind.as_str() {
                 "lib" => {
                     tags.push(BuildTargetTag::Library);
-                    capabilities.set_compile().set_test().set_debug();
+                    capabilities.enable_compile().enable_test().enable_debug();
                 }
                 "bin" => {
                     tags.push(BuildTargetTag::Application);
-                    capabilities.set_all();
+                    capabilities.enable_all();
                 }
                 "example" => {
                     tags.push(BuildTargetTag::Application);
-                    capabilities.set_compile().set_run().set_debug();
+                    capabilities.enable_compile().enable_run().enable_debug();
                 }
                 "test" => {
                     tags.push(BuildTargetTag::Test);
-                    capabilities.set_compile().set_run().set_debug();
+                    capabilities.enable_compile().enable_run().enable_debug();
                 }
                 "bench" => {
                     tags.push(BuildTargetTag::Benchmark);
-                    capabilities.set_compile().set_run().set_debug();
+                    capabilities.enable_compile().enable_run().enable_debug();
                 }
                 "custom-build" => {
                     todo!()
@@ -219,7 +219,7 @@ impl From<&cargo_metadata::Target> for BuildTarget {
             capabilities,
             language_ids: vec![RUST_ID.to_string()],
             dependencies: BuildTarget::discover_dependencies(&cargo_target.src_path),
-            data_kind: Some(RustBuildTarget::kind()),
+            data_kind: Some("rust".to_string()),
             data: Some(RustBuildTarget {
                 edition: cargo_target.edition.clone(),
                 required_features: cargo_target.required_features.clone(),
@@ -233,16 +233,6 @@ impl From<&cargo_metadata::Target> for BuildTarget {
 pub struct RustBuildTarget {
     pub edition: Edition,
     pub required_features: Vec<String>,
-}
-
-trait DataKind {
-    fn kind() -> String;
-}
-
-impl DataKind for RustBuildTarget {
-    fn kind() -> String {
-        "rust".to_string()
-    }
 }
 
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
@@ -310,34 +300,37 @@ pub struct BuildTargetCapabilities {
 
 impl BuildTargetCapabilities {
     pub fn new() -> Self {
-        // set all to false
-        BuildTargetCapabilities::default()
+        BuildTargetCapabilities {
+            can_compile: false,
+            can_test: false,
+            can_run: false,
+            can_debug: false,
+        }
     }
 
-    pub fn set_all(&mut self) -> &mut Self {
+    pub fn enable_all(&mut self) {
         self.can_compile = true;
         self.can_test = true;
         self.can_run = true;
         self.can_debug = true;
-        self
     }
 
-    pub fn set_compile(&mut self) -> &mut Self {
+    pub fn enable_compile(&mut self) -> &mut Self {
         self.can_compile = true;
         self
     }
 
-    pub fn set_test(&mut self) -> &mut Self {
+    pub fn enable_test(&mut self) -> &mut Self {
         self.can_test = true;
         self
     }
 
-    pub fn set_run(&mut self) -> &mut Self {
+    pub fn enable_run(&mut self) -> &mut Self {
         self.can_run = true;
         self
     }
 
-    pub fn set_debug(&mut self) -> &mut Self {
+    pub fn enable_debug(&mut self) -> &mut Self {
         self.can_debug = true;
         self
     }

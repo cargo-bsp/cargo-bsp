@@ -1,16 +1,13 @@
 // copy from rust-analyzer
 
-use std::{
-    fs::{self, read_dir, ReadDir},
-    io,
-};
+use std::{fs::{self, read_dir, ReadDir}, io};
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use crate::logger::log;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ProjectManifest {
     pub file: PathBuf,
 }
@@ -69,7 +66,7 @@ impl ProjectManifest {
 
     }
 
-    pub fn discover_all(path: &PathBuf) -> ProjectManifest {
+    pub fn discover_all(path: &PathBuf) -> Result<ProjectManifest, &'static str> {
         let res = ProjectManifest::discover(path)
             .unwrap_or_default()
             .into_iter()
@@ -79,19 +76,16 @@ impl ProjectManifest {
 
         match res.len() {
             0 => {
-                log(&format!("error: Failed to find any projects in {:?}", path));
-                panic!("No Cargo.toml found")
+                Err("Cargo.toml not found")
         },
             x => {
                 if x != 1 {
-                    log(&format!("error: Discovered more than one workspace, proceeding with {:?}", res[0]));
+                    log(&format!("warning: Discovered more than one workspace, proceeding with {:?}", res[0]));
                 }
-                res[0].clone()
+                Ok(res[0].clone())
             }
         }
     }
-
-
 }
 
 
