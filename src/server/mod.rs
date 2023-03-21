@@ -5,14 +5,14 @@ use serde::de::DeserializeOwned;
 pub use main_loop::main_loop;
 pub use server_run::run_server;
 
-mod caps;
-mod config;
 mod dispatch;
 mod global_state;
 mod handlers;
 mod main_loop;
 mod request_actor;
 mod server_run;
+mod caps;
+pub(crate) mod config;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
