@@ -1,6 +1,8 @@
-use cargo_metadata::camino::Utf8Path;
-use crate::bsp_types::basic_bsp_structures::*;
+use std::ops::Add;
 
+use cargo_metadata::camino::Utf8Path;
+
+use crate::bsp_types::basic_bsp_structures::*;
 
 impl BuildTargetCapabilities {
     pub fn new() -> Self {
@@ -40,57 +42,61 @@ impl BuildTargetCapabilities {
     }
 }
 
-fn tags_and_capabilities_from_cargo_kind(cargo_target: &cargo_metadata::Target) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
-        let mut tags = vec![];
-        let mut capabilities = BuildTargetCapabilities::new();
-        cargo_target
-            .kind
-            .iter()
-            .for_each(|kind| match kind.as_str() {
-                "lib" => {
-                    tags.push(BuildTargetTag::Library);
-                    capabilities.enable_compile().enable_test().enable_debug();
-                }
-                "bin" => {
-                    tags.push(BuildTargetTag::Application);
-                    capabilities.enable_all();
-                }
-                "example" => {
-                    tags.push(BuildTargetTag::Application);
-                    capabilities.enable_compile().enable_run().enable_debug();
-                }
-                "test" => {
-                    tags.push(BuildTargetTag::Test);
-                    capabilities.enable_compile().enable_run().enable_debug();
-                }
-                "bench" => {
-                    tags.push(BuildTargetTag::Benchmark);
-                    capabilities.enable_compile().enable_run().enable_debug();
-                }
-                "custom-build" => {
-                    todo!()
-                }
-                _ => (),
-            });
+fn tags_and_capabilities_from_cargo_kind(
+    cargo_target: &cargo_metadata::Target,
+) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
+    let mut tags = vec![];
+    let mut capabilities = BuildTargetCapabilities::new();
+    cargo_target
+        .kind
+        .iter()
+        .for_each(|kind| match kind.as_str() {
+            "lib" => {
+                tags.push(BuildTargetTag::Library);
+                capabilities.enable_compile().enable_test().enable_debug();
+            }
+            "bin" => {
+                tags.push(BuildTargetTag::Application);
+                capabilities.enable_all();
+            }
+            "example" => {
+                tags.push(BuildTargetTag::Application);
+                capabilities.enable_compile().enable_run().enable_debug();
+            }
+            "test" => {
+                tags.push(BuildTargetTag::Test);
+                capabilities.enable_compile().enable_run().enable_debug();
+            }
+            "bench" => {
+                tags.push(BuildTargetTag::Benchmark);
+                capabilities.enable_compile().enable_run().enable_debug();
+            }
+            "custom-build" => {
+                todo!()
+            }
+            _ => (),
+        });
 
-        (tags, capabilities)
-    }
+    (tags, capabilities)
+}
 
 fn discover_dependencies(_path: &Utf8Path) -> Vec<BuildTargetIdentifier> {
-        vec![] //todo
-    }
-
+    vec![] //todo
+}
 
 impl From<&cargo_metadata::Target> for BuildTarget {
     fn from(cargo_target: &cargo_metadata::Target) -> Self {
         let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
+
+        let mut base_directory = cargo_target.src_path.clone();
+        base_directory.pop();
 
         BuildTarget {
             id: BuildTargetIdentifier {
                 uri: cargo_target.src_path.to_string() + ":" + &cargo_target.name,
             },
             display_name: Some(cargo_target.name.clone()),
-            base_directory: Some(cargo_target.src_path.clone().pop().to_string()),
+            base_directory: Some("file://".to_owned().add(&base_directory.to_string())),
             tags,
             capabilities,
             language_ids: vec![RUST_ID.to_string()],
@@ -103,4 +109,3 @@ impl From<&cargo_metadata::Target> for BuildTarget {
         }
     }
 }
-
