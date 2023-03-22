@@ -16,8 +16,7 @@ mod tests {
     {
         let json_str = serde_json::to_string(ms).unwrap();
         assert_eq!(&json_str, expected);
-        let deserialized: SER = serde_json::from_str(&json_str).unwrap();
-        assert_eq!(&deserialized, ms);
+        test_deserialization(&json_str, ms);
     }
 
     pub(crate) fn test_deserialization<T>(json: &str, expected: &T)

@@ -96,7 +96,7 @@ impl From<&cargo_metadata::Target> for BuildTarget {
                 uri: cargo_target.src_path.to_string() + ":" + &cargo_target.name,
             },
             display_name: Some(cargo_target.name.clone()),
-            base_directory: Some("file://".to_owned().add(&base_directory.to_string())),
+            base_directory: Some("file://".to_owned().add(base_directory.as_ref())),
             tags,
             capabilities,
             language_ids: vec![RUST_ID.to_string()],
