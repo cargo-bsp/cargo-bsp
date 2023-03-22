@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Result;
 use rustc_hash::FxHashSet;
+
 use crate::logger::log;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
@@ -17,9 +18,12 @@ pub struct ProjectManifest {
 
 impl ProjectManifest {
     pub fn discover(path: &PathBuf) -> io::Result<Vec<ProjectManifest>> {
-        return find_cargo_toml(path)
-            .map(|paths| paths.into_iter().map(|val| ProjectManifest { file: val }).collect());
-
+        return find_cargo_toml(path).map(|paths| {
+            paths
+                .into_iter()
+                .map(|val| ProjectManifest { file: val })
+                .collect()
+        });
 
         fn valid_path(file: PathBuf) -> Result<PathBuf, PathBuf> {
             if file.parent().is_none() {
@@ -37,7 +41,7 @@ impl ProjectManifest {
         }
 
         fn find_in_parent_dirs(path: &Path) -> Option<PathBuf> {
-            if path.file_name().unwrap_or_default() ==  "Cargo.toml" {
+            if path.file_name().unwrap_or_default() == "Cargo.toml" {
                 if let Ok(path) = valid_path(path.to_path_buf()) {
                     return Some(path);
                 }
@@ -46,7 +50,7 @@ impl ProjectManifest {
             let mut curr = Some(path.to_path_buf());
 
             while let Some(path) = curr {
-                let candidate = path.join( "Cargo.toml");
+                let candidate = path.join("Cargo.toml");
                 if fs::metadata(&candidate).is_ok() {
                     if let Ok(manifest) = valid_path(candidate) {
                         return Some(manifest);
@@ -76,12 +80,13 @@ impl ProjectManifest {
             .collect::<Vec<_>>();
 
         match res.len() {
-            0 => {
-                Err("Cargo.toml not found")
-        },
+            0 => Err("Cargo.toml not found"),
             x => {
                 if x != 1 {
-                    log(&format!("warning: Discovered more than one workspace, proceeding with {:?}", res[0]));
+                    log(&format!(
+                        "warning: Discovered more than one workspace, proceeding with {:?}",
+                        res[0]
+                    ));
                 }
                 Ok(res[0].clone())
             }
