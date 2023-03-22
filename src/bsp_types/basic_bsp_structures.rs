@@ -11,7 +11,7 @@ pub struct TextDocumentIdentifier {
     pub uri: Uri,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildClientCapabilities {
     /** The languages that this client supports.

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::process::Command;
 
-use crate::bsp_types::requests::Request;
-use crate::bsp_types::BuildTargetIdentifier;
+use crate::bsp_types::requests::{CreateCommand, Request};
+use crate::bsp_types::{BuildTargetIdentifier};
 
 /*
 NOTE THAT:
@@ -11,12 +12,22 @@ error: JSON-RPC code and message set in case an exception happens during the req
 */
 
 #[derive(Debug)]
-pub enum Compile {}
+pub struct Compile {}
 
 impl Request for Compile {
     type Params = CompileParams;
     type Result = CompileResult;
     const METHOD: &'static str = "buildTarget/compile";
+}
+
+impl CreateCommand for CompileParams {
+    fn origin_id(&self) -> Option<String> {
+        self.origin_id.clone()
+    }
+
+    fn create_command(&self) -> Command {
+        todo!()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

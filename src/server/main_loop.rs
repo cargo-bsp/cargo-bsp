@@ -4,26 +4,38 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, select};
 
 use communication::{Connection, Notification, Request};
 
+use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
+use crate::communication::Message;
 use crate::logger::log;
+use crate::server::{handlers, Result};
+use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::{handlers, Result};
-use crate::{bsp_types, communication};
+use crate::server::main_loop::Event::{Bsp, FromThread};
 
-pub fn main_loop(connection: Connection) -> Result<()> {
-    log("initial config");
-    GlobalState::new(connection.sender).run(connection.receiver)
+pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
+    GlobalState::new(connection.sender, config).run(connection.receiver)
+}
+
+#[derive(Debug)]
+enum Event {
+    Bsp(Message),
+    FromThread(Message),
 }
 
 impl GlobalState {
-    fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
+    fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
+        if self.config.linked_projects().is_empty() {
+            log("bsp cargo failed to discover workspace");
+        };
+
         while let Some(event) = self.next_message(&inbox) {
-            if let communication::Message::Notification(not) = &event {
+            if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     return Ok(());
                 }
@@ -34,26 +46,36 @@ impl GlobalState {
         Err("client exited without proper shutdown sequence".into())
     }
 
-    fn next_message(
-        &self,
-        inbox: &Receiver<communication::Message>,
-    ) -> Option<communication::Message> {
-        inbox.recv().ok()
+    fn next_message(&self, inbox: &Receiver<Message>) -> Option<Event> {
+        select! {
+            recv(inbox) -> msg =>
+                msg.ok().map(Event::Bsp),
+
+            recv(self.handlers_receiver) -> msg =>
+                msg.ok().map(Event::FromThread),
+        }
     }
 
-    fn handle_message(&mut self, msg: communication::Message) -> Result<()> {
+    fn handle_message(&mut self, event: Event) -> Result<()> {
         let loop_start = Instant::now();
-        // NOTE: don't count blocking select! call as a loop-turn time
+        log(&format!("{:?} handle_message({:?})", loop_start, event));
 
-        log(&format!("{:?} handle_message({:?})", loop_start, msg));
-
-        match msg {
-            communication::Message::Request(req) => self.on_new_request(loop_start, req),
-            communication::Message::Notification(not) => {
-                self.on_notification(not)?;
-            }
-            communication::Message::Response(_) => {}
+        match event {
+            Bsp(msg) => match msg {
+                Message::Request(req) => self.on_new_request(loop_start, req),
+                Message::Notification(not) => self.on_notification(not)?,
+                Message::Response(_) => {}
+            },
+            FromThread(msg) => match &msg {
+                Message::Request(_) => {}
+                Message::Notification(not) => self.send_notification(not.to_owned()),
+                Message::Response(resp) => {
+                    self.handlers.remove(&resp.id);
+                    self.respond(resp.to_owned())
+                }
+            },
         }
+
         Ok(())
     }
     /// Registers and handles a request. This should only be called once per incoming request.
@@ -95,15 +117,17 @@ impl GlobalState {
             .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_sync_mut::<bsp_types::requests::Compile>(handlers::handle_compile)
-            .on_sync_mut::<bsp_types::requests::Run>(handlers::handle_run)
-            .on_sync_mut::<bsp_types::requests::Test>(handlers::handle_test)
+            .on_run_cargo::<bsp_types::requests::Compile>()
+            .on_run_cargo::<bsp_types::requests::Run>()
+            .on_run_cargo::<bsp_types::requests::Test>()
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }
 
-    /// Handles an incoming notification.
+    // Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
+        // TODO handle cancel request
+
         NotificationDispatcher {
             not: Some(not),
             global_state: self,

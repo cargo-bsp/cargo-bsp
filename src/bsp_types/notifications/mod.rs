@@ -48,6 +48,6 @@ pub struct TaskId {
      * relationship of tasks makes it possible to render tasks in
      * a tree-like user interface or inspect what caused a certain task
      * execution. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parents: Vec<String>,
 }
