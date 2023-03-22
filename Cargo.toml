@@ -20,8 +20,10 @@ url = "2.3.1"
 command-group = "1.0.8"
 cargo_metadata = "0.15.0"
 jod-thread = "0.1.2"
-stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx" }
-paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths" }
+stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
+paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
+toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "toolchain", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
+itertools = "0.10.5"
 
 [dev-dependencies]
-ntest = "*"
+ntest = "0.9.0"

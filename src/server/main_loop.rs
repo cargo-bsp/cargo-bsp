@@ -117,9 +117,9 @@ impl GlobalState {
             .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_running_cargo::<bsp_types::requests::Compile>()
-            .on_running_cargo::<bsp_types::requests::Run>()
-            .on_running_cargo::<bsp_types::requests::Test>()
+            .on_run_cargo::<bsp_types::requests::Compile>()
+            .on_run_cargo::<bsp_types::requests::Run>()
+            .on_run_cargo::<bsp_types::requests::Test>()
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }
