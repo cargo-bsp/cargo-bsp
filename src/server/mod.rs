@@ -6,7 +6,7 @@ pub use main_loop::main_loop;
 pub use server_run::run_server;
 
 mod caps;
-mod config;
+pub(crate) mod config;
 mod dispatch;
 mod global_state;
 mod handlers;

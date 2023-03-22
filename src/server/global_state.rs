@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use crossbeam_channel::{Receiver, Sender, unbounded};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use crate::communication;
 use crate::communication::{Message, RequestId};
@@ -20,18 +20,18 @@ pub(crate) struct GlobalState {
     sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
-    pub(crate) config: Arc<Config>,
+    pub(crate) config: Config,
 
     pub(crate) handlers: HashMap<RequestId, RequestHandle>,
     pub(crate) handlers_sender: Sender<Message>,
     pub(crate) handlers_receiver: Receiver<Message>,
 
-    pub(crate) _workspace: Arc<ProjectWorkspace>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 /// snapshot of server state for request handlers
 pub(crate) struct _GlobalStateSnapshot {
-    pub(crate) config: Arc<Config>,
+    pub(crate) config: Config,
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
@@ -42,13 +42,13 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: Arc::new(config.clone()),
+            config,
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
-            _workspace: Arc::new(ProjectWorkspace {}),
+            workspace: Arc::new(ProjectWorkspace::default()),
         };
-        this.update_configuration(config);
+        this.update_workspace_data();
         this
     }
 
@@ -95,8 +95,14 @@ impl GlobalState {
         self.sender.send(message).unwrap()
     }
 
-    pub(crate) fn update_configuration(&mut self, _config: Config) {
-        // TODO
+    // update the workspace data - called when (to be yet added) cargo watch discovers changes
+    pub(crate) fn update_workspace_data(&mut self) {
+        self.config.update_project_manifest();
+
+        //get a manifest path from config and pass it to new Project Workspace
+        self.workspace = Arc::new(ProjectWorkspace::from(
+            self.config.workspace_manifest.file.clone(),
+        ));
     }
 }
 

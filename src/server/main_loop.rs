@@ -4,19 +4,19 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
-use crossbeam_channel::{Receiver, select};
+use crossbeam_channel::{select, Receiver};
 
 use communication::{Connection, Notification, Request};
 
-use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
 use crate::communication::Message;
 use crate::logger::log;
-use crate::server::{handlers, Result};
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
+use crate::server::{handlers, Result};
+use crate::{bsp_types, communication};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -30,10 +30,6 @@ enum Event {
 
 impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
-        if self.config.linked_projects().is_empty() {
-            log("bsp cargo failed to discover workspace");
-        };
-
         while let Some(event) = self.next_message(&inbox) {
             if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
