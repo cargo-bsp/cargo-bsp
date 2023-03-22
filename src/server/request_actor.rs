@@ -7,8 +7,6 @@ use std::{
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
-use crate::bsp_types::mappings::create_diagnostics;
-use crate::bsp_types::BuildTargetIdentifier;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
@@ -21,12 +19,13 @@ use paths::AbsPath;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
+use crate::bsp_types::mappings::create_diagnostics;
 use crate::bsp_types::notifications::{
-    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, StatusCode,
-    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
-    TaskStartParams,
+    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, TaskFinish,
+    TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::communication::Message as RPCMessage;
 use crate::communication::{RequestId, Response};
 use crate::logger::log;

@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::bsp_types::notifications::{Notification, StatusCode, TaskId};
-use crate::bsp_types::BuildTargetIdentifier;
+use crate::bsp_types::notifications::{Notification, TaskId};
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
 pub enum TaskStart {}
@@ -29,7 +29,7 @@ impl Notification for TaskFinish {
     const METHOD: &'static str = "build/taskFinish";
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskStartParams {
     /** Unique id of the task with optional reference to parent task id */
@@ -49,14 +49,13 @@ pub struct TaskStartParams {
      * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
      * the kind of data is not specified. Kind names for specific tasks like compile, test,
      * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     *
      * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
      * etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TestDataWithKind>,
+    pub data: Option<TaskDataWithKind>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskProgressParams {
     /** Unique id of the task with optional reference to parent task id */
@@ -89,14 +88,13 @@ pub struct TaskProgressParams {
      * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
      * the kind of data is not specified. Kind names for specific tasks like compile, test,
      * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     *
      * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
      * etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TestDataWithKind>,
+    pub data: Option<TaskDataWithKind>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskFinishParams {
     /** Unique id of the task with optional reference to parent task id */
@@ -119,24 +117,15 @@ pub struct TaskFinishParams {
      * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
      * the kind of data is not specified. Kind names for specific tasks like compile, test,
      * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     *
      * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
      * etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TestDataWithKind>,
+    pub data: Option<TaskDataWithKind>,
 }
 
-//dev:: change data field in TaskStartParams, TaskProgressParams, TaskFinishParams when we want to add possibility to send data without datakind
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum DataWithOptionalDataKind {
-    DataWithKind(TestDataWithKind),
-    JustData { data: Value },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum TestDataWithKind {
+pub enum TaskDataWithKind {
     CompileTask(CompileTaskData),
     CompileReport(CompileReportData),
     TestTask(TestTaskData),
@@ -148,8 +137,7 @@ pub enum TestDataWithKind {
 /* The beginning of a compilation unit may be signalled to the client with a build/taskStart
  * notification. When the compilation unit is a build target, the notification's dataKind field
  * must be "compile-task" and the data field must include a CompileTask object. */
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct CompileTaskData {
     pub target: BuildTargetIdentifier,
 }
@@ -157,7 +145,7 @@ pub struct CompileTaskData {
 /* The completion of a compilation task should be signalled with a build/taskFinish notification.
  * When the compilation unit is a build target, the notification's dataKind field must be
  * compile-report and the data field must include a CompileReport object. */
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileReportData {
     /** The build target that was compiled. */
@@ -178,14 +166,14 @@ pub struct CompileReportData {
     pub time: Option<i32>,
 
     /** The compilation was a noOp compilation. */
-    pub no_op: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_op: Option<bool>,
 }
 
 /* The beginning of a testing unit may be signalled to the client with a build/taskStart notification.
  * When the testing unit is a build target, the notification's dataKind field must be
  * test-task and the data field must include a TestTask object. */
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestTaskData {
     pub target: BuildTargetIdentifier,
 }
@@ -193,8 +181,7 @@ pub struct TestTaskData {
 /* The completion of a test task should be signalled with a build/taskFinish notification.
  * When the testing unit is a build target, the notification's dataKind field must be
  * test-report and the data field must include a TestReport object. */
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestReportData {
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
@@ -219,7 +206,7 @@ pub struct TestReportData {
     pub time: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TestStartData {
     /** Name or description of the test. */
@@ -230,13 +217,14 @@ pub struct TestStartData {
     pub location: Option<Location>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TestFinishData {
     /** Name or description of the test. */
     pub display_name: String,
 
     /** Information about completion of the test, for example an error message. */
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 
     /** Completion status of the test. */
@@ -252,12 +240,13 @@ pub struct TestFinishData {
 
     /** Optionally, structured metadata about the test completion.
      * For example: stack traces, expected/actual values. */
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
 
 pub type Location = lsp_types::Location;
 
-#[derive(Debug, Serialize_repr, Deserialize_repr, Default)]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
 pub enum TestStatus {
     /** The test was successful. */
@@ -271,4 +260,334 @@ pub enum TestStatus {
     Cancelled = 4,
     /** The test was skipped. */
     Skipped = 5,
+}
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use crate::bsp_types::tests::test_serialization;
+
+    use super::*;
+
+    #[test]
+    fn task_start_method() {
+        assert_eq!(TaskStart::METHOD, "build/taskStart");
+    }
+
+    #[test]
+    fn task_progress_method() {
+        assert_eq!(TaskProgress::METHOD, "build/taskProgress");
+    }
+
+    #[test]
+    fn task_finish_method() {
+        assert_eq!(TaskFinish::METHOD, "build/taskFinish");
+    }
+
+    #[test]
+    fn task_start_params() {
+        let test_data = TaskStartParams {
+            task_id: TaskId::default(),
+            event_time: Some(1),
+            message: Some("test_message".to_string()),
+            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.event_time = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"message":"test_message","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.message = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data;
+        modified.data = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message"}"#,
+        );
+    }
+
+    #[test]
+    fn task_progress_params() {
+        let test_data = TaskProgressParams {
+            task_id: TaskId::default(),
+            event_time: Some(1),
+            message: Some("test_message".to_string()),
+            total: Some(2),
+            progress: Some(3),
+            unit: Some("test_unit".to_string()),
+            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.event_time = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"message":"test_message","total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.message = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.total = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.progress = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.unit = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data;
+        modified.data = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"unit":"test_unit"}"#,
+        );
+    }
+
+    #[test]
+    fn task_finish_params() {
+        let test_data = TaskFinishParams {
+            task_id: TaskId::default(),
+            event_time: Some(1),
+            message: Some("test_message".to_string()),
+            status: StatusCode::default(),
+            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.event_time = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"message":"test_message","status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data.clone();
+        modified.message = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        modified = test_data;
+        modified.data = None;
+        test_serialization(
+            &modified,
+            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","status":2}"#,
+        );
+    }
+
+    #[test]
+    fn task_data_with_kind() {
+        test_serialization(
+            &TaskDataWithKind::CompileTask(CompileTaskData::default()),
+            r#"{"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        );
+        test_serialization(
+            &TaskDataWithKind::CompileReport(CompileReportData::default()),
+            r#"{"dataKind":"compile-report","data":{"target":{"uri":""},"errors":0,"warnings":0}}"#,
+        );
+        test_serialization(
+            &TaskDataWithKind::TestTask(TestTaskData::default()),
+            r#"{"dataKind":"test-task","data":{"target":{"uri":""}}}"#,
+        );
+        test_serialization(
+            &TaskDataWithKind::TestReport(TestReportData::default()),
+            r#"{"dataKind":"test-report","data":{"target":{"uri":""},"passed":0,"failed":0,"ignored":0,"cancelled":0,"skipped":0}}"#,
+        );
+        test_serialization(
+            &TaskDataWithKind::TestStart(TestStartData::default()),
+            r#"{"dataKind":"test-start","data":{"displayName":""}}"#,
+        );
+        test_serialization(
+            &TaskDataWithKind::TestFinish(TestFinishData::default()),
+            r#"{"dataKind":"test-finish","data":{"displayName":"","status":2}}"#,
+        );
+    }
+
+    #[test]
+    fn compile_task_data() {
+        test_serialization(
+            &CompileTaskData {
+                target: BuildTargetIdentifier::default(),
+            },
+            r#"{"target":{"uri":""}}"#,
+        );
+    }
+
+    #[test]
+    fn compile_report_data() {
+        let test_data = CompileReportData {
+            target: BuildTargetIdentifier::default(),
+            origin_id: Some("test_originId".to_string()),
+            errors: 1,
+            warnings: 2,
+            time: Some(3),
+            no_op: Some(true),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"time":3,"noOp":true}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.origin_id = None;
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"errors":1,"warnings":2,"time":3,"noOp":true}"#,
+        );
+        modified = test_data.clone();
+        modified.time = None;
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"noOp":true}"#,
+        );
+        modified = test_data;
+        modified.no_op = None;
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"time":3}"#,
+        );
+    }
+
+    #[test]
+    fn test_task_data() {
+        test_serialization(
+            &TestTaskData {
+                target: BuildTargetIdentifier::default(),
+            },
+            r#"{"target":{"uri":""}}"#,
+        );
+    }
+
+    #[test]
+    fn test_report_data() {
+        let test_data = TestReportData {
+            target: BuildTargetIdentifier::default(),
+            passed: 1,
+            failed: 2,
+            ignored: 3,
+            cancelled: 4,
+            skipped: 5,
+            time: Some(6),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"target":{"uri":""},"passed":1,"failed":2,"ignored":3,"cancelled":4,"skipped":5,"time":6}"#,
+        );
+
+        let mut modified = test_data;
+        modified.time = None;
+        test_serialization(
+            &modified,
+            r#"{"target":{"uri":""},"passed":1,"failed":2,"ignored":3,"cancelled":4,"skipped":5}"#,
+        );
+    }
+
+    #[test]
+    fn test_start_data() {
+        let test_data = TestStartData {
+            display_name: "test_name".to_string(),
+            location: Some(Location::new(
+                Url::from_file_path("/test").unwrap(),
+                lsp_types::Range::default(),
+            )),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"displayName":"test_name","location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}}"#,
+        );
+
+        let mut modified = test_data;
+        modified.location = None;
+        test_serialization(&modified, r#"{"displayName":"test_name"}"#);
+    }
+
+    #[test]
+    fn test_finish_data() {
+        let test_data = TestFinishData {
+            display_name: "test_name".to_string(),
+            message: Some("test_message".to_string()),
+            status: TestStatus::default(),
+            location: Some(Location::new(
+                Url::from_file_path("/test").unwrap(),
+                lsp_types::Range::default(),
+            )),
+            data_kind: Some("test_dataKind".to_string()),
+            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.message = None;
+        test_serialization(
+            &modified,
+            r#"{"displayName":"test_name","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+        );
+        modified = test_data.clone();
+        modified.location = None;
+        test_serialization(
+            &modified,
+            r#"{"displayName":"test_name","message":"test_message","status":2,"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+        );
+        modified = test_data;
+        modified.data_kind = None;
+        test_serialization(
+            &modified,
+            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"data":{"dataKey":"dataValue"}}"#,
+        );
+        modified.data = None;
+        test_serialization(
+            &modified,
+            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}}"#,
+        );
+    }
+
+    #[test]
+    fn test_status() {
+        test_serialization(&TestStatus::Passed, r#"1"#);
+        test_serialization(&TestStatus::Failed, r#"2"#);
+        test_serialization(&TestStatus::Ignored, r#"3"#);
+        test_serialization(&TestStatus::Cancelled, r#"4"#);
+        test_serialization(&TestStatus::Skipped, r#"5"#);
+    }
 }
