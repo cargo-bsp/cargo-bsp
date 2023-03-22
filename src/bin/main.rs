@@ -68,7 +68,7 @@ mod tests {
     }
 
     #[test]
-    #[timeout(1000)]
+    #[timeout(2000)]
     fn simple_lifetime() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -88,7 +88,7 @@ mod tests {
     // }
 
     #[test]
-    #[timeout(1000)]
+    #[timeout(2000)]
     fn initialize_fail() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);

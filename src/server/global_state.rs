@@ -95,13 +95,14 @@ impl GlobalState {
         self.sender.send(message).unwrap()
     }
 
-
     // update the workspace data - called when (to be yet added) cargo watch discovers changes
     pub(crate) fn update_workspace_data(&mut self) {
         self.config.update_project_manifest();
-        
+
         //get a manifest path from config and pass it to new Project Workspace
-        self.workspace = Arc::new(ProjectWorkspace::from(self.config.workspace_manifest.file.clone()));
+        self.workspace = Arc::new(ProjectWorkspace::from(
+            self.config.workspace_manifest.file.clone(),
+        ));
     }
 }
 
