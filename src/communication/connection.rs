@@ -61,28 +61,6 @@ impl Connection {
         }
     }
 
-    // pub fn get_request(&self) -> Result<Request, ProtocolError> {
-    //     loop {
-    //         match self.receiver.recv() {
-    //             Ok(Message::Request(req)) => {
-    //                 return Ok(req);
-    //             }
-    //             Ok(msg) => {
-    //                 return Err(ProtocolError(format!(
-    //                     "expected initialize request, got {:?}",
-    //                     msg
-    //                 )));
-    //             }
-    //             Err(e) => {
-    //                 return Err(ProtocolError(format!(
-    //                     "expected initialize request, got error: {}",
-    //                     e
-    //                 )));
-    //             }
-    //         };
-    //     }
-    // }
-
     /// Finishes the initialization process by sending an `InitializeResult` to the client
     pub fn initialize_finish(
         &self,
@@ -108,35 +86,6 @@ impl Connection {
         }
         Ok(())
     }
-
-    // pub fn send_response(
-    //     &self,
-    //     initialize_id: RequestId,
-    //     initialize_result: serde_json::Value,
-    // ) -> Result<(), ProtocolError> {
-    //     let resp = Response::new_ok(initialize_id, initialize_result);
-    //     self.sender.send(resp.into()).unwrap();
-    //     Ok(())
-    // }
-
-    /// Initialize the connection. Sends the server capabilities
-    /// to the client and returns the serialized client capabilities
-    /// on success. If more fine-grained initialization is required use
-    /// `initialize_start`/`initialize_finish`.
-    // pub fn initialize(
-    //     &self,
-    //     server_capabilities: serde_json::Value,
-    // ) -> Result<serde_json::Value, ProtocolError> {
-    //     let (id, params) = self.initialize_start()?;
-    //
-    //     let initialize_data = serde_json::json!({
-    //         "capabilities": server_capabilities,
-    //     });
-    //
-    //     self.initialize_finish(id, initialize_data)?;
-    //
-    //     Ok(params)
-    // }
 
     /// If `req` is `Shutdown`, respond to it and return `true`, otherwise return `false`
     pub fn handle_shutdown(&self, req: &Request) -> Result<bool, ProtocolError> {

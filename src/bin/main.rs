@@ -19,7 +19,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::spawn_server;
+    use serde_json::{from_str, to_value};
+    use ntest::timeout;
+
+    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider};
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
@@ -28,10 +31,10 @@ mod tests {
         RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets,
         WorkspaceBuildTargetsResult,
     };
-    use cargo_bsp::bsp_types::{BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, CompileProvider};
     use cargo_bsp::client::Client;
-    use cargo_bsp::communication::{Notification, Request, RequestId, Response};
-    use serde_json::{from_str, to_value};
+    use cargo_bsp::communication::{Notification, Request, Response};
+
+    use crate::spawn_server;
 
     fn init_conn(cl: &mut Client) {
         let init_req = create_init_req(2137);
@@ -66,6 +69,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_lifetime() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -85,6 +89,7 @@ mod tests {
     // }
 
     #[test]
+    #[timeout(1000)]
     fn initialize_fail() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -105,6 +110,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_build_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -126,6 +132,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_run_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -148,6 +155,7 @@ mod tests {
     }
 
     #[test]
+    #[timeout(1000)]
     fn simple_test_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -180,7 +188,7 @@ mod tests {
             data: None,
         };
         Request {
-            id: RequestId::from(id),
+            id: id.into(),
             method: InitializeBuild::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -211,7 +219,7 @@ mod tests {
             data: None,
         };
         Response {
-            id: RequestId::from(id),
+            id: id.into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -226,7 +234,7 @@ mod tests {
 
     fn create_shutdown_req(id: i32) -> Request {
         Request {
-            id: RequestId::from(id),
+            id: id.into(),
             method: ShutdownBuild::METHOD.to_string(),
             params: Default::default(),
         }
@@ -234,7 +242,7 @@ mod tests {
 
     fn create_shutdown_resp(id: i32) -> Response {
         Response {
-            id: RequestId::from(id),
+            id: id.into(),
             result: None,
             error: None,
         }
@@ -249,7 +257,7 @@ mod tests {
 
     fn create_build_req(id: i32) -> Request {
         Request {
-            id: RequestId::from(id),
+            id: id.into(),
             method: WorkspaceBuildTargets::METHOD.to_string(),
             params: Default::default(),
         }
@@ -277,7 +285,7 @@ mod tests {
             }],
         };
         Response {
-            id: RequestId::from(id),
+            id: id.into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -287,12 +295,12 @@ mod tests {
         let params = RunParams {
             target: Default::default(),
             origin_id: Some(origin_id.to_string()),
-            arguments: None,
+            arguments: Some(vec![]),
             data_kind: None,
             data: None,
         };
         Request {
-            id: RequestId::from(id),
+            id: id.into(),
             method: Run::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -304,7 +312,7 @@ mod tests {
             status_code: 1,
         };
         Response {
-            id: RequestId::from(id),
+            id: id.into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -314,12 +322,12 @@ mod tests {
         let params = TestParams {
             targets: vec![],
             origin_id: Some(origin_id.to_string()),
-            arguments: None,
+            arguments: Some(vec![]),
             data_kind: None,
             data: None,
         };
         Request {
-            id: RequestId::from(id),
+            id: id.into(),
             method: Test::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -333,7 +341,7 @@ mod tests {
             data: None,
         };
         Response {
-            id: RequestId::from(id),
+            id: id.into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }

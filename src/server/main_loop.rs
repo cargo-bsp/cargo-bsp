@@ -10,6 +10,7 @@ use communication::{Connection, Notification, Request};
 
 use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
+use crate::communication::Message;
 use crate::logger::log;
 use crate::server::{handlers, Result};
 use crate::server::config::Config;
@@ -17,30 +18,24 @@ use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
 
-// use lsp_types::lsif::Vertex::Event;
-
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
 }
 
-// just a placeholder - to change (and move)
-#[derive(Debug)]
-pub enum ThreadMessage {}
-
 #[derive(Debug)]
 enum Event {
-    Bsp(communication::Message),
-    FromThread(ThreadMessage),
+    Bsp(Message),
+    FromThread(Message),
 }
 
 impl GlobalState {
-    fn run(mut self, inbox: Receiver<communication::Message>) -> Result<()> {
+    fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         if self.config.linked_projects().is_empty() {
             log("bsp cargo failed to discover workspace");
         };
 
         while let Some(event) = self.next_message(&inbox) {
-            if let Bsp(communication::Message::Notification(not)) = &event {
+            if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     return Ok(());
                 }
@@ -51,16 +46,13 @@ impl GlobalState {
         Err("client exited without proper shutdown sequence".into())
     }
 
-    fn next_message(
-        &self,
-        inbox: &Receiver<communication::Message>,
-    ) -> Option<Event> {
+    fn next_message(&self, inbox: &Receiver<Message>) -> Option<Event> {
         select! {
             recv(inbox) -> msg =>
                 msg.ok().map(Event::Bsp),
 
-            recv(self.threads_chan.1) -> task =>
-                Some(Event::FromThread(task.unwrap())),
+            recv(self.handlers_receiver) -> msg =>
+                msg.ok().map(Event::FromThread),
         }
     }
 
@@ -70,13 +62,18 @@ impl GlobalState {
 
         match event {
             Bsp(msg) => match msg {
-                communication::Message::Request(req) => self.on_new_request(loop_start, req),
-                communication::Message::Notification(not) => {
-                    self.on_notification(not)?;
+                Message::Request(req) => self.on_new_request(loop_start, req),
+                Message::Notification(not) => self.on_notification(not)?,
+                Message::Response(_) => {}
+            },
+            FromThread(msg) => match &msg {
+                Message::Request(_) => {}
+                Message::Notification(not) => self.send_notification(not.to_owned()),
+                Message::Response(resp) => {
+                    self.handlers.remove(&resp.id);
+                    self.respond(resp.to_owned())
                 }
-                communication::Message::Response(_) => {}
-            }
-            FromThread(_) => {}
+            },
         }
 
         Ok(())
@@ -120,24 +117,26 @@ impl GlobalState {
             .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_sync_mut::<bsp_types::requests::Compile>(handlers::handle_compile)
-            .on_sync_mut::<bsp_types::requests::Run>(handlers::handle_run)
-            .on_sync_mut::<bsp_types::requests::Test>(handlers::handle_test)
+            .on_run_cargo::<bsp_types::requests::Compile>()
+            .on_run_cargo::<bsp_types::requests::Run>()
+            .on_run_cargo::<bsp_types::requests::Test>()
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }
 
-    /// Handles an incoming notification.
+    // Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
+        // TODO handle cancel request
+
         NotificationDispatcher {
             not: Some(not),
             global_state: self,
         }
-            .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-                log("Got exit notification");
-                Ok(())
-            })?
-            .finish();
+        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
+            log("Got exit notification");
+            Ok(())
+        })?
+        .finish();
         Ok(())
     }
 }
