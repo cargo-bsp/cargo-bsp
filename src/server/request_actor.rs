@@ -7,6 +7,7 @@ use std::{
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
+use crate::bsp_types::BuildTargetIdentifier;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
@@ -17,16 +18,16 @@ use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
 use lsp_types::DiagnosticSeverity;
 use paths::AbsPath;
 use serde::Deserialize;
+use serde_json::to_value;
 use stdx::process::streaming_output;
 
-use crate::bsp_types::mappings::to_publish_diagnostics::create_diagnostics;
 use crate::bsp_types::notifications::{
-    LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, TaskFinish,
-    TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,
+    LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait,
+    PublishDiagnostics, PublishDiagnosticsParams, StatusCode, TaskFinish, TaskFinishParams, TaskId,
+    TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
-use crate::communication::Message as RPCMessage;
+use crate::communication::{Message as RPCMessage, Notification};
 use crate::communication::{RequestId, Response};
 use crate::logger::log;
 
@@ -147,9 +148,15 @@ where
 
     fn send_notification<T>(&self, progress: T::Params)
     where
-        T: Notification,
+        T: NotificationTrait,
     {
-        todo!()
+        self.send(
+            Notification {
+                method: T::METHOD.to_string(),
+                params: to_value(progress).unwrap(),
+            }
+            .into(),
+        );
     }
 
     fn next_event(&self, inbox: &Receiver<Event>) -> Option<Event> {
@@ -164,7 +171,8 @@ where
     }
 
     pub fn run(mut self, cancel_receiver: Receiver<Event>) {
-        let command = self.params.create_command();
+        let command = self.params.create_command(self.root_path.clone());
+        log(format!("Created command: {:?}", command).as_str());
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => {
                 self.cargo_handle = Some(cargo_handle);
@@ -214,73 +222,69 @@ where
                 }
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
-                    self.handle_cargo_information(message, &mut errors, &mut warnings);
+                    match message {
+                        Message::CompilerArtifact(msg) => {
+                            self.report_task_progress(
+                                TaskId {
+                                    // TODO generate id when there is no origin_id
+                                    id: self.params.origin_id().unwrap(),
+                                    parents: vec![],
+                                },
+                                serde_json::to_string(&msg).ok(),
+                            );
+                        }
+                        Message::CompilerMessage(msg) => {
+                            let diagnostics = PublishDiagnosticsParams::from(
+                                &msg.message,
+                                self.params.origin_id(),
+                                // TODO change to actual BuildTargetIdentifier
+                                &BuildTargetIdentifier {
+                                    uri: "".to_string(),
+                                },
+                                AbsPath::assert(&self.root_path),
+                            );
+                            diagnostics.into_iter().for_each(|diagnostic| {
+                                // Count errors and warnings.
+                                diagnostic.diagnostics.iter().for_each(|d| {
+                                    if let Some(severity) = d.severity {
+                                        match severity {
+                                            DiagnosticSeverity::ERROR => errors += 1,
+                                            DiagnosticSeverity::WARNING => warnings += 1,
+                                            _ => (),
+                                        }
+                                    }
+                                });
+                                self.send_notification::<PublishDiagnostics>(diagnostic)
+                            });
+                        }
+                        Message::BuildScriptExecuted(msg) => {
+                            self.report_task_progress(
+                                TaskId {
+                                    // TODO generate id when there is no origin_id
+                                    id: self.params.origin_id().unwrap(),
+                                    parents: vec![],
+                                },
+                                serde_json::to_string(&msg).ok(),
+                            );
+                        }
+                        Message::BuildFinished(_) => {
+                            // TODO generate compile report
+                        }
+                        Message::TextLine(msg) => {
+                            self.send_notification::<LogMessage>(LogMessageParams {
+                                message_type: MessageType::Log,
+                                task: self.params.origin_id().map(|id| TaskId {
+                                    id,
+                                    parents: vec![],
+                                }),
+                                origin_id: self.params.origin_id(),
+                                message: msg,
+                            });
+                        }
+                        _ => {}
+                    }
                 }
             }
-        }
-    }
-
-    fn handle_cargo_information(&self, message: Message, errors: &mut i32, warnings: &mut i32) {
-        match message {
-            Message::CompilerArtifact(msg) => {
-                self.report_task_progress(
-                    TaskId {
-                        // TODO generate id when there is no origin_id
-                        id: self.params.origin_id().unwrap(),
-                        parents: vec![],
-                    },
-                    serde_json::to_string(&msg).ok(),
-                );
-            }
-            Message::CompilerMessage(msg) => {
-                let diagnostics = create_diagnostics(
-                    &msg.message,
-                    self.params.origin_id(),
-                    // TODO change to actual BuildTargetIdentifier
-                    &BuildTargetIdentifier {
-                        uri: "".to_string(),
-                    },
-                    AbsPath::assert(&self.root_path),
-                );
-                diagnostics.into_iter().for_each(|diagnostic| {
-                    // Count errors and warnings.
-                    diagnostic.diagnostics.iter().for_each(|d| {
-                        if let Some(severity) = d.severity {
-                            match severity {
-                                DiagnosticSeverity::ERROR => *errors += 1,
-                                DiagnosticSeverity::WARNING => *warnings += 1,
-                                _ => (),
-                            }
-                        }
-                    });
-                    self.send_notification::<PublishDiagnostics>(diagnostic)
-                });
-            }
-            Message::BuildScriptExecuted(msg) => {
-                self.report_task_progress(
-                    TaskId {
-                        // TODO generate id when there is no origin_id
-                        id: self.params.origin_id().unwrap(),
-                        parents: vec![],
-                    },
-                    serde_json::to_string(&msg).ok(),
-                );
-            }
-            Message::BuildFinished(_) => {
-                // TODO generate compile report
-            }
-            Message::TextLine(msg) => {
-                self.send_notification::<LogMessage>(LogMessageParams {
-                    message_type: MessageType::Log,
-                    task: self.params.origin_id().map(|id| TaskId {
-                        id,
-                        parents: vec![],
-                    }),
-                    origin_id: self.params.origin_id(),
-                    message: msg,
-                });
-            }
-            _ => {}
         }
     }
 
@@ -425,5 +429,96 @@ impl CargoActor {
             Ok(_) => Ok((read_at_least_one_message, error)),
             Err(e) => Err(io::Error::new(e.kind(), format!("{:?}: {}", e, error))),
         }
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use crate::bsp_types::requests::{Compile, CompileParams, Run, RunParams, Test, TestParams};
+
+    #[test]
+    fn compile_request_handle() {
+        let mut params = CompileParams {
+            targets: vec!["test_data".into()],
+            origin_id: Some("test".to_string()),
+            arguments: None,
+        };
+        let (sender, receiver) = unbounded();
+
+        let handle = RequestHandle::spawn::<Compile>(
+            Box::new(move |msg| sender.send(msg).unwrap()),
+            1.into(),
+            params,
+            std::env::current_dir()
+                .unwrap()
+                .join("src/server/test_data")
+                .as_path(),
+        );
+        while let Some(msg) = receiver.recv().ok() {
+            println!("{:#?}", msg);
+        }
+    }
+
+    #[test]
+    fn test_request_handle() {
+        let mut params = TestParams {
+            targets: vec![],
+            origin_id: Some("test".to_string()),
+            arguments: None,
+            data_kind: None,
+            data: None,
+        };
+        let (sender, receiver) = unbounded();
+
+        let handle = RequestHandle::spawn::<Test>(
+            Box::new(move |msg| sender.send(msg).unwrap()),
+            1.into(),
+            params,
+            std::env::current_dir()
+                .unwrap()
+                .join("src/server/test_data")
+                .as_path(),
+        );
+        while let Some(msg) = receiver.recv().ok() {
+            println!("{:#?}", msg);
+        }
+    }
+
+    #[test]
+    fn run_request_handle() {
+        let mut params = RunParams {
+            target: "test_data".into(),
+            origin_id: Some("test".to_string()),
+            arguments: None,
+            data_kind: None,
+            data: None,
+        };
+        let (sender, receiver) = unbounded();
+
+        let handle = RequestHandle::spawn::<Run>(
+            Box::new(move |msg| sender.send(msg).unwrap()),
+            1.into(),
+            params,
+            std::env::current_dir()
+                .unwrap()
+                .join("src/server/test_data")
+                .as_path(),
+        );
+        while let Some(msg) = receiver.recv().ok() {
+            println!("{:#?}", msg);
+        }
+    }
+
+    #[test]
+    fn test_request_handle_cancel() {
+        let (sender, receiver) = unbounded();
+        let handle = RequestHandle::spawn::<Test>(
+            Box::new(move |msg| sender.send(msg).unwrap()),
+            1.into(),
+            TestParams::default(),
+            std::env::current_dir().unwrap().as_path(),
+        );
+        handle.cancel();
     }
 }

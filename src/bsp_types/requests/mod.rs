@@ -1,5 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::process::Command;
 
 mod initialize;
@@ -59,5 +60,5 @@ pub trait Request {
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn create_command(&self) -> Command;
+    fn create_command(&self, root: PathBuf) -> Command;
 }

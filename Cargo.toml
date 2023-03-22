@@ -1,5 +1,7 @@
 [workspace]
 
+workspace.exclude = "src/server/test_data"
+
 [package]
 name = "cargo-bsp"
 version = "0.1.0"

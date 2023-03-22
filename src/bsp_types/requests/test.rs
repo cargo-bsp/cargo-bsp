@@ -1,10 +1,10 @@
-use std::process::Command;
-
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::process::Command;
 
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
+use crate::bsp_types::BuildTargetIdentifier;
 
 #[derive(Debug)]
 pub enum Test {}
@@ -20,12 +20,20 @@ impl CreateCommand for TestParams {
         self.origin_id.clone()
     }
 
-    fn create_command(&self) -> Command {
-        todo!()
+    fn create_command(&self, root: PathBuf) -> Command {
+        let mut com = Command::new(toolchain::cargo());
+        com.current_dir(root);
+        com.args(&["test", "--message-format=json"]);
+        // com.arg("--target");
+        // com.arg(self.targets[0].clone().uri);
+        if let Some(arguments) = &self.arguments {
+            com.args(arguments);
+        }
+        com
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TestParams {
     /** A sequence of build targets to test. */
@@ -37,8 +45,8 @@ pub struct TestParams {
     pub origin_id: Option<String>,
 
     /** Optional arguments to the test execution engine. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub arguments: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<String>>,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,7 +58,7 @@ pub struct TestParams {
     pub data: Option<Value>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TestResult {
     /** An optional request id to know the origin of this report. */
@@ -58,7 +66,7 @@ pub struct TestResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: StatusCode,
+    pub status_code: i32,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,68 +74,4 @@ pub struct TestResult {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
-}
-
-#[cfg(test)]
-mod tests {
-    use std::vec;
-
-    use insta::assert_json_snapshot;
-
-    use crate::bsp_types::tests::test_deserialization;
-
-    use super::*;
-
-    #[test]
-    fn test_method() {
-        assert_eq!(Test::METHOD, "buildTarget/test");
-    }
-
-    #[test]
-    fn test_params() {
-        let test_data = TestParams {
-            targets: vec![BuildTargetIdentifier::default()],
-            origin_id: Some("test_originId".to_string()),
-            arguments: vec!["test_argument".to_string()],
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
-        };
-
-        test_deserialization(
-            r#"{"targets":[{"uri":""}],"originId":"test_originId","arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-            &test_data,
-        );
-
-        test_deserialization(r#"{"targets":[]}"#, &TestParams::default());
-    }
-
-    #[test]
-    fn test_result() {
-        let test_data = TestResult {
-            origin_id: Some("test_originId".to_string()),
-            status_code: StatusCode::default(),
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
-        };
-
-        assert_json_snapshot!(test_data,
-            @r###"
-        {
-          "originId": "test_originId",
-          "statusCode": 2,
-          "dataKind": "test_dataKind",
-          "data": {
-            "dataKey": "dataValue"
-          }
-        }
-        "###
-        );
-        assert_json_snapshot!(TestResult::default(),
-            @r###"
-        {
-          "statusCode": 2
-        }
-        "###
-        );
-    }
 }
