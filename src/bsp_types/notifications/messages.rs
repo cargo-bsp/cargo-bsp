@@ -105,7 +105,7 @@ mod tests {
             &modified_data,
             r#"{"type":1,"originId":"test_originId","message":"test_message"}"#,
         );
-        modified_data = test_data.clone();
+        modified_data = test_data;
         modified_data.origin_id = None;
         test_serialization(
             &modified_data,
@@ -133,7 +133,7 @@ mod tests {
             &modified_data,
             r#"{"type":1,"originId":"test_originId","message":"test_message"}"#,
         );
-        modified_data = test_data.clone();
+        modified_data = test_data;
         modified_data.origin_id = None;
         test_serialization(
             &modified_data,

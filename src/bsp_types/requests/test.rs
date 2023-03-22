@@ -108,7 +108,7 @@ mod tests {
             r#"{"targets":[{"uri":""}],"originId":"test_originId","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
             &modified,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_deserialization(
             r#"{"targets":[{"uri":""}],"originId":"test_originId","arguments":["test_argument"],"data":{"dataKey":"dataValue"}}"#,
@@ -141,7 +141,7 @@ mod tests {
             &modified,
             r#"{"statusCode":2,"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_serialization(
             &modified,

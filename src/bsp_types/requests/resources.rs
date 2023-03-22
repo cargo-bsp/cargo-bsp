@@ -71,7 +71,7 @@ mod tests {
 
         test_serialization(&test_data, r#"{"target":{"uri":""},"resources":[""]}"#);
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.resources = vec![];
         test_serialization(&modified, r#"{"target":{"uri":""},"resources":[]}"#);
     }

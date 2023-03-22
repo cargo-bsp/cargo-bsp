@@ -311,7 +311,7 @@ mod tests {
             &modified,
             r#"{"taskId":{"id":""},"eventTime":1,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data = None;
         test_serialization(
             &modified,
@@ -366,7 +366,7 @@ mod tests {
             &modified,
             r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data = None;
         test_serialization(
             &modified,
@@ -401,7 +401,7 @@ mod tests {
             &modified,
             r#"{"taskId":{"id":""},"eventTime":1,"status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data = None;
         test_serialization(
             &modified,
@@ -475,7 +475,7 @@ mod tests {
             &modified,
             r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"noOp":true}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.no_op = None;
         test_serialization(
             &modified,
@@ -510,7 +510,7 @@ mod tests {
             r#"{"target":{"uri":""},"passed":1,"failed":2,"ignored":3,"cancelled":4,"skipped":5,"time":6}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.time = None;
         test_serialization(
             &modified,
@@ -533,7 +533,7 @@ mod tests {
             r#"{"displayName":"test_name","location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.location = None;
         test_serialization(&modified, r#"{"displayName":"test_name"}"#);
     }
@@ -569,7 +569,7 @@ mod tests {
             &modified,
             r#"{"displayName":"test_name","message":"test_message","status":2,"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_serialization(
             &modified,

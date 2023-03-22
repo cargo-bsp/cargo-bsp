@@ -70,7 +70,7 @@ mod tests {
             &modified,
             r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"message":""}],"reset":true}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.diagnostics = vec![];
         test_serialization(
             &modified,

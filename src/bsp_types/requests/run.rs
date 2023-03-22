@@ -99,7 +99,7 @@ mod tests {
             r#"{"target":{"uri":""},"originId":"test_originId","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
             &modified,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_deserialization(
             r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"data":{"dataKey":"dataValue"}}"#,
@@ -121,7 +121,7 @@ mod tests {
 
         test_serialization(&test_data, r#"{"originId":"test_originId","statusCode":2}"#);
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.origin_id = None;
         test_serialization(&modified, r#"{"statusCode":2}"#);
     }

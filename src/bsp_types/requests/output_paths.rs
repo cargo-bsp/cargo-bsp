@@ -98,7 +98,7 @@ mod tests {
             r#"{"target":{"uri":""},"outputPaths":[{"uri":"","kind":1}]}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.output_paths = vec![];
         test_serialization(&modified, r#"{"target":{"uri":""},"outputPaths":[]}"#);
     }

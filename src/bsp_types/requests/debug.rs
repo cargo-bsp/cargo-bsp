@@ -57,7 +57,7 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.targets = vec![];
         test_deserialization(
             r#"{"targets":[],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,

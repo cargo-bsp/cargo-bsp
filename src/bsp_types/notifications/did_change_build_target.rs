@@ -67,7 +67,7 @@ mod tests {
             r#"{"changes":[{"target":{"uri":""}},{"target":{"uri":""}}]}"#,
         );
 
-        let mut modified_data = test_data.clone();
+        let mut modified_data = test_data;
         modified_data.changes = vec![];
         test_serialization(&modified_data, r#"{"changes":[]}"#);
     }
@@ -91,7 +91,7 @@ mod tests {
             &modified_data,
             r#"{"target":{"uri":""},"data":{"dataKey":"dataValue"}}"#,
         );
-        modified_data = test_data.clone();
+        modified_data = test_data;
         modified_data.data = None;
         test_serialization(&modified_data, r#"{"target":{"uri":""},"kind":1}"#);
     }

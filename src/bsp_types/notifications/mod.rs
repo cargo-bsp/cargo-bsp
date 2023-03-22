@@ -52,7 +52,7 @@ mod tests {
             r#"{"id":"test_id","parents":["parent1","parent2"]}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.parents = vec![];
         test_serialization(&modified, r#"{"id":"test_id"}"#);
     }

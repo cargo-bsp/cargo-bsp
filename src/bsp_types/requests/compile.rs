@@ -103,7 +103,7 @@ mod tests {
             r#"{"targets":[{"uri":""}],"arguments":["test_argument"]}"#,
             &modified,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.arguments = vec![];
         test_deserialization(
             r#"{"targets":[{"uri":""}],"originId":"test_message"}"#,
@@ -131,7 +131,7 @@ mod tests {
             &modified,
             r#"{"statusCode":2,"dataKind":"test_data_kind","data":{"dataKey":"dataValue"}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_serialization(
             &modified,

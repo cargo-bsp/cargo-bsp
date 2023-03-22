@@ -363,7 +363,7 @@ mod tests {
             &modified,
             r#"{"compileProvider":{"languageIds":[]},"testProvider":{"languageIds":[]},"runProvider":{"languageIds":[]},"debugProvider":{"languageIds":[]},"inverseSourcesProvider":true,"dependencySourcesProvider":true,"dependencyModulesProvider":true,"resourcesProvider":true,"outputPathsProvider":true,"buildTargetChangedProvider":true,"jvmRunEnvironmentProvider":true,"canReload":true}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.can_reload = None;
         test_serialization(
             &modified,
@@ -484,7 +484,7 @@ mod tests {
             &modified,
             r#"{"id":{"uri":""},"displayName":"test_displayName","baseDirectory":"test_baseDirectory","tags":["test"],"capabilities":{"canCompile":false,"canTest":false,"canRun":false,"canDebug":false},"languageIds":["test_languageId"],"dependencies":[],"dataKind":"test_dataKind","data":{"edition":"2015","requiredFeatures":[]}}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.data_kind = None;
         test_serialization(
             &modified,

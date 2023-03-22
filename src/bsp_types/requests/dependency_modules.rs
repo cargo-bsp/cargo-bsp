@@ -99,7 +99,7 @@ mod tests {
             r#"{"target":{"uri":""},"modules":[{"name":"","version":""}]}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.modules = vec![];
         test_serialization(&modified, r#"{"target":{"uri":""},"modules":[]}"#);
     }
@@ -118,7 +118,7 @@ mod tests {
             r#"{"name":"test_name","version":"test_version","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.data_kind = None;
         test_serialization(
             &modified,

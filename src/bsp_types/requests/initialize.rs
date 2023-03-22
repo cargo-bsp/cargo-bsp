@@ -85,7 +85,7 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.data = None;
         test_deserialization(
             r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","rootUri":"file:///test","capabilities":{"languageIds":[]}}"#,
@@ -108,7 +108,7 @@ mod tests {
             r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","capabilities":{},"data":{"dataKey":"dataValue"}}"#,
         );
 
-        let mut modified = test_data.clone();
+        let mut modified = test_data;
         modified.data = None;
         test_serialization(
             &modified,

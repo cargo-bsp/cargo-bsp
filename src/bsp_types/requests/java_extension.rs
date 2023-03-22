@@ -94,7 +94,7 @@ mod tests {
             &modified,
             r#"{"target":{"uri":""},"options":[],"classpath":[""],"classDirectory":""}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.classpath = vec![];
         test_serialization(
             &modified,

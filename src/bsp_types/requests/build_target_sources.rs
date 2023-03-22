@@ -113,7 +113,7 @@ mod tests {
             &modified,
             r#"{"target":{"uri":""},"sources":[],"roots":[""]}"#,
         );
-        modified = test_data.clone();
+        modified = test_data;
         modified.roots = vec![];
         test_serialization(
             &modified,
