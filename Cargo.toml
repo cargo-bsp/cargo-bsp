@@ -26,6 +26,7 @@ stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx
 paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "toolchain", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 itertools = "0.10.5"
+mockall = "0.11.3"
 
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }

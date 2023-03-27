@@ -6,13 +6,12 @@ use std::{
     io,
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
-
 use crate::bsp_types::BuildTargetIdentifier;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use cargo_metadata::Message;
+use cargo_metadata::Message as CargoMessage;
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
 use lsp_types::DiagnosticSeverity;
@@ -20,6 +19,7 @@ use paths::AbsPath;
 use serde::Deserialize;
 use serde_json::to_value;
 use stdx::process::streaming_output;
+use mockall::*;
 
 use crate::bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait,
@@ -30,6 +30,12 @@ use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::communication::{Message as RPCMessage, Notification};
 use crate::communication::{RequestId, Response};
 use crate::logger::log;
+
+pub enum Event {
+    Cancel,
+    CargoEvent(CargoMessage),
+    CargoFinish,
+}
 
 #[derive(Debug)]
 pub struct RequestHandle {
@@ -45,14 +51,21 @@ impl RequestHandle {
         params: R::Params,
         root_path: &Path,
     ) -> RequestHandle
-    where
-        R: Request + 'static,
-        R::Params: CreateCommand + Send,
+        where
+            R: Request + 'static,
+            R::Params: CreateCommand + Send,
     {
-        let actor: RequestActor<R> = RequestActor::new(sender_to_main, req_id, params, root_path);
+        let mut actor: RequestActor<R, CargoHandle> = RequestActor::new(sender_to_main, req_id, params, root_path);
         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()
-            .spawn(move || actor.run(receiver_to_cancel))
+            .spawn(move || {
+                match actor.spawn_handle() {
+                    Ok(cargo_handle) => actor.run(receiver_to_cancel, cargo_handle),
+                    Err(err) => {
+                        todo!()
+                    }
+                }
+            })
             .expect("failed to spawn thread");
         RequestHandle {
             sender_to_cancel,
@@ -66,10 +79,11 @@ impl RequestHandle {
     }
 }
 
-pub struct RequestActor<R>
-where
-    R: Request,
-    R::Params: CreateCommand,
+pub struct RequestActor<R, C>
+    where
+        R: Request,
+        R::Params: CreateCommand,
+        C: CargoHandleTrait<CargoMessage>,
 {
     sender: Box<dyn Fn(RPCMessage) + Send>,
     // config: CargoCommand,
@@ -78,30 +92,25 @@ where
     /// doesn't provide a way to read sub-process output without blocking, so we
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
-    cargo_handle: Option<CargoHandle>,
+    cargo_handle: Option<C>,
     #[allow(dead_code)]
     req_id: RequestId,
     params: R::Params,
     root_path: PathBuf,
 }
 
-pub enum Event {
-    Cancel,
-    CargoEvent(Message),
-    CargoFinish,
-}
-
-impl<R> RequestActor<R>
-where
-    R: Request,
-    R::Params: CreateCommand,
+impl<R, C> RequestActor<R, C>
+    where
+        R: Request,
+        R::Params: CreateCommand,
+        C: CargoHandleTrait<CargoMessage>,
 {
     pub fn new(
         sender: Box<dyn Fn(RPCMessage) + Send>,
         req_id: RequestId,
         params: R::Params,
         root_path: &Path,
-    ) -> RequestActor<R> {
+    ) -> RequestActor<R, C> {
         log("Spawning a new request actor");
         RequestActor {
             sender,
@@ -147,20 +156,20 @@ where
     }
 
     fn send_notification<T>(&self, progress: T::Params)
-    where
-        T: NotificationTrait,
+        where
+            T: NotificationTrait,
     {
         self.send(
             Notification {
                 method: T::METHOD.to_string(),
                 params: to_value(progress).unwrap(),
             }
-            .into(),
+                .into(),
         );
     }
 
     fn next_event(&self, inbox: &Receiver<Event>) -> Option<Event> {
-        let cargo_chan = self.cargo_handle.as_ref().map(|cargo| &cargo.receiver);
+        let cargo_chan = self.cargo_handle.as_ref().map(|cargo| cargo.receiver());
         select! {
             recv(inbox) -> msg => msg.ok(),
             recv(cargo_chan.unwrap_or(&never())) -> msg => match msg {
@@ -170,22 +179,22 @@ where
         }
     }
 
-    pub fn run(mut self, cancel_receiver: Receiver<Event>) {
+    pub fn spawn_handle(&mut self) -> Result<CargoHandle, String> {
         let command = self.params.create_command(self.root_path.clone());
         log(format!("Created command: {:?}", command).as_str());
         match CargoHandle::spawn(command) {
-            Ok(cargo_handle) => {
-                self.cargo_handle = Some(cargo_handle);
-                self.report_task_start(TaskId {
-                    id: self.params.origin_id().unwrap(),
-                    parents: vec![],
-                });
-            }
-            Err(err) => {
-                todo!()
-            }
+            Ok(cargo_handle) => Ok(cargo_handle),
+            Err(err) => { todo!() }
         }
+    }
 
+    pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: C) {
+        self.report_task_start(TaskId {
+            id: self.params.origin_id().unwrap(),
+            parents: vec![],
+        });
+
+        self.cargo_handle = Some(cargo_handle);
         // Errors and warnings for compile report.
         let mut errors = 0;
         let mut warnings = 0;
@@ -201,7 +210,7 @@ where
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
                     #[allow(unused_mut)]
-                    let mut resp = RPCMessage::Response(Response {
+                        let mut resp = RPCMessage::Response(Response {
                         id: self.req_id.clone(),
                         result: None,
                         error: None,
@@ -223,7 +232,7 @@ where
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
                     match message {
-                        Message::CompilerArtifact(msg) => {
+                        CargoMessage::CompilerArtifact(msg) => {
                             self.report_task_progress(
                                 TaskId {
                                     // TODO generate id when there is no origin_id
@@ -233,7 +242,7 @@ where
                                 serde_json::to_string(&msg).ok(),
                             );
                         }
-                        Message::CompilerMessage(msg) => {
+                        CargoMessage::CompilerMessage(msg) => {
                             let diagnostics = PublishDiagnosticsParams::from(
                                 &msg.message,
                                 self.params.origin_id(),
@@ -257,7 +266,7 @@ where
                                 self.send_notification::<PublishDiagnostics>(diagnostic)
                             });
                         }
-                        Message::BuildScriptExecuted(msg) => {
+                        CargoMessage::BuildScriptExecuted(msg) => {
                             self.report_task_progress(
                                 TaskId {
                                     // TODO generate id when there is no origin_id
@@ -267,10 +276,10 @@ where
                                 serde_json::to_string(&msg).ok(),
                             );
                         }
-                        Message::BuildFinished(_) => {
+                        CargoMessage::BuildFinished(_) => {
                             // TODO generate compile report
                         }
-                        Message::TextLine(msg) => {
+                        CargoMessage::TextLine(msg) => {
                             self.send_notification::<LogMessage>(LogMessageParams {
                                 message_type: MessageType::Log,
                                 task: self.params.origin_id().map(|id| TaskId {
@@ -291,16 +300,16 @@ where
     fn cancel_process(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             self.report_task_start(TaskId {
-                id: "TODO".to_string(),
+                id: "TODO Start cancel".to_string(),
                 parents: vec![self.params.origin_id().unwrap()],
             });
             cargo_handle.cancel();
             self.report_task_finish(
                 TaskId {
-                    id: "TODO".to_string(),
+                    id: "TODO Finish cancel".to_string(),
                     parents: vec![self.params.origin_id().unwrap()],
                 },
-                StatusCode::Cancelled,
+                StatusCode::Ok,
             );
             self.report_task_finish(
                 TaskId {
@@ -320,12 +329,47 @@ where
     }
 }
 
-struct CargoHandle {
+
+#[automock]
+pub trait CargoHandleTrait<T> {
+    fn receiver(&self) -> &Receiver<T>;
+
+    fn cancel(self);
+
+    fn join(self) -> io::Result<()>;
+}
+
+pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
     /// a read syscall dropping and therefore terminating the process is our best option.
     child: GroupChild,
     thread: jod_thread::JoinHandle<io::Result<(bool, String)>>,
-    receiver: Receiver<Message>,
+    receiver: Receiver<CargoMessage>,
+}
+
+impl CargoHandleTrait<CargoMessage> for CargoHandle {
+    fn receiver(&self) -> &Receiver<CargoMessage> {
+        &self.receiver
+    }
+
+    fn cancel(mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+
+    fn join(mut self) -> io::Result<()> {
+        let _ = self.child.kill();
+        let exit_status = self.child.wait()?;
+        let (read_at_least_one_message, error) = self.thread.join()?;
+        if read_at_least_one_message || exit_status.success() {
+            Ok(())
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, format!(
+                "Cargo watcher failed, the command produced no valid metadata (exit code: {:?}):\n{}",
+                exit_status, error
+            )))
+        }
+    }
 }
 
 impl CargoHandle {
@@ -351,35 +395,16 @@ impl CargoHandle {
             receiver,
         })
     }
-
-    fn cancel(mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-
-    fn join(mut self) -> io::Result<()> {
-        let _ = self.child.kill();
-        let exit_status = self.child.wait()?;
-        let (read_at_least_one_message, error) = self.thread.join()?;
-        if read_at_least_one_message || exit_status.success() {
-            Ok(())
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, format!(
-                "Cargo watcher failed, the command produced no valid metadata (exit code: {:?}):\n{}",
-                exit_status, error
-            )))
-        }
-    }
 }
 
 struct CargoActor {
-    sender: Sender<Message>,
+    sender: Sender<CargoMessage>,
     stdout: ChildStdout,
     stderr: ChildStderr,
 }
 
 impl CargoActor {
-    fn new(sender: Sender<Message>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
+    fn new(sender: Sender<CargoMessage>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
         CargoActor {
             sender,
             stdout,
@@ -411,7 +436,7 @@ impl CargoActor {
                 // Try to deserialize a message from Cargo.
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
-                match Message::deserialize(&mut deserializer) {
+                match CargoMessage::deserialize(&mut deserializer) {
                     Ok(message) => {
                         self.sender.send(message).expect("TODO: panic message");
                     }
@@ -433,13 +458,279 @@ impl CargoActor {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub mod request_actor_tests {
+    use std::marker::PhantomData;
+    use super::*;
+    use crate::bsp_types::requests::{Compile, CompileParams, Run, RunParams, Test, TestParams};
+    use crate::bsp_types::notifications::{TaskStart, TaskStartParams, TaskFinish, TaskFinishParams, TaskProgress, TaskProgressParams, TaskId, StatusCode, TestDataWithKind, CompileTaskData};
+    use crate::communication::Message;
+    use crate::communication::Notification;
+
+    // trait GetParams {
+    //     type T;
+    //
+    //     fn get_params() -> Self::T;
+    // }
+    //
+    // impl GetParams for Compile {
+    //     type T = CompileParams;
+    //
+    //     fn get_params() -> Self::T {
+    //         CompileParams {
+    //             targets: vec!["test_target".into()],
+    //             origin_id: Some("test_origin".into()),
+    //             arguments: Some(vec!["test_arguments".into()]),
+    //         }
+    //     }
+    // }
+    //
+    // impl GetParams for Run {
+    //     type T = RunParams;
+    //
+    //     fn get_params() -> Self::T {
+    //         RunParams {
+    //             target: "test_target".into(),
+    //             origin_id: Some("test_origin".into()),
+    //             arguments: Some(vec!["test_arguments".into()]),
+    //             data_kind: Some("test_data_kind".into()),
+    //             data: Some("test_data".into()),
+    //         }
+    //     }
+    // }
+    //
+    // impl GetParams for Test {
+    //     type T = TestParams;
+    //
+    //     fn get_params() -> Self::T {
+    //         TestParams {
+    //             targets: vec!["test_target".into()],
+    //             origin_id: Some("test_origin".into()),
+    //             arguments: Some(vec!["test_arguments".into()]),
+    //             data_kind: Some("test_data_kind".into()),
+    //             data: Some("test_data".into()),
+    //         }
+    //     }
+    // }
+
+    fn get_test_actor(sender_to_main: Sender<RPCMessage>) -> RequestActor<Test, MockCargoHandleTrait<CargoMessage>> {
+        RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            "test_req_id".into(),
+            TestParams {
+                targets: vec!["test_target".into()],
+                origin_id: Some("test_origin_id".into()),
+                arguments: Some(vec!["test_arguments".into()]),
+                data_kind: Some("test_data_kind".into()),
+                data: Some("test_data".into()),
+            },
+            Path::new("test_root_path"),
+        )
+    }
+
+    fn get_compile_actor(sender_to_main: Sender<RPCMessage>) -> RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> {
+        RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            "test_req_id".into(),
+            CompileParams {
+                targets: vec!["test_target".into()],
+                origin_id: Some("test_origin_id".into()),
+                arguments: Some(vec!["test_arguments".into()]),
+            },
+            Path::new("test_root_path"),
+        )
+    }
+
+    fn get_run_actor(sender_to_main: Sender<RPCMessage>) -> RequestActor<Run, MockCargoHandleTrait<CargoMessage>> {
+        RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            "test_req_id".into(),
+            RunParams {
+                target: "test_target".into(),
+                origin_id: Some("test_origin_id".into()),
+                arguments: Some(vec!["test_arguments".into()]),
+                data_kind: Some("test_data_kind".into()),
+                data: Some("test_data".into()),
+            },
+            Path::new("test_root_path"),
+        )
+    }
+
+    #[test]
+    fn simple_compile() {
+        let (sender_to_main, receiver_to_main) = unbounded::<RPCMessage>();
+        let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
+
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+
+        let req_actor = get_compile_actor(sender_to_main);
+
+
+        // sender_to_cancel.send(Event::Cancel).unwrap();
+        //
+        // let proper_notif_start_task = Notification::new(
+        //     TaskStart::METHOD.to_string(),
+        //     TaskStartParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //     },
+        // );
+        // let proper_notif_finish_task = Notification::new(
+        //     TaskFinish::METHOD.to_string(),
+        //     TaskFinishParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //         status: StatusCode::Ok,
+        //     },
+        // );
+        //
+        // let proper_notif_progress_task = Notification::new(
+        //     TaskProgress::METHOD.to_string(),
+        //     TaskProgressParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //         message: "test_message".into(),
+        //         percentage: Some(0.5),
+        //     },
+        // );
+        //
+        // let proper_notif_progress_task2 = Notification::new(
+        //     TaskProgress::METHOD.to_string(),
+        //     TaskProgressParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //         message: "test_message2".into(),
+        //         percentage: Some(0.5),
+        //     },
+        // );
+        //
+        // let proper_notif_progress_task3 = Notification::new(
+        //     TaskProgress::METHOD.to_string(),
+        //     TaskProgressParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //         message: "test_message3".into(),
+        //         percentage: Some(0.5),
+        //     },
+        // );
+        //
+        // let proper_notif_progress_task4 = Notification::new(
+        //     TaskProgress::METHOD.to_string(),
+        //     TaskProgressParams {
+        //         task_id: TaskId { id: "test_origin_id" },
+        //         message: "test_message4".into(),
+        //         percentage: Some(0.5),
+        //     },
+        // );
+        //
+        // let proper_notif_progress_task5 = Notification::new(
+        //     TaskProgress::METHOD.to_string
+    }
+
+    #[test]
+    fn simple_cancel() {
+        let (sender_to_main, receiver_to_main) = unbounded::<RPCMessage>();
+        let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
+
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+        mock_cargo_handle
+            .expect_cancel()
+            .return_const(());
+
+        let req_actor = get_compile_actor(sender_to_main);
+        sender_to_cancel.send(Event::Cancel).unwrap();
+
+        let proper_notif_start_task = Notification::new(
+            TaskStart::METHOD.to_string(),
+            TaskStartParams {
+                task_id: TaskId { id: "test_origin_id".to_string(), parents: vec![] },
+                event_time: None,
+                message: None,
+                data: Some(TestDataWithKind::CompileTask(CompileTaskData {
+                    target: "test_target".into(),
+                })),
+            },
+        );
+
+        let proper_notif_start_cancel = Notification::new(
+            TaskStart::METHOD.to_string(),
+            TaskStartParams {
+                task_id: TaskId { id: "TODO Start cancel".to_string(), parents: vec!["test_origin_id".to_string()] },
+                event_time: None,
+                message: None,
+                data: None,
+            },
+        );
+        let proper_notif_finish_cancel = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId { id: "TODO Finish cancel".to_string(), parents: vec!["test_origin_id".to_string()] },
+                event_time: None,
+                message: None,
+                data: None,
+                status: StatusCode::Ok,
+            },
+        );
+        let proper_notif_finish_task = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId { id: "test_origin_id".to_string(), parents: vec![] },
+                event_time: None,
+                message: None,
+                data: None,
+                status: StatusCode::Cancelled,
+            },
+        );
+
+        req_actor.run(receiver_to_cancel, mock_cargo_handle);
+
+        assert_eq!(receiver_to_main.recv().unwrap(), Message::Notification(proper_notif_start_task));
+        assert_eq!(receiver_to_main.recv().unwrap(), Message::Notification(proper_notif_start_cancel));
+        assert_eq!(receiver_to_main.recv().unwrap(), Message::Notification(proper_notif_finish_cancel));
+        assert_eq!(receiver_to_main.recv().unwrap(), Message::Notification(proper_notif_finish_task));
+    }
+
+    #[test]
+    fn simple_compile2() {
+        let (sender_to_main, receiver_to_main) = unbounded::<RPCMessage>();
+        let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+        mock_cargo_handle
+            .expect_cancel()
+            .return_const(());
+        let req_actor = get_test_actor(sender_to_main);
+
+        // let thread = jod_thread::Builder::new()
+        //     .spawn(move || { req_actor.run(receiver_to_cancel, mock_cargo_handle) })
+        //     .expect("failed to spawn thread");
+        let compiler_artifact_example = r#"{"reason":"compiler-artifact","package_id":"proc-macro2 1.0.51 (registry+https://github.com/rust-lang/crates.io-index)","manifest_path":"/home/patryk/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.51/Cargo.toml","target":{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/patryk/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.51/build.rs","edition":"2018","doc":false,"doctest":false,"test":false},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":["default","proc-macro"],"filenames":["/home/patryk/bsp/RustHelloWorld/target/debug/build/proc-macro2-bb5f134a0bb81455/build-script-build"],"executable":null,"fresh":true}"#;
+        sender_from_cargo.send(CargoMessage::CompilerArtifact(serde_json::from_str(compiler_artifact_example).unwrap())).unwrap();
+
+        sender_to_cancel.send(Event::Cancel).unwrap();
+        req_actor.run(receiver_to_cancel, mock_cargo_handle);
+
+        while let Ok(msg) = receiver_to_main.try_recv() {
+            log(format!("{:#?}", msg).as_str());
+        }
+
+        log("done");
+    }
+}
+
+#[cfg(test)]
+pub mod integration_tests {
     use super::*;
     use crate::bsp_types::requests::{Compile, CompileParams, Run, RunParams, Test, TestParams};
 
     #[test]
     fn compile_request_handle() {
-        let mut params = CompileParams {
+        let params = CompileParams {
             targets: vec!["test_data".into()],
             origin_id: Some("test".to_string()),
             arguments: None,
@@ -462,7 +753,7 @@ pub mod tests {
 
     #[test]
     fn test_request_handle() {
-        let mut params = TestParams {
+        let params = TestParams {
             targets: vec![],
             origin_id: Some("test".to_string()),
             arguments: None,
@@ -487,7 +778,7 @@ pub mod tests {
 
     #[test]
     fn run_request_handle() {
-        let mut params = RunParams {
+        let params = RunParams {
             target: "test_data".into(),
             origin_id: Some("test".to_string()),
             arguments: None,
