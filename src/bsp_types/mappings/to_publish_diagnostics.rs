@@ -1,11 +1,12 @@
 // Parts copied from rust-analyzer
 
+use std::collections::HashMap;
+
 use cargo_metadata::diagnostic::{
     Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
 };
 use itertools::Itertools;
 use paths::AbsPath;
-use std::collections::HashMap;
 
 use crate::bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
 use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};

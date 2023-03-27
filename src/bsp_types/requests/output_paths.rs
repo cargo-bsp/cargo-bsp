@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, Uri};
@@ -12,19 +13,17 @@ impl Request for OutputPaths {
     const METHOD: &'static str = "buildTarget/outputPaths";
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct OutputPathsParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct OutputPathsResult {
     pub items: Vec<OutputPathsItem>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputPathsItem {
     /** A build target to which output paths item belongs. */
@@ -33,8 +32,7 @@ pub struct OutputPathsItem {
     pub output_paths: Vec<OutputPathItem>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct OutputPathItem {
     /** Either a file or a directory. A directory entry must end with a forward
      * slash "/" and a directory entry implies that every nested path within the
@@ -45,12 +43,80 @@ pub struct OutputPathItem {
     pub kind: OutputPathItemKind,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[repr(u8)]
 pub enum OutputPathItemKind {
     /** The output path item references a normal file. */
     #[default]
     File = 1,
     /** The output path item references a directory. */
     Directory = 2,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+
+    use super::*;
+
+    #[test]
+    fn output_paths_method() {
+        assert_eq!(OutputPaths::METHOD, "buildTarget/outputPaths");
+    }
+
+    #[test]
+    fn output_paths_params() {
+        test_deserialization(
+            r#"{"targets":[{"uri":""}]}"#,
+            &OutputPathsParams {
+                targets: vec![BuildTargetIdentifier::default()],
+            },
+        );
+        test_deserialization(r#"{"targets":[]}"#, &OutputPathsParams { targets: vec![] });
+    }
+
+    #[test]
+    fn output_paths_result() {
+        test_serialization(
+            &OutputPathsResult {
+                items: vec![OutputPathsItem::default()],
+            },
+            r#"{"items":[{"target":{"uri":""},"outputPaths":[]}]}"#,
+        );
+        test_serialization(&OutputPathsResult { items: vec![] }, r#"{"items":[]}"#);
+    }
+
+    #[test]
+    fn output_paths_item() {
+        let test_data = OutputPathsItem {
+            target: BuildTargetIdentifier::default(),
+            output_paths: vec![OutputPathItem::default()],
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"target":{"uri":""},"outputPaths":[{"uri":"","kind":1}]}"#,
+        );
+
+        let mut modified = test_data;
+        modified.output_paths = vec![];
+        test_serialization(&modified, r#"{"target":{"uri":""},"outputPaths":[]}"#);
+    }
+
+    #[test]
+    fn output_path_item() {
+        test_serialization(
+            &OutputPathItem {
+                uri: Uri::default(),
+                kind: OutputPathItemKind::default(),
+            },
+            r#"{"uri":"","kind":1}"#,
+        );
+    }
+
+    #[test]
+    fn status_code() {
+        test_serialization(&OutputPathItemKind::File, r#"1"#);
+        test_serialization(&OutputPathItemKind::Directory, r#"2"#);
+    }
 }
