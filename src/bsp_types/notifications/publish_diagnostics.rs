@@ -12,7 +12,7 @@ impl Notification for PublishDiagnostics {
 }
 
 /* Publish Diagnostics notification params */
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PublishDiagnosticsParams {
     /** The document where the diagnostics are published. */
@@ -37,3 +37,44 @@ pub struct PublishDiagnosticsParams {
 }
 
 pub type Diagnostic = lsp_types::Diagnostic;
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::test_serialization;
+
+    use super::*;
+
+    #[test]
+    fn publish_diagnostics_method() {
+        assert_eq!(PublishDiagnostics::METHOD, "build/publishDiagnostics");
+    }
+
+    #[test]
+    fn publish_diagnostics_params() {
+        let test_data = PublishDiagnosticsParams {
+            text_document: TextDocumentIdentifier::default(),
+            build_target: BuildTargetIdentifier::default(),
+            origin_id: Some("test_originId".to_string()),
+            diagnostics: vec![Diagnostic::default()],
+            reset: true,
+        };
+
+        test_serialization(
+            &test_data,
+            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"originId":"test_originId","diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"message":""}],"reset":true}"#,
+        );
+
+        let mut modified = test_data.clone();
+        modified.origin_id = None;
+        test_serialization(
+            &modified,
+            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"message":""}],"reset":true}"#,
+        );
+        modified = test_data;
+        modified.diagnostics = vec![];
+        test_serialization(
+            &modified,
+            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"originId":"test_originId","diagnostics":[],"reset":true}"#,
+        );
+    }
+}

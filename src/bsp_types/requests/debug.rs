@@ -13,7 +13,7 @@ impl Request for DebugSession {
     const METHOD: &'static str = "debugSession/start";
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugSessionParams {
     /** A sequence of build targets affected by the debugging action. */
@@ -27,9 +27,51 @@ pub struct DebugSessionParams {
     pub data: Value,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct DebugSessionAddress {
     /** The Debug Adapter Protocol server's connection uri */
     pub uri: Uri,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+
+    use super::*;
+
+    #[test]
+    fn debug_session_method() {
+        assert_eq!(DebugSession::METHOD, "debugSession/start");
+    }
+
+    #[test]
+    fn debug_session_params() {
+        let test_data = DebugSessionParams {
+            targets: vec![BuildTargetIdentifier::default()],
+            data_kind: "test_dataKind".to_string(),
+            data: serde_json::json!({"dataKey": "dataValue"}),
+        };
+
+        test_deserialization(
+            r#"{"targets":[{"uri":""}],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            &test_data,
+        );
+
+        let mut modified = test_data;
+        modified.targets = vec![];
+        test_deserialization(
+            r#"{"targets":[],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            &modified,
+        );
+    }
+
+    #[test]
+    fn debug_session_address() {
+        test_serialization(
+            &DebugSessionAddress {
+                uri: Uri::default(),
+            },
+            r#"{"uri":""}"#,
+        );
+    }
 }
