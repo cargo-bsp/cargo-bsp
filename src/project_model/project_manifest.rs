@@ -1,10 +1,10 @@
 // copy from rust-analyzer
 
+use std::path::{Path, PathBuf};
 use std::{
     fs::{self, read_dir, ReadDir},
     io,
 };
-use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Result};
 use rustc_hash::FxHashSet;

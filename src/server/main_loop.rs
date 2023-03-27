@@ -4,19 +4,19 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
-use crossbeam_channel::{Receiver, select};
+use crossbeam_channel::{select, Receiver};
 
 use communication::{Connection, Notification, Request};
 
-use crate::{bsp_types, communication};
 use crate::bsp_types::notifications::Notification as _;
 use crate::communication::Message;
 use crate::logger::log;
-use crate::server::{handlers, Result};
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
+use crate::server::{handlers, Result};
+use crate::{bsp_types, communication};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -117,9 +117,9 @@ impl GlobalState {
             .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
             .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_run_cargo::<bsp_types::requests::Compile>()
-            .on_run_cargo::<bsp_types::requests::Run>()
-            .on_run_cargo::<bsp_types::requests::Test>()
+            .on_running_cargo::<bsp_types::requests::Compile>()
+            .on_running_cargo::<bsp_types::requests::Run>()
+            .on_running_cargo::<bsp_types::requests::Test>()
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
             .finish();
     }

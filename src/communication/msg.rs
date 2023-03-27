@@ -319,7 +319,7 @@ fn write_msg_text(out: &mut dyn Write, msg: &str) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Message, Notification, Request, RequestId};
+    use super::{Message, Notification, Request};
 
     #[test]
     fn shutdown_with_explicit_null() {
