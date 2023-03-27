@@ -1,9 +1,11 @@
+use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /**  A resource identifier that is a valid URI according
 * to rfc3986: * https://tools.ietf.org/html/rfc3986 */
 pub type Uri = String; //dev: lsp_types uses url crate
+
+pub const RUST_ID: &str = "rust";
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -110,7 +112,7 @@ pub struct TestProvider {
     pub language_ids: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTarget {
     /** The target’s unique identifier */
@@ -136,7 +138,7 @@ pub struct BuildTarget {
      * - display icons or colors in the user interface.
      * Pre-defined tags are listed in `build_target_tag` but clients and servers
      * are free to define new tags for custom purposes. */
-    pub tags: Vec<String>,
+    pub tags: Vec<BuildTargetTag>,
 
     /** The capabilities of this build target. */
     pub capabilities: BuildTargetCapabilities,
@@ -155,7 +157,14 @@ pub struct BuildTarget {
     /** Language-specific metadata about this target.
      * See ScalaBuildTarget as an example. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    pub data: Option<RustBuildTarget>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RustBuildTarget {
+    pub edition: Edition,
+    pub required_features: Vec<String>,
 }
 
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
@@ -168,39 +177,34 @@ pub struct BuildTargetIdentifier {
     pub uri: Uri,
 }
 
-pub mod build_target_data_kind {
-    /** The `data` field contains a `RustBuildTarget` object. */
-    pub const RUST: &str = "rust";
-
-    /** The `data` field contains a `CargoBuildTarget` object. */
-    pub const CARGO: &str = "cargo";
-}
-
-pub mod build_target_tag {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub enum BuildTargetTag {
     /** Target contains re-usable functionality for downstream targets. May have any
      * combination of capabilities. */
-    pub const LIBRARY: &str = "library";
+    Library,
 
     /** Target contains source code for producing any kind of application, may have
      * but does not require the `canRun` capability. */
-    pub const APPLICATION: &str = "application";
+    Application,
 
     /** Target contains source code for testing purposes, may have but does not
      * require the `canTest` capability. */
-    pub const TEST: &str = "test";
+    Test,
 
     /** Target contains source code for integration testing purposes, may have
      * but does not require the `canTest` capability.
      * The difference between "test" and "integration-test" is that
      * integration tests traditionally run slower compared to normal tests
      * and require more computing resources to execute. */
-    pub const INTEGRATION_TEST: &str = "integration-test";
+    IntegrationTest,
+
     /** Target contains source code to measure performance of a program, may have
      * but does not require the `canRun` build target capability. */
-    pub const BENCHMARK: &str = "benchmark";
+    Benchmark,
 
     /** Target should be ignored by IDEs. */
-    pub const NO_IDE: &str = "no-ide";
+    NoIde,
 
     /** Actions on the target such as build and test should only be invoked manually
      * and explicitly. For example, triggering a build on all targets in the workspace
@@ -209,10 +213,10 @@ pub mod build_target_tag {
      * The original motivation to add the "manual" tag comes from a similar functionality
      * that exists in Bazel, where targets with this tag have to be specified explicitly
      * on the command line. */
-    pub const MANUAL: &str = "manual";
+    Manual,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetCapabilities {
     /** This target can be compiled by the BSP server. */
@@ -224,3 +228,4 @@ pub struct BuildTargetCapabilities {
     /** This target can be debugged by the BSP server. */
     pub can_debug: bool,
 }
+

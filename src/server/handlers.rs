@@ -3,30 +3,12 @@ use crate::server::global_state::GlobalState;
 use crate::server::Result;
 
 pub(crate) fn handle_workspace_build_targets(
-    _: &mut GlobalState,
+    global_state: &mut GlobalState,
     _: (),
 ) -> Result<bsp_types::requests::WorkspaceBuildTargetsResult> {
-    let result = bsp_types::requests::WorkspaceBuildTargetsResult {
-        targets: vec![bsp_types::BuildTarget {
-            id: bsp_types::BuildTargetIdentifier {
-                uri: "//:hello".to_string(),
-            },
-            display_name: Some("//:hello".to_string()),
-            base_directory: None,
-            tags: vec![],
-            capabilities: bsp_types::BuildTargetCapabilities {
-                can_compile: true,
-                can_test: true,
-                can_run: true,
-                can_debug: false,
-            },
-            language_ids: vec![],
-            dependencies: vec![],
-            data_kind: None,
-            data: None,
-        }],
-    };
-    Ok(result)
+    Ok(bsp_types::requests::WorkspaceBuildTargetsResult {
+        targets: global_state.workspace.get_build_targets(),
+    })
 }
 
 pub(crate) fn handle_sources(
