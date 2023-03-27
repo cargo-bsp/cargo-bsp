@@ -42,7 +42,7 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
-    pub(crate) fn on_run_cargo<R>(&mut self) -> &mut Self
+    pub(crate) fn on_running_cargo<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
         R::Params: CreateCommand + Send + fmt::Debug,
@@ -57,6 +57,7 @@ impl<'a> RequestDispatcher<'a> {
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
             req.id.clone(),
             params,
+            self.global_state.config.root_path(),
         );
         self.global_state.handlers.insert(req.id, request_handle);
 

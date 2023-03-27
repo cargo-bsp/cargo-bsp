@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::process::Command;
 
 use crate::bsp_types::requests::{CreateCommand, Request};
-use crate::bsp_types::{BuildTargetIdentifier};
+use crate::bsp_types::BuildTargetIdentifier;
 
 /*
 NOTE THAT:
