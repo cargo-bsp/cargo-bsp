@@ -4,7 +4,7 @@ use std::{fmt, panic};
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::bsp_types::requests::CreateCommand;
+use crate::bsp_types::requests::{CreateCommand, CreateResult};
 use crate::communication::ExtractError;
 use crate::logger::log;
 use crate::server::global_state::GlobalState;
@@ -45,7 +45,7 @@ impl<'a> RequestDispatcher<'a> {
     pub(crate) fn on_run_cargo<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
-        R::Params: CreateCommand + Send + fmt::Debug,
+        R::Params: CreateCommand + CreateResult<R::Result> + Send + fmt::Debug,
         R::Result: Serialize,
     {
         let (req, params, _) = match self.parse::<R>() {

@@ -49,6 +49,7 @@ mod workspace_build_targets;
 pub use workspace_build_targets::*;
 
 mod java_extension;
+use crate::bsp_types::StatusCode;
 pub use java_extension::*;
 
 pub trait Request {
@@ -61,4 +62,8 @@ pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
     fn create_command(&self, root: PathBuf) -> Command;
+}
+
+pub trait CreateResult<T> {
+    fn create_result(&self, status_code: StatusCode) -> T;
 }

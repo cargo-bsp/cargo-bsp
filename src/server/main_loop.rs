@@ -30,11 +30,6 @@ enum Event {
 
 impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
-        log("server is running");
-        if self.config.linked_projects().is_empty() {
-            log("bsp cargo failed to discover workspace");
-        };
-
         while let Some(event) = self.next_message(&inbox) {
             if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {

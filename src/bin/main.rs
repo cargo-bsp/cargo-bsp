@@ -20,13 +20,21 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use ntest::timeout;
-    use serde_json::{from_str, to_value};
     use serde_json::Value::String;
+    use serde_json::{from_str, to_value};
 
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
-    use cargo_bsp::bsp_types::requests::{Compile, CompileParams, InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request as _, Run, RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargets, WorkspaceBuildTargetsResult};
+    use cargo_bsp::bsp_types::requests::{
+        Compile, CompileParams, InitializeBuild, InitializeBuildParams, InitializeBuildResult,
+        Request as _, Run, RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult,
+        WorkspaceBuildTargets, WorkspaceBuildTargetsResult,
+    };
+    use cargo_bsp::bsp_types::{
+        BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
+        CompileProvider,
+    };
     use cargo_bsp::bsp_types::{
         BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
         CompileProvider,
@@ -256,7 +264,7 @@ mod tests {
     }
 
     fn create_build_req(id: &str) -> Request {
-        let params = CompileParams{
+        let params = CompileParams {
             targets: vec![BuildTargetIdentifier {
                 uri: "main".to_string(),
             }],

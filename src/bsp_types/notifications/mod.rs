@@ -1,3 +1,4 @@
+use rand::distributions::{Alphanumeric, DistString};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,7 @@ pub trait Notification {
     const METHOD: &'static str;
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone, Eq, Hash)]
 pub struct TaskId {
     /** A unique identifier */
     pub id: String,
@@ -32,6 +33,12 @@ pub struct TaskId {
      * execution. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parents: Vec<String>,
+}
+
+impl TaskId {
+    pub fn generate_random_id() -> String {
+        Alphanumeric.sample_string(&mut rand::thread_rng(), 36)
+    }
 }
 
 #[cfg(test)]
