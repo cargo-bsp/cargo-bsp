@@ -33,7 +33,9 @@ pub struct DependencySourcesItem {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -50,23 +52,35 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(
-            r#"{"targets":[]}"#,
-            &DependencySourcesParams { targets: vec![] },
-        );
+        test_deserialization(r#"{"targets":[]}"#, &DependencySourcesParams::default());
     }
 
     #[test]
     fn dependency_sources_result() {
-        test_serialization(
-            &DependencySourcesResult {
-                items: vec![DependencySourcesItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"sources":[]}]}"#,
+        let test_data = DependencySourcesResult {
+            items: vec![DependencySourcesItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "sources": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(
-            &DependencySourcesResult { items: vec![] },
-            r#"{"items":[]}"#,
+        assert_json_snapshot!(DependencySourcesResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
         );
     }
 
@@ -77,10 +91,27 @@ mod tests {
             sources: vec![Uri::default()],
         };
 
-        test_serialization(&test_data, r#"{"target":{"uri":""},"sources":[""]}"#);
-
-        let mut modified = test_data;
-        modified.sources = vec![];
-        test_serialization(&modified, r#"{"target":{"uri":""},"sources":[]}"#);
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "sources": [
+            ""
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(DependencySourcesItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "sources": []
+        }
+        "###
+        );
     }
 }

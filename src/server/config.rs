@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::bsp_types::BuildClientCapabilities;
+use crate::bsp_types::requests::BuildClientCapabilities;
 use crate::logger::log;
 use crate::project_model::ProjectManifest;
 
@@ -29,13 +29,14 @@ impl Config {
     }
 
     pub fn update_project_manifest(&mut self) {
-        match ProjectManifest::discover_all(&self.root_path) {
+        match ProjectManifest::discover(&self.root_path) {
             Ok(workspace_manifest) => {
                 self.workspace_manifest = workspace_manifest;
             }
             Err(e) => {
+                // No Cargo.toml found
                 log(&format!("error: {}", e));
-                todo!() // Add Logging to client and change server state to waiting for reload
+                todo!("Add Logging to client and change server state to waiting for reload");
             }
         }
     }

@@ -63,7 +63,9 @@ pub enum SourceItemKind {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -80,18 +82,36 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(r#"{"targets":[]}"#, &SourcesParams { targets: vec![] });
+        test_deserialization(r#"{"targets":[]}"#, &SourcesParams::default());
     }
 
     #[test]
     fn sources_result() {
-        test_serialization(
-            &SourcesResult {
-                items: vec![SourcesItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"sources":[]}]}"#,
+        let test_data = SourcesResult {
+            items: vec![SourcesItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "sources": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(&SourcesResult { items: vec![] }, r#"{"items":[]}"#);
+        assert_json_snapshot!(SourcesResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -102,40 +122,68 @@ mod tests {
             roots: vec![Uri::default()],
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"sources":[{"uri":"","kind":1,"generated":false}],"roots":[""]}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "sources": [
+            {
+              "uri": "",
+              "kind": 1,
+              "generated": false
+            }
+          ],
+          "roots": [
+            ""
+          ]
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.sources = vec![];
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"sources":[],"roots":[""]}"#,
-        );
-        modified = test_data;
-        modified.roots = vec![];
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"sources":[{"uri":"","kind":1,"generated":false}]}"#,
+        assert_json_snapshot!(SourcesItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "sources": []
+        }
+        "###
         );
     }
 
     #[test]
     fn source_item() {
-        test_serialization(
-            &SourceItem {
-                uri: "test_uri".to_string(),
-                kind: SourceItemKind::default(),
-                generated: false,
-            },
-            r#"{"uri":"test_uri","kind":1,"generated":false}"#,
+        let test_data = SourceItem {
+            uri: "test_uri".into(),
+            kind: SourceItemKind::File,
+            generated: true,
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "uri": "test_uri",
+          "kind": 1,
+          "generated": true
+        }
+        "###
+        );
+        assert_json_snapshot!(SourceItem::default(),
+            @r###"
+        {
+          "uri": "",
+          "kind": 1,
+          "generated": false
+        }
+        "###
         );
     }
 
     #[test]
     fn source_item_kind() {
-        test_serialization(&SourceItemKind::File, r#"1"#);
-        test_serialization(&SourceItemKind::Directory, r#"2"#);
+        assert_json_snapshot!(SourceItemKind::File, @"1");
+        assert_json_snapshot!(SourceItemKind::Directory, @"2");
     }
 }

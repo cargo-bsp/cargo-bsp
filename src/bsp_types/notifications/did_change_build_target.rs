@@ -47,7 +47,7 @@ pub enum BuildTargetEventKind {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use insta::assert_json_snapshot;
 
     use super::*;
 
@@ -59,17 +59,29 @@ mod tests {
     #[test]
     fn did_change_build_target_params() {
         let test_data = DidChangeBuildTargetParams {
-            changes: vec![BuildTargetEvent::default(), BuildTargetEvent::default()],
+            changes: vec![BuildTargetEvent::default()],
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"changes":[{"target":{"uri":""}},{"target":{"uri":""}}]}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "changes": [
+            {
+              "target": {
+                "uri": ""
+              }
+            }
+          ]
+        }
+        "###
         );
-
-        let mut modified_data = test_data;
-        modified_data.changes = vec![];
-        test_serialization(&modified_data, r#"{"changes":[]}"#);
+        assert_json_snapshot!(DidChangeBuildTargetParams::default(),
+            @r###"
+        {
+          "changes": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -80,26 +92,34 @@ mod tests {
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"kind":1,"data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "kind": 1,
+          "data": {
+            "dataKey": "dataValue"
+          }
+        }
+        "###
         );
-
-        let mut modified_data = test_data.clone();
-        modified_data.kind = None;
-        test_serialization(
-            &modified_data,
-            r#"{"target":{"uri":""},"data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(BuildTargetEvent::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          }
+        }
+        "###
         );
-        modified_data = test_data;
-        modified_data.data = None;
-        test_serialization(&modified_data, r#"{"target":{"uri":""},"kind":1}"#);
     }
 
     #[test]
     fn build_target_event_kind() {
-        test_serialization(&BuildTargetEventKind::Created, r#"1"#);
-        test_serialization(&BuildTargetEventKind::Changed, r#"2"#);
-        test_serialization(&BuildTargetEventKind::Deleted, r#"3"#);
+        assert_json_snapshot!(BuildTargetEventKind::Created, @"1");
+        assert_json_snapshot!(BuildTargetEventKind::Changed, @"2");
+        assert_json_snapshot!(BuildTargetEventKind::Deleted, @"3");
     }
 }

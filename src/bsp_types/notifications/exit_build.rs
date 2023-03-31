@@ -10,7 +10,7 @@ impl Notification for ExitBuild {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -21,6 +21,6 @@ mod tests {
 
     #[test]
     fn exit_build_params() {
-        test_serialization(&(), r#"null"#);
+        test_deserialization(r#"null"#, &());
     }
 }

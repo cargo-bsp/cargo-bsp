@@ -25,7 +25,9 @@ pub struct WorkspaceBuildTargetsResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -41,15 +43,38 @@ mod tests {
 
     #[test]
     fn inverse_sources_result() {
-        test_serialization(
-            &WorkspaceBuildTargetsResult {
-                targets: vec![BuildTarget::default()],
-            },
-            r#"{"targets":[{"id":{"uri":""},"tags":[],"capabilities":{"canCompile":false,"canTest":false,"canRun":false,"canDebug":false},"languageIds":[],"dependencies":[]}]}"#,
+        let test_data = WorkspaceBuildTargetsResult {
+            targets: vec![BuildTarget::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "targets": [
+            {
+              "id": {
+                "uri": ""
+              },
+              "tags": [],
+              "capabilities": {
+                "canCompile": false,
+                "canTest": false,
+                "canRun": false,
+                "canDebug": false
+              },
+              "languageIds": [],
+              "dependencies": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(
-            &WorkspaceBuildTargetsResult { targets: vec![] },
-            r#"{"targets":[]}"#,
+        assert_json_snapshot!(WorkspaceBuildTargetsResult::default(),
+            @r###"
+        {
+          "targets": []
+        }
+        "###
         );
     }
 }

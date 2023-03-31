@@ -43,7 +43,9 @@ pub struct JavacOptionsItem {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -60,18 +62,38 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(r#"{"targets":[]}"#, &JavacOptionsParams { targets: vec![] });
+        test_deserialization(r#"{"targets":[]}"#, &JavacOptionsParams::default());
     }
 
     #[test]
     fn javac_options_result() {
-        test_serialization(
-            &JavacOptionsResult {
-                items: vec![JavacOptionsItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"options":[],"classpath":[],"classDirectory":""}]}"#,
+        let test_data = JavacOptionsResult {
+            items: vec![JavacOptionsItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "options": [],
+              "classpath": [],
+              "classDirectory": ""
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(&JavacOptionsResult { items: vec![] }, r#"{"items":[]}"#);
+        assert_json_snapshot!(JavacOptionsResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -80,25 +102,36 @@ mod tests {
             target: BuildTargetIdentifier::default(),
             options: vec!["test_options".to_string()],
             classpath: vec![Uri::default()],
-            class_directory: Uri::default(),
+            class_directory: "test_uri".into(),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"options":["test_options"],"classpath":[""],"classDirectory":""}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "options": [
+            "test_options"
+          ],
+          "classpath": [
+            ""
+          ],
+          "classDirectory": "test_uri"
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.options = vec![];
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"options":[],"classpath":[""],"classDirectory":""}"#,
-        );
-        modified = test_data;
-        modified.classpath = vec![];
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"options":["test_options"],"classpath":[],"classDirectory":""}"#,
+        assert_json_snapshot!(JavacOptionsItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "options": [],
+          "classpath": [],
+          "classDirectory": ""
+        }
+        "###
         );
     }
 }

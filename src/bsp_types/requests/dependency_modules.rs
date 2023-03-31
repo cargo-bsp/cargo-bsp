@@ -50,7 +50,9 @@ pub struct DependencyModule {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -67,23 +69,35 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(
-            r#"{"targets":[]}"#,
-            &DependencyModulesParams { targets: vec![] },
-        );
+        test_deserialization(r#"{"targets":[]}"#, &DependencyModulesParams::default());
     }
 
     #[test]
     fn dependency_modules_result() {
-        test_serialization(
-            &DependencyModulesResult {
-                items: vec![DependencyModulesItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"modules":[]}]}"#,
+        let test_data = DependencyModulesResult {
+            items: vec![DependencyModulesItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "modules": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(
-            &DependencyModulesResult { items: vec![] },
-            r#"{"items":[]}"#,
+        assert_json_snapshot!(DependencyModulesResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
         );
     }
 
@@ -94,14 +108,31 @@ mod tests {
             modules: vec![DependencyModule::default()],
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"modules":[{"name":"","version":""}]}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "modules": [
+            {
+              "name": "",
+              "version": ""
+            }
+          ]
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.modules = vec![];
-        test_serialization(&modified, r#"{"target":{"uri":""},"modules":[]}"#);
+        assert_json_snapshot!(DependencyModulesItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "modules": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -113,21 +144,25 @@ mod tests {
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"name":"test_name","version":"test_version","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "name": "test_name",
+          "version": "test_version",
+          "dataKind": "test_dataKind",
+          "data": {
+            "dataKey": "dataValue"
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.data_kind = None;
-        test_serialization(
-            &modified,
-            r#"{"name":"test_name","version":"test_version","data":{"dataKey":"dataValue"}}"#,
-        );
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"name":"test_name","version":"test_version"}"#,
+        assert_json_snapshot!(DependencyModule::default(),
+            @r###"
+        {
+          "name": "",
+          "version": ""
+        }
+        "###
         );
     }
 }

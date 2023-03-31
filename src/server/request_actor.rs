@@ -19,7 +19,7 @@ use paths::AbsPath;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
-use crate::bsp_types::mappings::create_diagnostics;
+use crate::bsp_types::mappings::to_publish_diagnostics::create_diagnostics;
 use crate::bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification, PublishDiagnostics, TaskFinish,
     TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,

@@ -31,7 +31,9 @@ pub struct ResourcesItem {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -48,18 +50,36 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(r#"{"targets":[]}"#, &ResourcesParams { targets: vec![] });
+        test_deserialization(r#"{"targets":[]}"#, &ResourcesParams::default());
     }
 
     #[test]
     fn resources_result() {
-        test_serialization(
-            &ResourcesResult {
-                items: vec![ResourcesItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"resources":[]}]}"#,
+        let test_data = ResourcesResult {
+            items: vec![ResourcesItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "resources": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(&ResourcesResult { items: vec![] }, r#"{"items":[]}"#);
+        assert_json_snapshot!(ResourcesResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -69,10 +89,27 @@ mod tests {
             resources: vec![Uri::default()],
         };
 
-        test_serialization(&test_data, r#"{"target":{"uri":""},"resources":[""]}"#);
-
-        let mut modified = test_data;
-        modified.resources = vec![];
-        test_serialization(&modified, r#"{"target":{"uri":""},"resources":[]}"#);
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "resources": [
+            ""
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(ResourcesItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "resources": []
+        }
+        "###
+        );
     }
 }

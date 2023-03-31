@@ -35,7 +35,9 @@ pub struct DebugSessionAddress {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -57,21 +59,31 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data;
-        modified.targets = vec![];
         test_deserialization(
-            r#"{"targets":[],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-            &modified,
+            r#"{"targets":[],"dataKind":"","data":null}"#,
+            &DebugSessionParams::default(),
         );
     }
 
     #[test]
     fn debug_session_address() {
-        test_serialization(
-            &DebugSessionAddress {
-                uri: Uri::default(),
-            },
-            r#"{"uri":""}"#,
+        let test_data = DebugSessionAddress {
+            uri: "test_uri".into(),
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "uri": "test_uri"
+        }
+        "###
+        );
+        assert_json_snapshot!(DebugSessionAddress::default(),
+            @r###"
+        {
+          "uri": ""
+        }
+        "###
         );
     }
 }

@@ -25,7 +25,9 @@ pub struct InverseSourcesResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -38,23 +40,33 @@ mod tests {
     fn inverse_sources_params() {
         test_deserialization(
             r#"{"textDocument":{"uri":""}}"#,
-            &InverseSourcesParams {
-                text_document: TextDocumentIdentifier::default(),
-            },
+            &InverseSourcesParams::default(),
         );
     }
 
     #[test]
     fn inverse_sources_result() {
-        test_serialization(
-            &InverseSourcesResult {
-                targets: vec![BuildTargetIdentifier::default()],
-            },
-            r#"{"targets":[{"uri":""}]}"#,
+        let test_data = InverseSourcesResult {
+            targets: vec![BuildTargetIdentifier::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "targets": [
+            {
+              "uri": ""
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(
-            &InverseSourcesResult { targets: vec![] },
-            r#"{"targets":[]}"#,
+        assert_json_snapshot!(InverseSourcesResult::default(),
+            @r###"
+        {
+          "targets": []
+        }
+        "###
         );
     }
 }

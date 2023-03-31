@@ -36,7 +36,7 @@ pub struct TaskId {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use insta::assert_json_snapshot;
 
     use super::*;
 
@@ -44,16 +44,25 @@ mod tests {
     fn task_id() {
         let test_data = TaskId {
             id: "test_id".to_string(),
-            parents: vec!["parent1".to_string(), "parent2".to_string()],
+            parents: vec!["test_parent".to_string()],
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"id":"test_id","parents":["parent1","parent2"]}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "id": "test_id",
+          "parents": [
+            "test_parent"
+          ]
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.parents = vec![];
-        test_serialization(&modified, r#"{"id":"test_id"}"#);
+        assert_json_snapshot!(TaskId::default(),
+            @r###"
+        {
+          "id": ""
+        }
+        "###
+        );
     }
 }

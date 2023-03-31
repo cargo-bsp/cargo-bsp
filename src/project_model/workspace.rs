@@ -5,9 +5,7 @@ use std::path::PathBuf;
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {
     pub _packages: Vec<Package>,
-
-    // Decide how we want to store the targets
-    _cargo_targets: Vec<cargo_metadata::Target>,
+    pub _cargo_targets: Vec<cargo_metadata::Target>,
     build_targets: Vec<BuildTarget>,
 }
 
