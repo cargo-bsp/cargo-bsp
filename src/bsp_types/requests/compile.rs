@@ -69,7 +69,9 @@ pub struct CompileResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -91,24 +93,7 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data.clone();
-        modified.targets = vec![];
-        test_deserialization(
-            r#"{"targets":[],"originId":"test_message","arguments":["test_argument"]}"#,
-            &modified,
-        );
-        modified = test_data.clone();
-        modified.origin_id = None;
-        test_deserialization(
-            r#"{"targets":[{"uri":""}],"arguments":["test_argument"]}"#,
-            &modified,
-        );
-        modified = test_data;
-        modified.arguments = vec![];
-        test_deserialization(
-            r#"{"targets":[{"uri":""}],"originId":"test_message"}"#,
-            &modified,
-        );
+        test_deserialization(r#"{"targets":[]}"#, &CompileParams::default());
     }
 
     #[test]
@@ -120,24 +105,24 @@ mod tests {
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"originId":"test_message","statusCode":2,"dataKind":"test_data_kind","data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "originId": "test_message",
+          "statusCode": 2,
+          "dataKind": "test_data_kind",
+          "data": {
+            "dataKey": "dataValue"
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.origin_id = None;
-        test_serialization(
-            &modified,
-            r#"{"statusCode":2,"dataKind":"test_data_kind","data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(CompileResult::default(),
+            @r###"
+        {
+          "statusCode": 2
+        }
+        "###
         );
-        modified = test_data;
-        modified.data_kind = None;
-        test_serialization(
-            &modified,
-            r#"{"originId":"test_message","statusCode":2,"data":{"dataKey":"dataValue"}}"#,
-        );
-        modified.data = None;
-        test_serialization(&modified, r#"{"originId":"test_message","statusCode":2}"#);
     }
 }

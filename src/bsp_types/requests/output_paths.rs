@@ -55,7 +55,9 @@ pub enum OutputPathItemKind {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -72,18 +74,36 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(r#"{"targets":[]}"#, &OutputPathsParams { targets: vec![] });
+        test_deserialization(r#"{"targets":[]}"#, &OutputPathsParams::default());
     }
 
     #[test]
     fn output_paths_result() {
-        test_serialization(
-            &OutputPathsResult {
-                items: vec![OutputPathsItem::default()],
-            },
-            r#"{"items":[{"target":{"uri":""},"outputPaths":[]}]}"#,
+        let test_data = OutputPathsResult {
+            items: vec![OutputPathsItem::default()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "items": [
+            {
+              "target": {
+                "uri": ""
+              },
+              "outputPaths": []
+            }
+          ]
+        }
+        "###
         );
-        test_serialization(&OutputPathsResult { items: vec![] }, r#"{"items":[]}"#);
+        assert_json_snapshot!(OutputPathsResult::default(),
+            @r###"
+        {
+          "items": []
+        }
+        "###
+        );
     }
 
     #[test]
@@ -93,30 +113,61 @@ mod tests {
             output_paths: vec![OutputPathItem::default()],
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"outputPaths":[{"uri":"","kind":1}]}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "outputPaths": [
+            {
+              "uri": "",
+              "kind": 1
+            }
+          ]
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.output_paths = vec![];
-        test_serialization(&modified, r#"{"target":{"uri":""},"outputPaths":[]}"#);
+        assert_json_snapshot!(OutputPathsItem::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "outputPaths": []
+        }
+        "###
+        );
     }
 
     #[test]
     fn output_path_item() {
-        test_serialization(
-            &OutputPathItem {
-                uri: Uri::default(),
-                kind: OutputPathItemKind::default(),
-            },
-            r#"{"uri":"","kind":1}"#,
+        let test_data = OutputPathItem {
+            uri: "test_uri".to_string(),
+            kind: OutputPathItemKind::File,
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "uri": "test_uri",
+          "kind": 1
+        }
+        "###
+        );
+        assert_json_snapshot!(OutputPathItem::default(),
+            @r###"
+        {
+          "uri": "",
+          "kind": 1
+        }
+        "###
         );
     }
 
     #[test]
     fn status_code() {
-        test_serialization(&OutputPathItemKind::File, r#"1"#);
-        test_serialization(&OutputPathItemKind::Directory, r#"2"#);
+        assert_json_snapshot!(OutputPathItemKind::File, @"1");
+        assert_json_snapshot!(OutputPathItemKind::Directory, @"2");
     }
 }

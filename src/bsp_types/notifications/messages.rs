@@ -71,7 +71,7 @@ pub enum MessageType {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use insta::assert_json_snapshot;
 
     use super::*;
 
@@ -94,22 +94,25 @@ mod tests {
             message: "test_message".to_string(),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"type":1,"task":{"id":""},"originId":"test_originId","message":"test_message"}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "type": 1,
+          "task": {
+            "id": ""
+          },
+          "originId": "test_originId",
+          "message": "test_message"
+        }
+        "###
         );
-
-        let mut modified_data = test_data.clone();
-        modified_data.task = None;
-        test_serialization(
-            &modified_data,
-            r#"{"type":1,"originId":"test_originId","message":"test_message"}"#,
-        );
-        modified_data = test_data;
-        modified_data.origin_id = None;
-        test_serialization(
-            &modified_data,
-            r#"{"type":1,"task":{"id":""},"message":"test_message"}"#,
+        assert_json_snapshot!(ShowMessageParams::default(),
+            @r###"
+        {
+          "type": 1,
+          "message": ""
+        }
+        "###
         );
     }
 
@@ -122,30 +125,33 @@ mod tests {
             message: "test_message".to_string(),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"type":1,"task":{"id":""},"originId":"test_originId","message":"test_message"}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "type": 1,
+          "task": {
+            "id": ""
+          },
+          "originId": "test_originId",
+          "message": "test_message"
+        }
+        "###
         );
-
-        let mut modified_data = test_data.clone();
-        modified_data.task = None;
-        test_serialization(
-            &modified_data,
-            r#"{"type":1,"originId":"test_originId","message":"test_message"}"#,
-        );
-        modified_data = test_data;
-        modified_data.origin_id = None;
-        test_serialization(
-            &modified_data,
-            r#"{"type":1,"task":{"id":""},"message":"test_message"}"#,
+        assert_json_snapshot!(LogMessageParams::default(),
+            @r###"
+        {
+          "type": 1,
+          "message": ""
+        }
+        "###
         );
     }
 
     #[test]
     fn message_type() {
-        test_serialization(&MessageType::Error, r#"1"#);
-        test_serialization(&MessageType::Warning, r#"2"#);
-        test_serialization(&MessageType::Info, r#"3"#);
-        test_serialization(&MessageType::Log, r#"4"#);
+        assert_json_snapshot!(MessageType::Error, @"1");
+        assert_json_snapshot!(MessageType::Warning, @"2");
+        assert_json_snapshot!(MessageType::Info, @"3");
+        assert_json_snapshot!(MessageType::Log, @"4");
     }
 }

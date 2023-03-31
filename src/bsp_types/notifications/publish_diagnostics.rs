@@ -40,7 +40,7 @@ pub type Diagnostic = lsp_types::Diagnostic;
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use insta::assert_json_snapshot;
 
     use super::*;
 
@@ -59,22 +59,48 @@ mod tests {
             reset: true,
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"originId":"test_originId","diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"message":""}],"reset":true}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "textDocument": {
+            "uri": ""
+          },
+          "buildTarget": {
+            "uri": ""
+          },
+          "originId": "test_originId",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 0,
+                  "character": 0
+                },
+                "end": {
+                  "line": 0,
+                  "character": 0
+                }
+              },
+              "message": ""
+            }
+          ],
+          "reset": true
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.origin_id = None;
-        test_serialization(
-            &modified,
-            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"message":""}],"reset":true}"#,
-        );
-        modified = test_data;
-        modified.diagnostics = vec![];
-        test_serialization(
-            &modified,
-            r#"{"textDocument":{"uri":""},"buildTarget":{"uri":""},"originId":"test_originId","diagnostics":[],"reset":true}"#,
+        assert_json_snapshot!(PublishDiagnosticsParams::default(),
+            @r###"
+        {
+          "textDocument": {
+            "uri": ""
+          },
+          "buildTarget": {
+            "uri": ""
+          },
+          "diagnostics": [],
+          "reset": false
+        }
+        "###
         );
     }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::bsp_types::requests::Request;
-use crate::bsp_types::{BuildClientCapabilities, BuildServerCapabilities, Uri};
+use crate::bsp_types::Uri;
 
 #[derive(Debug)]
 pub enum InitializeBuild {}
@@ -58,9 +58,110 @@ pub struct InitializeBuildResult {
     pub data: Option<Value>,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildClientCapabilities {
+    /** The languages that this client supports.
+     * The ID strings for each language is defined in the LSP.
+     * The server must never respond with build targets for other
+     * languages than those that appear in this list. */
+    pub language_ids: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildServerCapabilities {
+    /** The languages the server supports compilation via method buildTarget/compile. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compile_provider: Option<CompileProvider>,
+
+    /** The languages the server supports test execution via method buildTarget/test */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub test_provider: Option<TestProvider>,
+
+    /** The languages the server supports run via method buildTarget/run */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_provider: Option<RunProvider>,
+
+    /** The languages the server supports debugging via method debugSession/start */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debug_provider: Option<DebugProvider>,
+
+    /** The server can provide a list of targets that contain a
+     * single text document via the method buildTarget/inverseSources */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inverse_sources_provider: Option<bool>,
+
+    /** The server provides sources for library dependencies
+     * via method buildTarget/dependencySources */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dependency_sources_provider: Option<bool>,
+
+    /** The server can provide a list of dependency modules (libraries with meta information)
+     * via method buildTarget/dependencyModules */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dependency_modules_provider: Option<bool>,
+
+    /** The server provides all the resource dependencies
+     * via method buildTarget/resources */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resources_provider: Option<bool>,
+
+    /** The server provides all output paths
+     * via method buildTarget/outputPaths */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_paths_provider: Option<bool>,
+
+    /** The server sends notifications to the client on build
+     * target change events via buildTarget/didChange */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_target_changed_provider: Option<bool>,
+
+    /** The server can respond to `buildTarget/jvmRunEnvironment` requests with the
+     * necessary information required to launch a Java process to run a main class. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jvm_run_environment_provider: Option<bool>,
+
+    /** The server can respond to `buildTarget/jvmTestEnvironment` requests with the
+     * necessary information required to launch a Java process for testing or
+     * debugging. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jvm_test_environment_provider: Option<bool>,
+
+    /** Reloading the build state through workspace/reload is supported */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub can_reload: Option<bool>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CompileProvider {
+    pub language_ids: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RunProvider {
+    pub language_ids: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugProvider {
+    pub language_ids: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TestProvider {
+    pub language_ids: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -85,11 +186,9 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data;
-        modified.data = None;
         test_deserialization(
-            r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","rootUri":"file:///test","capabilities":{"languageIds":[]}}"#,
-            &modified,
+            r#"{"displayName":"","version":"","bspVersion":"","rootUri":"","capabilities":{"languageIds":[]}}"#,
+            &InitializeBuildParams::default(),
         );
     }
 
@@ -103,16 +202,185 @@ mod tests {
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","capabilities":{},"data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "displayName": "test_name",
+          "version": "1.0.0",
+          "bspVersion": "2.0.0",
+          "capabilities": {},
+          "data": {
+            "dataKey": "dataValue"
+          }
+        }
+        "###
         );
+        assert_json_snapshot!(InitializeBuildResult::default(),
+            @r###"
+        {
+          "displayName": "",
+          "version": "",
+          "bspVersion": "",
+          "capabilities": {}
+        }
+        "###
+        );
+    }
 
-        let mut modified = test_data;
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","capabilities":{}}"#,
+    #[test]
+    fn build_client_capabilities() {
+        let test_data = BuildClientCapabilities {
+            language_ids: vec!["test_languageId".to_string()],
+        };
+
+        test_deserialization(r#"{"languageIds":["test_languageId"]}"#, &test_data);
+
+        test_deserialization(r#"{"languageIds":[]}"#, &BuildClientCapabilities::default());
+    }
+
+    #[test]
+    fn build_server_capabilities() {
+        let test_data = BuildServerCapabilities {
+            compile_provider: Some(CompileProvider::default()),
+            test_provider: Some(TestProvider::default()),
+            run_provider: Some(RunProvider::default()),
+            debug_provider: Some(DebugProvider::default()),
+            inverse_sources_provider: Some(true),
+            dependency_sources_provider: Some(true),
+            dependency_modules_provider: Some(true),
+            resources_provider: Some(true),
+            output_paths_provider: Some(true),
+            build_target_changed_provider: Some(true),
+            jvm_run_environment_provider: Some(true),
+            jvm_test_environment_provider: Some(true),
+            can_reload: Some(true),
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "compileProvider": {
+            "languageIds": []
+          },
+          "testProvider": {
+            "languageIds": []
+          },
+          "runProvider": {
+            "languageIds": []
+          },
+          "debugProvider": {
+            "languageIds": []
+          },
+          "inverseSourcesProvider": true,
+          "dependencySourcesProvider": true,
+          "dependencyModulesProvider": true,
+          "resourcesProvider": true,
+          "outputPathsProvider": true,
+          "buildTargetChangedProvider": true,
+          "jvmRunEnvironmentProvider": true,
+          "jvmTestEnvironmentProvider": true,
+          "canReload": true
+        }
+        "###
+        );
+        assert_json_snapshot!(BuildServerCapabilities::default(),
+            @"{}"
+        );
+    }
+
+    #[test]
+    fn compile_provider() {
+        let test_data = CompileProvider {
+            language_ids: vec!["test_languageId".to_string()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "languageIds": [
+            "test_languageId"
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(CompileProvider::default(),
+            @r###"
+        {
+          "languageIds": []
+        }
+        "###
+        );
+    }
+
+    #[test]
+    fn run_provider() {
+        let test_data = RunProvider {
+            language_ids: vec!["test_languageId".to_string()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "languageIds": [
+            "test_languageId"
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(RunProvider::default(),
+            @r###"
+        {
+          "languageIds": []
+        }
+        "###
+        );
+    }
+
+    #[test]
+    fn debug_provider() {
+        let test_data = DebugProvider {
+            language_ids: vec!["test_languageId".to_string()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "languageIds": [
+            "test_languageId"
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(DebugProvider::default(),
+            @r###"
+        {
+          "languageIds": []
+        }
+        "###
+        );
+    }
+
+    #[test]
+    fn test_provider() {
+        let test_data = TestProvider {
+            language_ids: vec!["test_languageId".to_string()],
+        };
+
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "languageIds": [
+            "test_languageId"
+          ]
+        }
+        "###
+        );
+        assert_json_snapshot!(TestProvider::default(),
+            @r###"
+        {
+          "languageIds": []
+        }
+        "###
         );
     }
 }

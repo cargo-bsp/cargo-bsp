@@ -16,7 +16,7 @@ pub struct InitializedBuildParams {}
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::test_serialization;
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -27,6 +27,6 @@ mod tests {
 
     #[test]
     fn initialized_build_params() {
-        test_serialization(&InitializedBuildParams {}, r#"{}"#);
+        test_deserialization(r#"{}"#, &InitializedBuildParams {});
     }
 }

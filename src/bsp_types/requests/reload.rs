@@ -11,7 +11,9 @@ impl Request for Reload {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -27,6 +29,6 @@ mod tests {
 
     #[test]
     fn reload_result() {
-        test_serialization(&(), r#"null"#);
+        assert_json_snapshot!((), @"null");
     }
 }

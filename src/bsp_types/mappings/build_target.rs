@@ -1,8 +1,7 @@
-use std::ops::Add;
-
 use cargo_metadata::camino::Utf8Path;
 
 use crate::bsp_types::basic_bsp_structures::*;
+use crate::logger::log;
 
 impl BuildTargetCapabilities {
     pub fn new() -> Self {
@@ -12,13 +11,6 @@ impl BuildTargetCapabilities {
             can_run: false,
             can_debug: false,
         }
-    }
-
-    pub fn enable_all(&mut self) {
-        self.can_compile = true;
-        self.can_test = true;
-        self.can_run = true;
-        self.can_debug = true;
     }
 
     pub fn enable_compile(&mut self) -> &mut Self {
@@ -53,11 +45,11 @@ fn tags_and_capabilities_from_cargo_kind(
         .for_each(|kind| match kind.as_str() {
             "lib" => {
                 tags.push(BuildTargetTag::Library);
-                capabilities.enable_compile().enable_test().enable_debug();
+                capabilities.enable_compile();
             }
             "bin" => {
                 tags.push(BuildTargetTag::Application);
-                capabilities.enable_all();
+                capabilities.enable_compile().enable_run().enable_debug();
             }
             "example" => {
                 tags.push(BuildTargetTag::Application);
@@ -65,18 +57,19 @@ fn tags_and_capabilities_from_cargo_kind(
             }
             "test" => {
                 tags.push(BuildTargetTag::Test);
-                capabilities.enable_compile().enable_run().enable_debug();
+                capabilities.enable_compile().enable_test().enable_debug();
             }
             "bench" => {
                 tags.push(BuildTargetTag::Benchmark);
-                capabilities.enable_compile().enable_run().enable_debug();
+                capabilities.enable_compile().enable_test().enable_debug();
             }
             "custom-build" => {
-                todo!()
+                todo!("Custom-build target is unsupported by BSP server yet.");
             }
-            _ => (),
+            _ => {
+                log(&format!("Unknown cargo target kind: {}", kind));
+            }
         });
-
     (tags, capabilities)
 }
 
@@ -89,23 +82,25 @@ impl From<&cargo_metadata::Target> for BuildTarget {
         let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
         let mut base_directory = cargo_target.src_path.clone();
+        // we assume that cargo metadata returns valid path to file, which additionally has a parent
         base_directory.pop();
+
+        let rust_specific_data = RustBuildTargetData::new(RustBuildTarget {
+            edition: cargo_target.edition,
+            required_features: cargo_target.required_features.clone(),
+        });
 
         BuildTarget {
             id: BuildTargetIdentifier {
-                uri: cargo_target.src_path.to_string() + ":" + &cargo_target.name,
+                uri: format!("{}:{}", cargo_target.src_path, cargo_target.name),
             },
             display_name: Some(cargo_target.name.clone()),
-            base_directory: Some("file://".to_owned().add(base_directory.as_ref())),
+            base_directory: Some(format!("file://{}", base_directory)),
             tags,
             capabilities,
             language_ids: vec![RUST_ID.to_string()],
             dependencies: discover_dependencies(&cargo_target.src_path),
-            data_kind: Some("rust".to_string()),
-            data: Some(RustBuildTarget {
-                edition: cargo_target.edition.clone(),
-                required_features: cargo_target.required_features.clone(),
-            }),
+            data: Some(rust_specific_data),
         }
     }
 }

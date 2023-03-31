@@ -29,7 +29,9 @@ pub struct CleanCacheResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -46,7 +48,7 @@ mod tests {
                 targets: vec![BuildTargetIdentifier::default()],
             },
         );
-        test_deserialization(r#"{"targets":[]}"#, &CleanCacheParams { targets: vec![] });
+        test_deserialization(r#"{"targets":[]}"#, &CleanCacheParams::default());
     }
 
     #[test]
@@ -56,10 +58,20 @@ mod tests {
             cleaned: true,
         };
 
-        test_serialization(&test_data, r#"{"message":"test_message","cleaned":true}"#);
-
-        let mut modified = test_data;
-        modified.message = None;
-        test_serialization(&modified, r#"{"cleaned":true}"#);
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "message": "test_message",
+          "cleaned": true
+        }
+        "###
+        );
+        assert_json_snapshot!(CleanCacheResult::default(),
+            @r###"
+        {
+          "cleaned": false
+        }
+        "###
+        );
     }
 }

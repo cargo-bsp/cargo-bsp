@@ -63,7 +63,9 @@ pub struct RunResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::bsp_types::tests::{test_deserialization, test_serialization};
+    use insta::assert_json_snapshot;
+
+    use crate::bsp_types::tests::test_deserialization;
 
     use super::*;
 
@@ -87,29 +89,7 @@ mod tests {
             &test_data,
         );
 
-        let mut modified = test_data.clone();
-        modified.origin_id = None;
-        test_deserialization(
-            r#"{"target":{"uri":""},"arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-            &modified,
-        );
-        modified = test_data.clone();
-        modified.arguments = vec![];
-        test_deserialization(
-            r#"{"target":{"uri":""},"originId":"test_originId","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-            &modified,
-        );
-        modified = test_data;
-        modified.data_kind = None;
-        test_deserialization(
-            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"data":{"dataKey":"dataValue"}}"#,
-            &modified,
-        );
-        modified.data = None;
-        test_deserialization(
-            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"]}"#,
-            &modified,
-        );
+        test_deserialization(r#"{"target":{"uri":""}}"#, &RunParams::default());
     }
 
     #[test]
@@ -119,10 +99,20 @@ mod tests {
             status_code: StatusCode::default(),
         };
 
-        test_serialization(&test_data, r#"{"originId":"test_originId","statusCode":2}"#);
-
-        let mut modified = test_data;
-        modified.origin_id = None;
-        test_serialization(&modified, r#"{"statusCode":2}"#);
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "originId": "test_originId",
+          "statusCode": 2
+        }
+        "###
+        );
+        assert_json_snapshot!(RunResult::default(),
+            @r###"
+        {
+          "statusCode": 2
+        }
+        "###
+        );
     }
 }
