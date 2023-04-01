@@ -91,14 +91,12 @@ where
     C: CargoHandleTrait<CargoMessage>,
 {
     sender: Box<dyn Fn(RPCMessage) + Send>,
-    // config: CargoCommand,
     /// CargoHandle exists to wrap around the communication needed to be able to
     /// run `cargo build/run/test` without blocking. Currently the Rust standard library
     /// doesn't provide a way to read sub-process output without blocking, so we
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
     cargo_handle: Option<C>,
-    #[allow(dead_code)]
     req_id: RequestId,
     params: R::Params,
     root_path: PathBuf,
@@ -251,14 +249,8 @@ where
         self.report_task_start(self.state.root_task_id.clone(), None);
 
         self.cargo_handle = Some(cargo_handle);
-        self.state.compile_start_time = get_event_time().unwrap();
-        // TODO change to actual BuildTargetIdentifier
-        self.report_task_start(
-            self.state.compile_task_id.clone(),
-            Some(TaskDataWithKind::CompileTask(CompileTaskData {
-                target: Default::default(),
-            })),
-        );
+
+        self.start_compile_task();
 
         while let Some(event) = self.next_event(&cancel_receiver) {
             match event {
@@ -269,29 +261,8 @@ where
                 Event::CargoFinish => {
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
-                    let mut resp = Response {
-                        id: self.req_id.clone(),
-                        result: None,
-                        error: None,
-                    };
-                    let status_code = match res {
-                        Ok(exit_status) => {
-                            let ok_status_code = if exit_status.success() {
-                                StatusCode::Ok
-                            } else {
-                                StatusCode::Error
-                            };
-                            resp.result = Some(
-                                to_value(self.params.create_result(ok_status_code.clone()))
-                                    .unwrap(),
-                            );
-                            ok_status_code
-                        }
-                        Err(err) => {
-                            // TODO create error for response and finish any started tasks
-                            StatusCode::Error
-                        }
-                    };
+                    let status_code = self.get_request_status_code(&res);
+                    let resp = self.create_response(res, &status_code);
                     self.report_task_finish(self.state.root_task_id.clone(), status_code, None);
                     self.send(RPCMessage::Response(resp));
                     return;
@@ -306,6 +277,45 @@ where
                     }
                 }
             }
+        }
+    }
+
+    fn start_compile_task(&mut self) {
+        self.state.compile_start_time = get_event_time().unwrap();
+        // TODO change to actual BuildTargetIdentifier
+        self.report_task_start(
+            self.state.compile_task_id.clone(),
+            Some(TaskDataWithKind::CompileTask(CompileTaskData {
+                target: Default::default(),
+            })),
+        );
+    }
+
+    fn get_request_status_code(&self, result: &io::Result<ExitStatus>) -> StatusCode {
+        match result {
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    StatusCode::Ok
+                } else {
+                    StatusCode::Error
+                }
+            }
+            Err(_) => StatusCode::Error,
+        }
+    }
+
+    fn create_response(
+        &self,
+        result: io::Result<ExitStatus>,
+        status_code: &StatusCode,
+    ) -> Response {
+        Response {
+            id: self.req_id.clone(),
+            result: result
+                .ok()
+                .map(|_| to_value(self.params.create_result(status_code.clone())).unwrap()),
+            // TODO create error for response and finish any started tasks
+            error: None,
         }
     }
 
