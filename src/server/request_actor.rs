@@ -23,12 +23,12 @@ use serde::Deserialize;
 use serde_json::to_value;
 use stdx::process::streaming_output;
 
-use crate::bsp_types::mappings::{create_diagnostics, SuiteEvent, TestEvent, TestType};
+use crate::bsp_types::mappings::{create_diagnostics, SuiteEvent, TestEvent, TestResult, TestType};
 use crate::bsp_types::notifications::{
     get_event_time, CompileReportData, CompileTaskData, LogMessage, LogMessageParams, MessageType,
     Notification as NotificationTrait, PublishDiagnostics, TaskDataWithKind, TaskFinish,
     TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,
-    TestTaskData,
+    TestStartData, TestStatus, TestTaskData,
 };
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
@@ -84,8 +84,8 @@ impl RequestHandle {
 }
 
 pub enum CargoMessage {
-    Stdout(Message),
-    Stderr(String),
+    CargoStdout(Message),
+    CargoStderr(String),
 }
 
 pub struct RequestActor<R, C>
@@ -109,11 +109,12 @@ where
     state: RequestActorState,
 }
 
-pub struct RequestActorState {
+struct RequestActorState {
     root_task_id: TaskId,
     compile_task_id: TaskId,
     compile_errors: i32,
     compile_warnings: i32,
+    compile_start_time: i64,
     root_test_task_id: TaskId,
     single_test_task_ids: HashMap<String, TaskId>,
     started_tasks: HashSet<TaskId>,
@@ -133,6 +134,7 @@ impl RequestActorState {
             },
             compile_errors: 0,
             compile_warnings: 0,
+            compile_start_time: 0,
             root_test_task_id: TaskId {
                 id: TaskId::generate_random_id(),
                 parents: vec![root_task_id.id],
@@ -167,7 +169,6 @@ where
     }
 
     fn report_task_start(&mut self, task_id: TaskId, data: Option<TaskDataWithKind>) {
-        // TODO improve this
         self.send_notification::<TaskStart>(TaskStartParams {
             task_id: task_id.clone(),
             event_time: get_event_time(),
@@ -193,28 +194,36 @@ where
     fn report_task_finish(
         &mut self,
         task_id: TaskId,
-        status_code: StatusCode,
+        status: StatusCode,
         data: Option<TaskDataWithKind>,
     ) {
-        // TODO improve this
         self.send_notification::<TaskFinish>(TaskFinishParams {
             task_id: task_id.clone(),
             event_time: get_event_time(),
             message: None,
-            status: status_code,
+            status,
             data,
         });
         self.state.started_tasks.remove(&task_id);
     }
 
-    fn send_notification<T>(&self, progress: T::Params)
+    fn log_message(&self, message_type: MessageType, message: String) {
+        self.send_notification::<LogMessage>(LogMessageParams {
+            message_type,
+            task: Some(self.state.root_task_id.clone()),
+            origin_id: self.params.origin_id(),
+            message,
+        })
+    }
+
+    fn send_notification<T>(&self, notification: T::Params)
     where
         T: NotificationTrait,
     {
         self.send(
             Notification {
                 method: T::METHOD.to_string(),
-                params: to_value(progress).unwrap(),
+                params: to_value(notification).unwrap(),
             }
             .into(),
         );
@@ -246,7 +255,7 @@ where
         self.report_task_start(self.state.root_task_id.clone(), None);
 
         self.cargo_handle = Some(cargo_handle);
-
+        self.state.compile_start_time = get_event_time().unwrap();
         // TODO change to actual BuildTargetIdentifier
         self.report_task_start(
             self.state.compile_task_id.clone(),
@@ -262,7 +271,6 @@ where
                     return;
                 }
                 Event::CargoFinish => {
-                    // Watcher finished
                     let cargo_handle = self.cargo_handle.take().unwrap();
                     let res = cargo_handle.join();
                     let mut resp = Response {
@@ -284,7 +292,7 @@ where
                             ok_status_code
                         }
                         Err(err) => {
-                            // TODO create error for response
+                            // TODO create error for response and finish any started tasks
                             StatusCode::Error
                         }
                     };
@@ -295,18 +303,9 @@ where
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
                     match message {
-                        CargoMessage::Stdout(stdout) => self.handle_cargo_information(
-                            stdout,
-                            self.state.root_task_id.clone(),
-                            self.state.compile_task_id.clone(),
-                        ),
-                        CargoMessage::Stderr(stderr) => {
-                            self.send_notification::<LogMessage>(LogMessageParams {
-                                message_type: MessageType::Error,
-                                task: Some(self.state.root_task_id.clone()),
-                                origin_id: self.params.origin_id(),
-                                message: stderr,
-                            })
+                        CargoMessage::CargoStdout(stdout) => self.handle_cargo_information(stdout),
+                        CargoMessage::CargoStderr(stderr) => {
+                            self.log_message(MessageType::Error, stderr)
                         }
                     }
                 }
@@ -314,15 +313,13 @@ where
         }
     }
 
-    fn handle_cargo_information(
-        &mut self,
-        message: Message,
-        root_task_id: TaskId,
-        compile_task_id: TaskId,
-    ) {
+    fn handle_cargo_information(&mut self, message: Message) {
         match message {
             Message::CompilerArtifact(msg) => {
-                self.report_task_progress(root_task_id, serde_json::to_string(&msg).ok());
+                self.report_task_progress(
+                    self.state.root_task_id.clone(),
+                    serde_json::to_string(&msg).ok(),
+                );
             }
             Message::CompilerMessage(msg) => {
                 let diagnostics = create_diagnostics(
@@ -349,7 +346,10 @@ where
                 });
             }
             Message::BuildScriptExecuted(msg) => {
-                self.report_task_progress(root_task_id, serde_json::to_string(&msg).ok());
+                self.report_task_progress(
+                    self.state.root_task_id.clone(),
+                    serde_json::to_string(&msg).ok(),
+                );
             }
             Message::BuildFinished(msg) => {
                 let status_code = if msg.success {
@@ -363,72 +363,89 @@ where
                     origin_id: self.params.origin_id(),
                     errors: self.state.compile_errors,
                     warnings: self.state.compile_warnings,
-                    time: None, // TODO add time
+                    time: Some((get_event_time().unwrap() - self.state.compile_start_time) as i32),
                     no_op: None,
                 });
-                self.report_task_finish(compile_task_id, status_code, Some(compile_report));
+                self.report_task_finish(
+                    self.state.compile_task_id.clone(),
+                    status_code,
+                    Some(compile_report),
+                );
             }
             Message::TextLine(msg) => {
                 let deserialized_message = serde_json::from_str::<TestType>(&msg);
                 match deserialized_message {
                     // Message comes from running tests.
-                    Ok(test_type) => self.handle_information_from_test(test_type, root_task_id),
+                    Ok(test_type) => self.handle_information_from_test(test_type),
                     // Message is a line from stdout.
-                    Err(_) => {
-                        self.send_notification::<LogMessage>(LogMessageParams {
-                            message_type: MessageType::Log,
-                            task: Some(root_task_id),
-                            origin_id: self.params.origin_id(),
-                            message: msg,
-                        });
-                    }
+                    Err(_) => self.log_message(MessageType::Log, msg),
                 }
             }
             _ => {}
         }
     }
 
-    fn handle_information_from_test(&mut self, test_type: TestType, root_task_id: TaskId) {
+    fn handle_information_from_test(&mut self, test_type: TestType) {
         // TODO change target to actual BuildTargetIdentifier
         match test_type {
             // Handle information about whole test suite.
             TestType::Suite(event) => match event {
-                SuiteEvent::Started(_) => {
-                    self.report_task_start(
-                        self.state.root_test_task_id.clone(),
-                        Some(TaskDataWithKind::TestTask(TestTaskData {
-                            target: Default::default(),
-                        })),
-                    );
-                }
-                SuiteEvent::Ok(result) => {
-                    self.report_task_finish(
-                        self.state.root_test_task_id.clone(),
-                        StatusCode::Ok,
-                        Some(result.to_test_report()),
-                    );
-                }
-                SuiteEvent::Failed(result) => {
-                    self.report_task_finish(
-                        self.state.root_test_task_id.clone(),
-                        StatusCode::Error,
-                        Some(result.to_test_report()),
-                    );
-                }
+                SuiteEvent::Started(_) => self.report_task_start(
+                    self.state.root_test_task_id.clone(),
+                    Some(TaskDataWithKind::TestTask(TestTaskData {
+                        target: Default::default(),
+                    })),
+                ),
+                SuiteEvent::Ok(result) => self.report_task_finish(
+                    self.state.root_test_task_id.clone(),
+                    StatusCode::Ok,
+                    Some(result.to_test_report()),
+                ),
+                SuiteEvent::Failed(result) => self.report_task_finish(
+                    self.state.root_test_task_id.clone(),
+                    StatusCode::Error,
+                    Some(result.to_test_report()),
+                ),
             },
             // Handle information about single test.
             TestType::Test(event) => match event {
-                TestEvent::Started(result) => {
+                TestEvent::Started(started) => {
                     let test_task_id = TaskId {
                         id: TaskId::generate_random_id(),
                         parents: vec![self.state.root_test_task_id.id.clone()],
                     };
+                    self.state
+                        .single_test_task_ids
+                        .insert(started.get_name(), test_task_id.clone());
+                    self.report_task_start(
+                        test_task_id,
+                        Some(TaskDataWithKind::TestStart(TestStartData {
+                            display_name: started.get_name(),
+                            location: None,
+                        })),
+                    );
                 }
-                TestEvent::Ok(_) => {}
-                TestEvent::Failed(_) => {}
-                TestEvent::Ignored(_) => {}
-                TestEvent::Timeout(_) => {}
+                TestEvent::Ok(result) => self.finish_single_test(result, TestStatus::Passed),
+                TestEvent::Failed(result) => self.finish_single_test(result, TestStatus::Failed),
+                TestEvent::Ignored(result) => self.finish_single_test(result, TestStatus::Ignored),
+                TestEvent::Timeout(result) => self.finish_single_test(result, TestStatus::Failed),
             },
+        }
+    }
+
+    fn finish_single_test(&mut self, test_result: TestResult, status: TestStatus) {
+        let task_id = self
+            .state
+            .single_test_task_ids
+            .remove(&test_result.get_name());
+        if let Some(id) = task_id {
+            self.report_task_finish(
+                id,
+                StatusCode::Ok,
+                Some(TaskDataWithKind::TestFinish(
+                    test_result.map_to_test_notification(status),
+                )),
+            );
         }
     }
 
@@ -573,7 +590,7 @@ impl CargoActor {
                 match Message::deserialize(&mut deserializer) {
                     Ok(message) => {
                         self.sender
-                            .send(CargoMessage::Stdout(message))
+                            .send(CargoMessage::CargoStdout(message))
                             .expect("TODO: panic message");
                     }
                     Err(e) => {
@@ -583,7 +600,7 @@ impl CargoActor {
             },
             &mut |line| {
                 self.sender
-                    .send(CargoMessage::Stderr(line.to_string()))
+                    .send(CargoMessage::CargoStderr(line.to_string()))
                     .expect("TODO: panic message");
             },
         );

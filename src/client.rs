@@ -65,7 +65,7 @@ impl<'a> Client<'a> {
         while let Ok(Message::Notification(notif)) = from_str(&content) {
             println!("Client got a notification: {:?}\n", notif);
             let content_length = self.parse_headers();
-            let content = self.read_n_chars(content_length);
+            let _content = self.read_n_chars(content_length);
         }
         match from_str(&content) {
             Ok(Message::Response(resp)) => println!("Client got a response: {:?}\n", resp),

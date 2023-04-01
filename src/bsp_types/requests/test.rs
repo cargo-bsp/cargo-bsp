@@ -23,10 +23,17 @@ impl CreateCommand for TestParams {
     fn create_command(&self, root: PathBuf) -> Command {
         let mut com = Command::new(toolchain::cargo());
         com.current_dir(root);
-        com.args(&["test", "--message-format=json"]);
+        com.args(["test", "--message-format=json"]);
         // com.arg("--target");
         // com.arg(self.targets[0].clone().uri);
         com.args(self.arguments.clone());
+        com.args([
+            "--",
+            "--show-output",
+            "-Z",
+            "unstable-options",
+            "--format=json",
+        ]);
         com
     }
 }

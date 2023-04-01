@@ -1,4 +1,6 @@
-use crate::bsp_types::notifications::{TaskDataWithKind, TestReportData};
+use crate::bsp_types::notifications::{
+    TaskDataWithKind, TestFinishData, TestReportData, TestStatus,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -20,6 +22,7 @@ pub enum SuiteEvent {
 
 #[derive(Debug, Deserialize)]
 pub struct SuiteStarted {
+    #[allow(dead_code)]
     test_count: i32,
 }
 
@@ -38,7 +41,7 @@ impl SuiteResults {
         TaskDataWithKind::TestReport(TestReportData {
             // TODO change target to actual BuildTargetIdentifier
             target: Default::default(),
-            passed: self.passed,
+            passed: self.passed + self.measured,
             failed: self.failed,
             ignored: self.ignored,
             cancelled: 0,
@@ -52,21 +55,46 @@ impl SuiteResults {
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "event")]
 pub enum TestEvent {
-    Started(TestResult),
-    Ok(TestResultWithOutput),
-    Failed(TestResultWithOutput),
+    Started(TestName),
+    Ok(TestResult),
+    Failed(TestResult),
     Ignored(TestResult),
     Timeout(TestResult),
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TestResult {
+pub struct TestName {
     name: String,
 }
 
+impl TestName {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
 #[derive(Debug, Deserialize)]
-pub struct TestResultWithOutput {
+pub struct TestResult {
     name: String,
     stdout: Option<String>,
     stderr: Option<String>,
+}
+
+impl TestResult {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn map_to_test_notification(self, status: TestStatus) -> TestFinishData {
+        TestFinishData {
+            display_name: self.name,
+            message: self
+                .stdout
+                .and_then(|out| self.stderr.map(|err| format!("{}\n{}", out, err))),
+            status,
+            location: None,
+            data_kind: None,
+            data: None,
+        }
+    }
 }
