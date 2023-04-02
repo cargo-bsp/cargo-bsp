@@ -109,6 +109,7 @@ struct RequestActorState {
     compile_errors: i32,
     compile_warnings: i32,
     compile_start_time: i64,
+    execution_task_id: TaskId,
     root_test_task_id: TaskId,
     single_test_task_ids: HashMap<String, TaskId>,
     started_tasks: HashSet<TaskId>,
@@ -129,6 +130,10 @@ impl RequestActorState {
             compile_errors: 0,
             compile_warnings: 0,
             compile_start_time: 0,
+            execution_task_id: TaskId {
+                id: TaskId::generate_random_id(),
+                parents: vec![root_task_id.id.clone()],
+            },
             root_test_task_id: TaskId {
                 id: TaskId::generate_random_id(),
                 parents: vec![root_task_id.id],
@@ -162,11 +167,16 @@ where
         }
     }
 
-    fn report_task_start(&mut self, task_id: TaskId, data: Option<TaskDataWithKind>) {
+    fn report_task_start(
+        &mut self,
+        task_id: TaskId,
+        message: Option<String>,
+        data: Option<TaskDataWithKind>,
+    ) {
         self.send_notification::<TaskStart>(TaskStartParams {
             task_id: task_id.clone(),
             event_time: get_event_time(),
-            message: None,
+            message,
             data,
         });
         self.state.started_tasks.insert(task_id);
@@ -189,12 +199,13 @@ where
         &mut self,
         task_id: TaskId,
         status: StatusCode,
+        message: Option<String>,
         data: Option<TaskDataWithKind>,
     ) {
         self.send_notification::<TaskFinish>(TaskFinishParams {
             task_id: task_id.clone(),
             event_time: get_event_time(),
-            message: None,
+            message,
             status,
             data,
         });
@@ -246,7 +257,7 @@ where
     }
 
     pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: C) {
-        self.report_task_start(self.state.root_task_id.clone(), None);
+        self.report_task_start(self.state.root_task_id.clone(), None, None);
 
         self.cargo_handle = Some(cargo_handle);
 
@@ -263,7 +274,13 @@ where
                     let res = cargo_handle.join();
                     let status_code = self.get_request_status_code(&res);
                     let resp = self.create_response(res, &status_code);
-                    self.report_task_finish(self.state.root_task_id.clone(), status_code, None);
+                    self.finish_execution_task(&status_code, R::METHOD.to_string());
+                    self.report_task_finish(
+                        self.state.root_task_id.clone(),
+                        status_code,
+                        None,
+                        None,
+                    );
                     self.send(RPCMessage::Response(resp));
                     return;
                 }
@@ -285,6 +302,7 @@ where
         // TODO change to actual BuildTargetIdentifier
         self.report_task_start(
             self.state.compile_task_id.clone(),
+            None,
             Some(TaskDataWithKind::CompileTask(CompileTaskData {
                 target: Default::default(),
             })),
@@ -375,8 +393,10 @@ where
                 self.report_task_finish(
                     self.state.compile_task_id.clone(),
                     status_code,
+                    None,
                     Some(compile_report),
                 );
+                self.start_execution_task(R::METHOD.to_string());
             }
             Message::TextLine(msg) => {
                 let deserialized_message = serde_json::from_str::<TestType>(&msg);
@@ -391,6 +411,27 @@ where
         }
     }
 
+    fn start_execution_task(&mut self, method: String) {
+        if method.eq("buildTarget/run") {
+            self.report_task_start(
+                self.state.execution_task_id.clone(),
+                Some("Started target execution".to_string()),
+                None,
+            );
+        }
+    }
+
+    fn finish_execution_task(&mut self, status_code: &StatusCode, method: String) {
+        if method.eq("buildTarget/run") {
+            self.report_task_finish(
+                self.state.execution_task_id.clone(),
+                status_code.clone(),
+                Some("Finished target execution".to_string()),
+                None,
+            );
+        }
+    }
+
     fn handle_information_from_test(&mut self, test_type: TestType) {
         // TODO change target to actual BuildTargetIdentifier
         match test_type {
@@ -398,6 +439,7 @@ where
             TestType::Suite(event) => match event {
                 SuiteEvent::Started(_) => self.report_task_start(
                     self.state.root_test_task_id.clone(),
+                    None,
                     Some(TaskDataWithKind::TestTask(TestTaskData {
                         target: Default::default(),
                     })),
@@ -405,11 +447,13 @@ where
                 SuiteEvent::Ok(result) => self.report_task_finish(
                     self.state.root_test_task_id.clone(),
                     StatusCode::Ok,
+                    None,
                     Some(result.to_test_report()),
                 ),
                 SuiteEvent::Failed(result) => self.report_task_finish(
                     self.state.root_test_task_id.clone(),
                     StatusCode::Error,
+                    None,
                     Some(result.to_test_report()),
                 ),
             },
@@ -425,6 +469,7 @@ where
                         .insert(started.get_name(), test_task_id.clone());
                     self.report_task_start(
                         test_task_id,
+                        None,
                         Some(TaskDataWithKind::TestStart(TestStartData {
                             display_name: started.get_name(),
                             location: None,
@@ -448,6 +493,7 @@ where
             self.report_task_finish(
                 id,
                 StatusCode::Ok,
+                None,
                 Some(TaskDataWithKind::TestFinish(
                     test_result.map_to_test_notification(status),
                 )),
@@ -463,6 +509,7 @@ where
                     parents: vec![self.state.root_task_id.id.clone()],
                 },
                 None,
+                None,
             );
             cargo_handle.cancel();
             self.report_task_finish(
@@ -472,8 +519,14 @@ where
                 },
                 StatusCode::Ok,
                 None,
+                None,
             );
-            self.report_task_finish(self.state.root_task_id.clone(), StatusCode::Cancelled, None);
+            self.report_task_finish(
+                self.state.root_task_id.clone(),
+                StatusCode::Cancelled,
+                None,
+                None,
+            );
             // TODO cancel other started tasks
         } else {
             todo!()
