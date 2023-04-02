@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use rand::distributions::{Alphanumeric, DistString};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -36,8 +37,14 @@ pub struct TaskId {
 }
 
 impl TaskId {
+    #[cfg(not(test))]
     pub fn generate_random_id() -> String {
         Alphanumeric.sample_string(&mut rand::thread_rng(), 36)
+    }
+
+    #[cfg(test)]
+    pub fn generate_random_id() -> String {
+        "random_task_id".to_string()
     }
 }
 

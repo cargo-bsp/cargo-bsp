@@ -11,7 +11,8 @@ mod dispatch;
 mod global_state;
 mod handlers;
 mod main_loop;
-mod request_actor;
+pub(crate) mod request_actor;
+pub(crate) mod cargo_actor;
 mod server_run;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
