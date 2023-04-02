@@ -10,7 +10,7 @@ use crate::bsp_types::notifications::{
 };
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
-use crate::communication::{Message as RPCMessage, Notification};
+use crate::communication::{ErrorCode, Message as RPCMessage, Notification, ResponseError};
 use crate::communication::{RequestId, Response};
 use crate::logger::log;
 use crate::server::cargo_actor::CargoHandle;
@@ -266,7 +266,7 @@ where
         while let Some(event) = self.next_event(&cancel_receiver) {
             match event {
                 Event::Cancel => {
-                    self.cancel_process();
+                    self.cancel();
                     return;
                 }
                 Event::CargoFinish => {
@@ -501,36 +501,47 @@ where
         }
     }
 
-    fn cancel_process(&mut self) {
+    fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
-            self.report_task_start(
-                TaskId {
-                    id: TaskId::generate_random_id(),
-                    parents: vec![self.state.root_task_id.id.clone()],
-                },
-                None,
-                None,
-            );
-            cargo_handle.cancel();
-            self.report_task_finish(
-                TaskId {
-                    id: TaskId::generate_random_id(),
-                    parents: vec![self.state.root_task_id.id.clone()],
-                },
-                StatusCode::Ok,
-                None,
-                None,
-            );
-            self.report_task_finish(
-                self.state.root_task_id.clone(),
-                StatusCode::Cancelled,
-                None,
-                None,
-            );
-            // TODO cancel other started tasks
+            self.cancel_process(cargo_handle);
+            self.cancel_tasks_and_request();
         } else {
             todo!()
         }
+    }
+
+    fn cancel_process(&mut self, cargo_handle: C) {
+        self.report_task_start(
+            TaskId {
+                id: TaskId::generate_random_id(),
+                parents: vec![self.state.root_task_id.id.clone()],
+            },
+            Some(format!("Start canceling request {}", self.req_id.clone())),
+            None,
+        );
+        cargo_handle.cancel();
+        self.report_task_finish(
+            TaskId {
+                id: TaskId::generate_random_id(),
+                parents: vec![self.state.root_task_id.id.clone()],
+            },
+            StatusCode::Ok,
+            Some(format!("Finish canceling request {}", self.req_id.clone())),
+            None,
+        );
+    }
+
+    fn cancel_tasks_and_request(&self) {
+        // TODO cancel other started tasks
+        self.send(RPCMessage::Response(Response {
+            id: self.req_id.clone(),
+            result: None,
+            error: Some(ResponseError {
+                code: ErrorCode::RequestCanceled as i32,
+                message: format!("Request {} canceled", self.req_id.clone()),
+                data: None,
+            }),
+        }));
     }
 
     fn send(&self, msg: RPCMessage) {
