@@ -239,7 +239,6 @@ fn diagnostic_severity(level: DiagnosticLevel) -> Option<lsp_types::DiagnosticSe
         DiagnosticLevel::FailureNote => lsp_types::DiagnosticSeverity::INFORMATION,
         DiagnosticLevel::Note => lsp_types::DiagnosticSeverity::INFORMATION,
         DiagnosticLevel::Help => lsp_types::DiagnosticSeverity::HINT,
-        _ => return None,
     };
     Some(res)
 }

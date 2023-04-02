@@ -407,7 +407,6 @@ where
                     Err(_) => self.log_message(MessageType::Log, msg),
                 }
             }
-            _ => {}
         }
     }
 
@@ -569,7 +568,6 @@ pub mod compile_request_tests {
     use crate::bsp_types::requests::{Compile, CompileParams, CompileResult};
     use crate::communication::{ErrorCode, Message, Notification, Response};
     use crate::server::request_actor::CargoMessage::CargoStdout;
-    use crate::server::request_actor::Event::CargoFinish;
     // use cargo_metadata::Message::CompilerArtifact;
     // use cargo_metadata::{Artifact, ArtifactProfile, Edition, Target};
     use crate::bsp_types::cargo_output::Message::{
@@ -582,9 +580,8 @@ pub mod compile_request_tests {
         Message::CompilerArtifact, PackageId, Target,
     };
     use crate::bsp_types::TextDocumentIdentifier;
-    use lsp_types::{CodeDescription, DiagnosticSeverity, NumberOrString, Position, Range};
+    use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
     use serde_json::to_string;
-    use serde_json::value::Index;
     use std::os::unix::prelude::ExitStatusExt;
 
     fn init_test(
@@ -619,6 +616,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn simple_compile() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         mock_cargo_handle
             .expect_join()
@@ -698,6 +696,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn simple_cancel() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         mock_cargo_handle.expect_cancel().return_const(());
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
@@ -715,7 +714,7 @@ pub mod compile_request_tests {
                     parents: vec!["test_origin_id".to_string()],
                 },
                 event_time: Some(1),
-                message: None,
+                message: Some("Start canceling request \"test_req_id\"".to_string()),
                 data: None,
             },
         );
@@ -727,7 +726,7 @@ pub mod compile_request_tests {
                     parents: vec!["test_origin_id".to_string()],
                 },
                 event_time: Some(1),
-                message: None,
+                message: Some("Finish canceling request \"test_req_id\"".to_string()),
                 data: None,
                 status: StatusCode::Ok,
             },
@@ -770,6 +769,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn compiler_artifact() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
@@ -831,6 +831,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn build_script_out() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
@@ -877,6 +878,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn compiler_message_with_one_publish_diagnostic() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
@@ -973,7 +975,8 @@ pub mod compile_request_tests {
 
     #[test]
     fn build_finished_simple() {
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        #[allow(unused_mut)]
+            let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
         let _ = recv_to_main.recv(); // main task started
@@ -1012,6 +1015,7 @@ pub mod compile_request_tests {
 
     #[test]
     fn build_finished_with_complexed_compile_report() {
+        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
@@ -1212,94 +1216,3 @@ pub mod compile_request_tests {
 //         )
 //     }
 // }
-
-#[cfg(test)]
-pub mod integration_tests {
-    use super::*;
-    use crate::bsp_types::requests::{Compile, CompileParams, Run, RunParams, Test, TestParams};
-
-    #[test]
-    fn compile_request_handle() {
-        let params = CompileParams {
-            targets: vec!["test_data".into()],
-            origin_id: Some("test".to_string()),
-            arguments: vec![],
-        };
-        let (sender, receiver) = unbounded();
-
-        let handle = RequestHandle::spawn::<Compile>(
-            Box::new(move |msg| sender.send(msg).unwrap()),
-            1.into(),
-            params,
-            std::env::current_dir()
-                .unwrap()
-                .join("src/server/test_data")
-                .as_path(),
-        );
-        while let Some(msg) = receiver.recv().ok() {
-            println!("{:#?}", msg);
-        }
-    }
-
-    #[test]
-    fn test_request_handle() {
-        let params = TestParams {
-            targets: vec![],
-            origin_id: Some("test".to_string()),
-            arguments: vec![],
-            data_kind: None,
-            data: None,
-        };
-        let (sender, receiver) = unbounded();
-
-        let handle = RequestHandle::spawn::<Test>(
-            Box::new(move |msg| sender.send(msg).unwrap()),
-            1.into(),
-            params,
-            std::env::current_dir()
-                .unwrap()
-                .join("src/server/test_data")
-                .as_path(),
-        );
-        while let Some(msg) = receiver.recv().ok() {
-            println!("{:#?}", msg);
-        }
-    }
-
-    #[test]
-    fn run_request_handle() {
-        let params = RunParams {
-            target: "test_data".into(),
-            origin_id: Some("test".to_string()),
-            arguments: vec![],
-            data_kind: None,
-            data: None,
-        };
-        let (sender, receiver) = unbounded();
-
-        let handle = RequestHandle::spawn::<Run>(
-            Box::new(move |msg| sender.send(msg).unwrap()),
-            1.into(),
-            params,
-            std::env::current_dir()
-                .unwrap()
-                .join("src/server/test_data")
-                .as_path(),
-        );
-        while let Some(msg) = receiver.recv().ok() {
-            println!("{:#?}", msg);
-        }
-    }
-
-    #[test]
-    fn test_request_handle_cancel() {
-        let (sender, receiver) = unbounded();
-        let handle = RequestHandle::spawn::<Test>(
-            Box::new(move |msg| sender.send(msg).unwrap()),
-            1.into(),
-            TestParams::default(),
-            std::env::current_dir().unwrap().as_path(),
-        );
-        handle.cancel();
-    }
-}
