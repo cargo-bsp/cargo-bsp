@@ -120,7 +120,7 @@ impl CargoActor {
                             .send(CargoMessage::CargoStdout(message))
                             .expect("TODO: panic message");
                     }
-                    Err(e) => {
+                    Err(_e) => {
                         // todo!("Log that we couldn't parse a message: {:?}", line")
                     }
                 };

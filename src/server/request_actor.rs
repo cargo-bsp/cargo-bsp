@@ -341,7 +341,7 @@ where
         match message {
             Message::CompilerArtifact(msg) => {
                 self.report_task_progress(
-                    self.state.root_task_id.clone(),
+                    self.state.compile_task_id.clone(),
                     serde_json::to_string(&msg).ok(),
                 );
             }
@@ -371,7 +371,7 @@ where
             }
             Message::BuildScriptExecuted(msg) => {
                 self.report_task_progress(
-                    self.state.root_task_id.clone(),
+                    self.state.compile_task_id.clone(),
                     serde_json::to_string(&msg).ok(),
                 );
             }
