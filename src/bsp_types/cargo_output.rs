@@ -1,9 +1,9 @@
 use cargo_metadata::camino::Utf8PathBuf;
+use cargo_platform::Platform;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use cargo_platform::Platform;
 
 #[derive(Eq, PartialEq, Clone, Debug, Copy, Hash, Serialize, Deserialize)]
 /// Dependencies can come in three kinds
@@ -30,8 +30,8 @@ impl Default for DependencyKind {
 
 /// The `kind` can be `null`, which is interpreted as the default - `Normal`.
 pub(super) fn parse_dependency_kind<'de, D>(d: D) -> Result<DependencyKind, D::Error>
-    where
-        D: Deserializer<'de>,
+where
+    D: Deserializer<'de>,
 {
     Deserialize::deserialize(d).map(|x: Option<_>| x.unwrap_or_default())
 }
