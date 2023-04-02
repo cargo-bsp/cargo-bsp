@@ -8,6 +8,7 @@ pub use messages::*;
 pub use publish_diagnostics::*;
 pub use tasks::*;
 
+mod cancel;
 mod did_change_build_target;
 mod exit_build;
 mod initialized_build;
