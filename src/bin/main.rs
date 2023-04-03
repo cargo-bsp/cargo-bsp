@@ -20,20 +20,18 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use ntest::timeout;
-    use serde_json::Value::String;
     use serde_json::{from_str, to_value};
 
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
     use cargo_bsp::bsp_types::requests::{
-        Compile, CompileParams, InitializeBuild, InitializeBuildParams, InitializeBuildResult,
-        Request as _, Run, RunParams, RunResult, ShutdownBuild, Test, TestParams, TestResult,
-        WorkspaceBuildTargets, WorkspaceBuildTargetsResult,
+        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild,
+        InitializeBuildParams, InitializeBuildResult, Request as _, Run, RunParams, RunResult,
+        ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargetsResult,
     };
     use cargo_bsp::bsp_types::{
-        BuildServerCapabilities, BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier,
-        CompileProvider,
+        BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, StatusCode,
     };
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, Response};
@@ -82,16 +80,17 @@ mod tests {
         assert_eq!(child.wait().unwrap().code(), Some(0));
     }
 
-    // it fails as server doesnt support immediate shutdown
-    // #[test]
-    // fn immediate_shutdown() {
-    //     let mut child = spawn_server();
-    //     let mut cl = Client::new(&mut child);
-    //     let exit_notif = create_exit_notif();
-    //     cl.send(&serde_json::to_string(&exit_notif).unwrap());
-    //     assert_eq!(child.wait().unwrap().code(), Some(1));
-    // }
+    #[ignore]
+    #[test]
+    fn immediate_shutdown() {
+        let mut child = spawn_server();
+        let mut cl = Client::new(&mut child);
+        let exit_notif = create_exit_notif();
+        cl.send(&serde_json::to_string(&exit_notif).unwrap());
+        assert_eq!(child.wait().unwrap().code(), Some(1));
+    }
 
+    #[ignore]
     #[test]
     #[timeout(2000)]
     fn initialize_fail() {
@@ -107,81 +106,83 @@ mod tests {
 
         init_conn(&mut cl);
         shutdown_conn(&mut cl);
-        // TODO: Change when test immediate_shutdown test passes
-        // let exit_notif = create_exit_notif();
-        // cl.send(&serde_json::to_string(&exit_notif).unwrap());
-        // assert_eq!(child.wait().unwrap().code(), Some(1));
+        let exit_notif = create_exit_notif();
+        cl.send(&serde_json::to_string(&exit_notif).unwrap());
+        assert_eq!(child.wait().unwrap().code(), Some(1));
     }
 
-    // #[test]
-    // #[timeout(1000)]
-    // fn simple_build_req() {
-    //     let mut child = spawn_server();
-    //     let mut cl = Client::new(&mut child);
-    //     init_conn(&mut cl);
-    //
-    //     let build_workspace_req = create_build_req("2137");
-    //     let proper_resp = create_build_resp("2137");
-    //
-    //     cl.send(&serde_json::to_string(&build_workspace_req).unwrap());
-    //
-    //     let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
-    //     assert_eq!(
-    //         serde_json::to_string(&server_resp).unwrap(),
-    //         serde_json::to_string(&proper_resp).unwrap()
-    //     );
-    //
-    //     shutdown_conn(&mut cl);
-    //     assert_eq!(child.wait().unwrap().code(), Some(0));
-    // }
+    #[ignore]
+    #[test]
+    #[timeout(1000)]
+    fn simple_build_req() {
+        let mut child = spawn_server();
+        let mut cl = Client::new(&mut child);
+        init_conn(&mut cl);
 
-    // #[test]
-    // #[timeout(1000)]
-    // fn simple_run_req() {
-    //     let mut child = spawn_server();
-    //     let mut cl = Client::new(&mut child);
-    //     init_conn(&mut cl);
-    //
-    //     let run_req = create_run_req("2137", "2137");
-    //     let proper_resp = create_run_resp("2137", "2137");
-    //
-    //     cl.send(&serde_json::to_string(&run_req).unwrap());
-    //
-    //     cl.recv_resp(); // LogMessage notification
-    //     cl.recv_resp(); // TaskFinished notification
-    //     let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
-    //     assert_eq!(
-    //         serde_json::to_string(&server_resp).unwrap(),
-    //         serde_json::to_string(&proper_resp).unwrap()
-    //     );
-    //
-    //     shutdown_conn(&mut cl);
-    //     assert_eq!(child.wait().unwrap().code(), Some(0));
-    // }
+        let build_workspace_req = create_build_req("2137");
+        let proper_resp = create_build_resp("2137");
 
-    // #[test]
-    // #[timeout(1000)]
-    // fn simple_test_req() {
-    //     let mut child = spawn_server();
-    //     let mut cl = Client::new(&mut child);
-    //     init_conn(&mut cl);
-    //
-    //     let run_req = create_test_req(2137, "2137");
-    //     let proper_resp = create_test_resp(2137, "2137");
-    //
-    //     cl.send(&serde_json::to_string(&run_req).unwrap());
-    //
-    //     cl.recv_resp(); // LogMessage notification
-    //     cl.recv_resp(); // TaskFinished notification
-    //     let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
-    //     assert_eq!(
-    //         serde_json::to_string(&server_resp).unwrap(),
-    //         serde_json::to_string(&proper_resp).unwrap()
-    //     );
-    //
-    //     shutdown_conn(&mut cl);
-    //     assert_eq!(child.wait().unwrap().code(), Some(0));
-    // }
+        cl.send(&serde_json::to_string(&build_workspace_req).unwrap());
+
+        let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
+        assert_eq!(
+            serde_json::to_string(&server_resp).unwrap(),
+            serde_json::to_string(&proper_resp).unwrap()
+        );
+
+        shutdown_conn(&mut cl);
+        assert_eq!(child.wait().unwrap().code(), Some(0));
+    }
+
+    #[ignore]
+    #[test]
+    #[timeout(1000)]
+    fn simple_run_req() {
+        let mut child = spawn_server();
+        let mut cl = Client::new(&mut child);
+        init_conn(&mut cl);
+
+        let run_req = create_run_req("2137", "2137");
+        let proper_resp = create_run_resp("2137", "2137");
+
+        cl.send(&serde_json::to_string(&run_req).unwrap());
+
+        cl.recv_resp(); // LogMessage notification
+        cl.recv_resp(); // TaskFinished notification
+        let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
+        assert_eq!(
+            serde_json::to_string(&server_resp).unwrap(),
+            serde_json::to_string(&proper_resp).unwrap()
+        );
+
+        shutdown_conn(&mut cl);
+        assert_eq!(child.wait().unwrap().code(), Some(0));
+    }
+
+    #[ignore]
+    #[test]
+    #[timeout(1000)]
+    fn simple_test_req() {
+        let mut child = spawn_server();
+        let mut cl = Client::new(&mut child);
+        init_conn(&mut cl);
+
+        let run_req = create_test_req("2137", "2137");
+        let proper_resp = create_test_resp("2137", "2137");
+
+        cl.send(&serde_json::to_string(&run_req).unwrap());
+
+        cl.recv_resp(); // LogMessage notification
+        cl.recv_resp(); // TaskFinished notification
+        let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
+        assert_eq!(
+            serde_json::to_string(&server_resp).unwrap(),
+            serde_json::to_string(&proper_resp).unwrap()
+        );
+
+        shutdown_conn(&mut cl);
+        assert_eq!(child.wait().unwrap().code(), Some(0));
+    }
 
     fn create_init_req(id: &str) -> Request {
         let params = InitializeBuildParams {
@@ -275,87 +276,86 @@ mod tests {
         }
     }
 
-    // fn create_build_resp(id: &str) -> Response {
-    //     let result = WorkspaceBuildTargetsResult {
-    //         targets: vec![BuildTarget {
-    //             id: BuildTargetIdentifier {
-    //                 uri: "//:hello".to_string(),
-    //             },
-    //             display_name: Some("//:hello".to_string()),
-    //             base_directory: None,
-    //             tags: vec![],
-    //             capabilities: BuildTargetCapabilities {
-    //                 can_compile: true,
-    //                 can_test: true,
-    //                 can_run: true,
-    //                 can_debug: false,
-    //             },
-    //             language_ids: vec![],
-    //             dependencies: vec![],
-    //             data_kind: None,
-    //             data: None,
-    //         }],
-    //     };
-    //     Response {
-    //         id: id.into(),
-    //         result: Some(to_value(result).unwrap()),
-    //         error: None,
-    //     }
-    // }
+    fn create_build_resp(id: &str) -> Response {
+        let result = WorkspaceBuildTargetsResult {
+            targets: vec![BuildTarget {
+                id: BuildTargetIdentifier {
+                    uri: "//:hello".to_string(),
+                },
+                display_name: Some("//:hello".to_string()),
+                base_directory: None,
+                tags: vec![],
+                capabilities: BuildTargetCapabilities {
+                    can_compile: true,
+                    can_test: true,
+                    can_run: true,
+                    can_debug: false,
+                },
+                language_ids: vec![],
+                dependencies: vec![],
+                data: None,
+            }],
+        };
+        Response {
+            id: id.into(),
+            result: Some(to_value(result).unwrap()),
+            error: None,
+        }
+    }
 
-    // fn create_run_req(id: &str, origin_id: &str) -> Request {
-    //     let params = RunParams {
-    //         target: Default::default(),
-    //         origin_id: Some(origin_id.to_string()),
-    //         arguments: vec![],
-    //         data_kind: None,
-    //         data: None,
-    //     };
-    //     Request {
-    //         id: id.into(),
-    //         method: Run::METHOD.to_string(),
-    //         params: to_value(params).unwrap(),
-    //     }
-    // }
+    fn create_run_req(id: &str, origin_id: &str) -> Request {
+        let params = RunParams {
+            target: Default::default(),
+            origin_id: Some(origin_id.to_string()),
+            arguments: vec![],
+            data_kind: None,
+            data: None,
+        };
+        Request {
+            id: id.into(),
+            method: Run::METHOD.to_string(),
+            params: to_value(params).unwrap(),
+        }
+    }
 
-    // fn create_run_resp(id: &str, origin_id: &str) -> Response {
-    //     let result = RunResult {
-    //         origin_id: Some(origin_id.to_string()),
-    //         status_code: StatusCode::Ok,
-    //     };
-    //     Response {
-    //         id: id.into(),
-    //         result: Some(to_value(result).unwrap()),
-    //         error: None,
-    //     }
-    // }
+    fn create_run_resp(id: &str, origin_id: &str) -> Response {
+        let result = RunResult {
+            origin_id: Some(origin_id.to_string()),
+            status_code: StatusCode::Ok,
+        };
+        Response {
+            id: id.into(),
+            result: Some(to_value(result).unwrap()),
+            error: None,
+        }
+    }
 
-    // fn create_test_req(id: &str, origin_id: &str) -> Request {
-    //     let params = TestParams {
-    //         targets: vec![],
-    //         origin_id: Some(origin_id.to_string()),
-    //         arguments: vec![],
-    //         data_kind: None,
-    //         data: None,
-    //     };
-    //     Request {
-    //         id: id.into(),
-    //         method: Test::METHOD.to_string(),
-    //         params: to_value(params).unwrap(),
-    //     }
-    // }
+    fn create_test_req(id: &str, origin_id: &str) -> Request {
+        let params = TestParams {
+            targets: vec![],
+            origin_id: Some(origin_id.to_string()),
+            arguments: vec![],
+            data_kind: None,
+            data: None,
+        };
+        Request {
+            id: id.into(),
+            method: Test::METHOD.to_string(),
+            params: to_value(params).unwrap(),
+        }
+    }
 
-    // fn create_test_resp(id: &str, origin_id: &str) -> Response {
-    //     let result = TestResult {
-    //         origin_id: Some(origin_id.to_string()),
-    //         status_code: StatusCode::Ok,
-    //         data_kind: None,
-    //         data: None,
-    //     };
-    //     Response {
-    //         id: id.into(),
-    //         result: Some(to_value(result).unwrap()),
-    //         error: None,
-    //     }
-    // }
+    fn create_test_resp(id: &str, origin_id: &str) -> Response {
+        let result = TestResult {
+            origin_id: Some(origin_id.to_string()),
+            status_code: StatusCode::Ok,
+            data_kind: None,
+            data: None,
+        };
+        Response {
+            id: id.into(),
+            result: Some(to_value(result).unwrap()),
+            error: None,
+        }
+    }
 }

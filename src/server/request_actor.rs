@@ -1,7 +1,27 @@
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 #![allow(unused_variables)]
 
-use crate::bsp_types::mappings::{create_diagnostics, SuiteEvent, TestEvent, TestResult, TestType};
+use std::collections::{HashMap, HashSet};
+use std::io;
+use std::path::{Path, PathBuf};
+use std::process::ExitStatus;
+
+use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
+use lsp_types::DiagnosticSeverity;
+use mockall::*;
+use paths::AbsPath;
+use serde::Serialize;
+use serde_json::to_value;
+
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
+// pub use cargo_metadata::diagnostic::{
+//     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+//     DiagnosticSpanMacroExpansion,
+// };
+// use cargo_metadata::Message;
+use crate::bsp_types::cargo_output::Message;
+use crate::bsp_types::mappings::test::{SuiteEvent, TestEvent, TestResult, TestType};
+use crate::bsp_types::mappings::to_publish_diagnostics::create_diagnostics;
 use crate::bsp_types::notifications::{
     get_event_time, CompileReportData, CompileTaskData, LogMessage, LogMessageParams, MessageType,
     Notification as NotificationTrait, PublishDiagnostics, TaskDataWithKind, TaskFinish,
@@ -9,27 +29,10 @@ use crate::bsp_types::notifications::{
     TestStartData, TestStatus, TestTaskData,
 };
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
-use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::communication::{ErrorCode, Message as RPCMessage, Notification, ResponseError};
 use crate::communication::{RequestId, Response};
 use crate::logger::log;
 use crate::server::cargo_actor::CargoHandle;
-// pub use cargo_metadata::diagnostic::{
-//     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-//     DiagnosticSpanMacroExpansion,
-// };
-// use cargo_metadata::Message;
-use crate::bsp_types::cargo_output::Message;
-use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
-use lsp_types::DiagnosticSeverity;
-use mockall::*;
-use paths::AbsPath;
-use serde::Serialize;
-use serde_json::to_value;
-use std::collections::{HashMap, HashSet};
-use std::io;
-use std::path::{Path, PathBuf};
-use std::process::ExitStatus;
 
 pub enum Event {
     Cancel,
@@ -559,30 +562,33 @@ pub trait CargoHandleTrait<T> {
 
 #[cfg(test)]
 pub mod compile_request_tests {
-    use super::*;
-    use crate::bsp_types::notifications::{
-        CompileTaskData, Diagnostic as LSPDiagnostic, PublishDiagnosticsParams, TaskDataWithKind,
-        TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
-        TaskStartParams,
+    use std::os::unix::prelude::ExitStatusExt;
+
+    use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
+    use serde_json::to_string;
+
+    use crate::bsp_types::cargo_output::{
+        Artifact, ArtifactProfile, BuildFinished, BuildScript, CompilerMessage, Diagnostic,
+        DiagnosticCode, DiagnosticLevel, DiagnosticSpan, DiagnosticSpanLine, Edition,
+        Message::CompilerArtifact, PackageId, Target,
     };
-    use crate::bsp_types::requests::{Compile, CompileParams, CompileResult};
-    use crate::communication::{ErrorCode, Message, Notification, Response};
-    use crate::server::request_actor::CargoMessage::CargoStdout;
     // use cargo_metadata::Message::CompilerArtifact;
     // use cargo_metadata::{Artifact, ArtifactProfile, Edition, Target};
     use crate::bsp_types::cargo_output::Message::{
         BuildFinished as BuildFinishedEnum, BuildScriptExecuted,
         CompilerMessage as CompilerMessageEnum,
     };
-    use crate::bsp_types::cargo_output::{
-        Artifact, ArtifactProfile, BuildFinished, BuildScript, CompilerMessage, Diagnostic,
-        DiagnosticCode, DiagnosticLevel, DiagnosticSpan, DiagnosticSpanLine, Edition,
-        Message::CompilerArtifact, PackageId, Target,
+    use crate::bsp_types::notifications::{
+        CompileTaskData, Diagnostic as LSPDiagnostic, PublishDiagnosticsParams, TaskDataWithKind,
+        TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
+        TaskStartParams,
     };
+    use crate::bsp_types::requests::{Compile, CompileParams, CompileResult};
     use crate::bsp_types::TextDocumentIdentifier;
-    use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
-    use serde_json::to_string;
-    use std::os::unix::prelude::ExitStatusExt;
+    use crate::communication::{ErrorCode, Message, Notification, Response};
+    use crate::server::request_actor::CargoMessage::CargoStdout;
+
+    use super::*;
 
     fn init_test(
         mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>,
@@ -931,7 +937,7 @@ pub mod compile_request_tests {
             },
         };
         send_from_cargo
-            .send(CargoStdout(CompilerMessageEnum(compiler_mess.clone())))
+            .send(CargoStdout(CompilerMessageEnum(compiler_mess)))
             .unwrap();
         let proper_publish_diagnostic = Notification::new(
             PublishDiagnostics::METHOD.to_string(),
@@ -976,7 +982,7 @@ pub mod compile_request_tests {
     #[test]
     fn build_finished_simple() {
         #[allow(unused_mut)]
-            let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
 
         let _ = recv_to_main.recv(); // main task started
@@ -984,7 +990,7 @@ pub mod compile_request_tests {
 
         let build_finished = BuildFinished { success: true };
         send_from_cargo
-            .send(CargoStdout(BuildFinishedEnum(build_finished.clone())))
+            .send(CargoStdout(BuildFinishedEnum(build_finished)))
             .unwrap();
         let proper_task_finished = Notification::new(
             TaskFinish::METHOD.to_string(),
@@ -1119,7 +1125,7 @@ pub mod compile_request_tests {
 
         let build_finished = BuildFinished { success: true };
         send_from_cargo
-            .send(CargoStdout(BuildFinishedEnum(build_finished.clone())))
+            .send(CargoStdout(BuildFinishedEnum(build_finished)))
             .unwrap();
         let proper_task_finished = Notification::new(
             TaskFinish::METHOD.to_string(),

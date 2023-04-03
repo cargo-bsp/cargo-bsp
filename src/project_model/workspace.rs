@@ -1,6 +1,8 @@
-use crate::bsp_types::BuildTarget;
-use cargo_metadata::{CargoOpt, MetadataCommand, Package};
 use std::path::PathBuf;
+
+use cargo_metadata::{CargoOpt, MetadataCommand, Package};
+
+use crate::bsp_types::BuildTarget;
 
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {

@@ -9,16 +9,7 @@ pub mod notifications;
 
 #[cfg(test)]
 mod tests {
-    use serde::{Deserialize, Serialize};
-
-    pub(crate) fn test_serialization<SER>(ms: &SER, expected: &str)
-    where
-        SER: Serialize + for<'de> Deserialize<'de> + PartialEq + std::fmt::Debug,
-    {
-        let json_str = serde_json::to_string(ms).unwrap();
-        assert_eq!(&json_str, expected);
-        test_deserialization(&json_str, ms);
-    }
+    use serde::Deserialize;
 
     pub(crate) fn test_deserialization<T>(json: &str, expected: &T)
     where

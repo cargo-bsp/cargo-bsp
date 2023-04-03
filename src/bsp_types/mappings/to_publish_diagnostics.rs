@@ -2,17 +2,17 @@
 
 use std::collections::HashMap;
 
+use itertools::Itertools;
+use paths::AbsPath;
+
+use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
 // use cargo_metadata::diagnostic::{
 //     Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
 // };
 use crate::bsp_types::cargo_output::{
     Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
 };
-use itertools::Itertools;
-use paths::AbsPath;
-
 use crate::bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
-use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
 
 pub fn create_diagnostics(
     msg: &MetadataDiagnostic,

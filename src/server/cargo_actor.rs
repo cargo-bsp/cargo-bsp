@@ -1,19 +1,21 @@
-use crate::bsp_types::cargo_output::Message;
 use std::process::ExitStatus;
 use std::{
     io,
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
+
+use command_group::{CommandGroup, GroupChild};
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use serde::Deserialize;
+use stdx::process::streaming_output;
+
+use crate::bsp_types::cargo_output::Message;
 // pub use cargo_metadata::diagnostic::{
 //     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
 //     DiagnosticSpanMacroExpansion,
 // };
 // use cargo_metadata::Message;
 use crate::server::request_actor::{CargoHandleTrait, CargoMessage};
-use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use serde::Deserialize;
-use stdx::process::streaming_output;
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with

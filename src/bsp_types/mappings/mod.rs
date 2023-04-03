@@ -1,5 +1,5 @@
-mod to_publish_diagnostics;
-pub use to_publish_diagnostics::*;
+pub mod build_target;
 
-mod test;
-pub use test::*;
+pub mod to_publish_diagnostics;
+
+pub mod test;

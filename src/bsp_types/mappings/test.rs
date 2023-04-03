@@ -1,7 +1,8 @@
+use serde::Deserialize;
+
 use crate::bsp_types::notifications::{
     TaskDataWithKind, TestFinishData, TestReportData, TestStatus,
 };
-use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]

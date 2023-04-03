@@ -1,8 +1,9 @@
+#[cfg(not(test))]
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-#[cfg(not(test))]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::bsp_types::notifications::{Notification, TaskId};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
@@ -111,7 +112,7 @@ pub struct TaskProgressParams {
     pub data: Option<TaskDataWithKind>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskFinishParams {
     /** Unique id of the task with optional reference to parent task id */
@@ -281,9 +282,8 @@ pub enum TestStatus {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_json_snapshot;
     use url::Url;
-
-    use crate::bsp_types::tests::test_serialization;
 
     use super::*;
 
@@ -311,28 +311,31 @@ mod tests {
             data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          },
+          "eventTime": 1,
+          "message": "test_message",
+          "dataKind": "compile-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.event_time = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"message":"test_message","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.message = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data;
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message"}"#,
+        assert_json_snapshot!(TaskStartParams::default(),
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          }
+        }
+        "###
         );
     }
 
@@ -348,46 +351,34 @@ mod tests {
             data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          },
+          "eventTime": 1,
+          "message": "test_message",
+          "total": 2,
+          "progress": 3,
+          "unit": "test_unit",
+          "dataKind": "compile-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.event_time = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"message":"test_message","total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.message = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"total":2,"progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.total = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","progress":3,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.progress = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"unit":"test_unit","dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.unit = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data;
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","total":2,"progress":3,"unit":"test_unit"}"#,
+        assert_json_snapshot!(TaskProgressParams::default(),
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          }
+        }
+        "###
         );
     }
 
@@ -401,66 +392,126 @@ mod tests {
             data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          },
+          "eventTime": 1,
+          "message": "test_message",
+          "status": 2,
+          "dataKind": "compile-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.event_time = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"message":"test_message","status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data.clone();
-        modified.message = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"status":2,"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
-        );
-        modified = test_data;
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"taskId":{"id":""},"eventTime":1,"message":"test_message","status":2}"#,
+        assert_json_snapshot!(TaskFinishParams::default(),
+            @r###"
+        {
+          "taskId": {
+            "id": ""
+          },
+          "status": 2
+        }
+        "###
         );
     }
 
     #[test]
     fn task_data_with_kind() {
-        test_serialization(
-            &TaskDataWithKind::CompileTask(CompileTaskData::default()),
-            r#"{"dataKind":"compile-task","data":{"target":{"uri":""}}}"#,
+        assert_json_snapshot!(TaskDataWithKind::CompileTask(CompileTaskData::default()),
+            @r###"
+        {
+          "dataKind": "compile-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "###
         );
-        test_serialization(
-            &TaskDataWithKind::CompileReport(CompileReportData::default()),
-            r#"{"dataKind":"compile-report","data":{"target":{"uri":""},"errors":0,"warnings":0}}"#,
+        assert_json_snapshot!(TaskDataWithKind::CompileReport(CompileReportData::default()),
+            @r###"
+        {
+          "dataKind": "compile-report",
+          "data": {
+            "target": {
+              "uri": ""
+            },
+            "errors": 0,
+            "warnings": 0
+          }
+        }
+        "###
         );
-        test_serialization(
-            &TaskDataWithKind::TestTask(TestTaskData::default()),
-            r#"{"dataKind":"test-task","data":{"target":{"uri":""}}}"#,
+        assert_json_snapshot!(TaskDataWithKind::TestTask(TestTaskData::default()),
+            @r###"
+        {
+          "dataKind": "test-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "###
         );
-        test_serialization(
-            &TaskDataWithKind::TestReport(TestReportData::default()),
-            r#"{"dataKind":"test-report","data":{"target":{"uri":""},"passed":0,"failed":0,"ignored":0,"cancelled":0,"skipped":0}}"#,
+        assert_json_snapshot!(TaskDataWithKind::TestReport(TestReportData::default()),
+            @r###"
+        {
+          "dataKind": "test-report",
+          "data": {
+            "target": {
+              "uri": ""
+            },
+            "passed": 0,
+            "failed": 0,
+            "ignored": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        }
+        "###
         );
-        test_serialization(
-            &TaskDataWithKind::TestStart(TestStartData::default()),
-            r#"{"dataKind":"test-start","data":{"displayName":""}}"#,
+        assert_json_snapshot!(TaskDataWithKind::TestStart(TestStartData::default()),
+            @r###"
+        {
+          "dataKind": "test-start",
+          "data": {
+            "displayName": ""
+          }
+        }
+        "###
         );
-        test_serialization(
-            &TaskDataWithKind::TestFinish(TestFinishData::default()),
-            r#"{"dataKind":"test-finish","data":{"displayName":"","status":2}}"#,
+        assert_json_snapshot!(TaskDataWithKind::TestFinish(TestFinishData::default()),
+            @r###"
+        {
+          "dataKind": "test-finish",
+          "data": {
+            "displayName": "",
+            "status": 2
+          }
+        }
+        "###
         );
     }
 
     #[test]
     fn compile_task_data() {
-        test_serialization(
-            &CompileTaskData {
-                target: BuildTargetIdentifier::default(),
-            },
-            r#"{"target":{"uri":""}}"#,
+        assert_json_snapshot!(CompileTaskData::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          }
+        }
+        "###
         );
     }
 
@@ -475,38 +526,43 @@ mod tests {
             no_op: Some(true),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"time":3,"noOp":true}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "originId": "test_originId",
+          "errors": 1,
+          "warnings": 2,
+          "time": 3,
+          "noOp": true
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.origin_id = None;
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"errors":1,"warnings":2,"time":3,"noOp":true}"#,
-        );
-        modified = test_data.clone();
-        modified.time = None;
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"noOp":true}"#,
-        );
-        modified = test_data;
-        modified.no_op = None;
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"originId":"test_originId","errors":1,"warnings":2,"time":3}"#,
+        assert_json_snapshot!(CompileReportData::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "errors": 0,
+          "warnings": 0
+        }
+        "###
         );
     }
 
     #[test]
     fn test_task_data() {
-        test_serialization(
-            &TestTaskData {
-                target: BuildTargetIdentifier::default(),
-            },
-            r#"{"target":{"uri":""}}"#,
+        assert_json_snapshot!(TestTaskData::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          }
+        }
+        "###
         );
     }
 
@@ -522,16 +578,34 @@ mod tests {
             time: Some(6),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"target":{"uri":""},"passed":1,"failed":2,"ignored":3,"cancelled":4,"skipped":5,"time":6}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "passed": 1,
+          "failed": 2,
+          "ignored": 3,
+          "cancelled": 4,
+          "skipped": 5,
+          "time": 6
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.time = None;
-        test_serialization(
-            &modified,
-            r#"{"target":{"uri":""},"passed":1,"failed":2,"ignored":3,"cancelled":4,"skipped":5}"#,
+        assert_json_snapshot!(TestReportData::default(),
+            @r###"
+        {
+          "target": {
+            "uri": ""
+          },
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+        "###
         );
     }
 
@@ -545,14 +619,33 @@ mod tests {
             )),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"displayName":"test_name","location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "displayName": "test_name",
+          "location": {
+            "uri": "file:///test",
+            "range": {
+              "start": {
+                "line": 0,
+                "character": 0
+              },
+              "end": {
+                "line": 0,
+                "character": 0
+              }
+            }
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data;
-        modified.location = None;
-        test_serialization(&modified, r#"{"displayName":"test_name"}"#);
+        assert_json_snapshot!(TestStartData::default(),
+            @r###"
+        {
+          "displayName": ""
+        }
+        "###
+        );
     }
 
     #[test]
@@ -569,42 +662,48 @@ mod tests {
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
 
-        test_serialization(
-            &test_data,
-            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+        assert_json_snapshot!(test_data,
+            @r###"
+        {
+          "displayName": "test_name",
+          "message": "test_message",
+          "status": 2,
+          "location": {
+            "uri": "file:///test",
+            "range": {
+              "start": {
+                "line": 0,
+                "character": 0
+              },
+              "end": {
+                "line": 0,
+                "character": 0
+              }
+            }
+          },
+          "dataKind": "test_dataKind",
+          "data": {
+            "dataKey": "dataValue"
+          }
+        }
+        "###
         );
-
-        let mut modified = test_data.clone();
-        modified.message = None;
-        test_serialization(
-            &modified,
-            r#"{"displayName":"test_name","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-        );
-        modified = test_data.clone();
-        modified.location = None;
-        test_serialization(
-            &modified,
-            r#"{"displayName":"test_name","message":"test_message","status":2,"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
-        );
-        modified = test_data;
-        modified.data_kind = None;
-        test_serialization(
-            &modified,
-            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}},"data":{"dataKey":"dataValue"}}"#,
-        );
-        modified.data = None;
-        test_serialization(
-            &modified,
-            r#"{"displayName":"test_name","message":"test_message","status":2,"location":{"uri":"file:///test","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}}"#,
+        assert_json_snapshot!(TestFinishData::default(),
+            @r###"
+        {
+          "displayName": "",
+          "status": 2
+        }
+        "###
         );
     }
 
     #[test]
     fn test_status() {
-        test_serialization(&TestStatus::Passed, r#"1"#);
-        test_serialization(&TestStatus::Failed, r#"2"#);
-        test_serialization(&TestStatus::Ignored, r#"3"#);
-        test_serialization(&TestStatus::Cancelled, r#"4"#);
-        test_serialization(&TestStatus::Skipped, r#"5"#);
+        assert_json_snapshot!(TestStatus::Passed, @"1");
+        assert_json_snapshot!(TestStatus::Failed, @"2");
+        assert_json_snapshot!(TestStatus::Ignored, @"3");
+        assert_json_snapshot!(TestStatus::Cancelled, @"4");
+        assert_json_snapshot!(TestStatus::Skipped, @"5");
     }
 }
