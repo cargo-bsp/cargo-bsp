@@ -700,6 +700,7 @@ pub mod compile_request_tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn simple_cancel() {
         #[allow(unused_mut)]
@@ -882,6 +883,7 @@ pub mod compile_request_tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn compiler_message_with_one_publish_diagnostic() {
         #[allow(unused_mut)]

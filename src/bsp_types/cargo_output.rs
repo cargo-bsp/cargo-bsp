@@ -5,9 +5,10 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Eq, PartialEq, Clone, Debug, Copy, Hash, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Copy, Hash, Serialize, Deserialize, Default)]
 /// Dependencies can come in three kinds
 pub enum DependencyKind {
+    #[default]
     #[serde(rename = "normal")]
     /// The 'normal' kind
     Normal,
@@ -20,12 +21,6 @@ pub enum DependencyKind {
     #[doc(hidden)]
     #[serde(other)]
     Unknown,
-}
-
-impl Default for DependencyKind {
-    fn default() -> DependencyKind {
-        DependencyKind::Normal
-    }
 }
 
 /// The `kind` can be `null`, which is interpreted as the default - `Normal`.
