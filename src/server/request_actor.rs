@@ -1,7 +1,7 @@
 #![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
 #![allow(unused_variables)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
@@ -115,7 +115,6 @@ struct RequestActorState {
     execution_task_id: TaskId,
     root_test_task_id: TaskId,
     single_test_task_ids: HashMap<String, TaskId>,
-    started_tasks: HashSet<TaskId>,
 }
 
 impl RequestActorState {
@@ -142,7 +141,6 @@ impl RequestActorState {
                 parents: vec![root_task_id.id],
             },
             single_test_task_ids: HashMap::new(),
-            started_tasks: HashSet::new(),
         }
     }
 }
@@ -171,18 +169,17 @@ where
     }
 
     fn report_task_start(
-        &mut self,
+        &self,
         task_id: TaskId,
         message: Option<String>,
         data: Option<TaskDataWithKind>,
     ) {
         self.send_notification::<TaskStart>(TaskStartParams {
-            task_id: task_id.clone(),
+            task_id,
             event_time: get_event_time(),
             message,
             data,
         });
-        self.state.started_tasks.insert(task_id);
     }
 
     fn report_task_progress(&self, task_id: TaskId, message: Option<String>) {
@@ -199,20 +196,19 @@ where
     }
 
     fn report_task_finish(
-        &mut self,
+        &self,
         task_id: TaskId,
         status: StatusCode,
         message: Option<String>,
         data: Option<TaskDataWithKind>,
     ) {
         self.send_notification::<TaskFinish>(TaskFinishParams {
-            task_id: task_id.clone(),
+            task_id,
             event_time: get_event_time(),
             message,
             status,
             data,
         });
-        self.state.started_tasks.remove(&task_id);
     }
 
     fn log_message(&self, message_type: MessageType, message: String) {
@@ -413,7 +409,7 @@ where
         }
     }
 
-    fn start_execution_task(&mut self, method: String) {
+    fn start_execution_task(&self, method: String) {
         if method.eq("buildTarget/run") {
             self.report_task_start(
                 self.state.execution_task_id.clone(),
@@ -423,7 +419,7 @@ where
         }
     }
 
-    fn finish_execution_task(&mut self, status_code: &StatusCode, method: String) {
+    fn finish_execution_task(&self, status_code: &StatusCode, method: String) {
         if method.eq("buildTarget/run") {
             self.report_task_finish(
                 self.state.execution_task_id.clone(),
@@ -506,13 +502,13 @@ where
     fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             self.cancel_process(cargo_handle);
-            self.cancel_tasks_and_request();
+            self.cancel_task_and_request();
         } else {
             todo!()
         }
     }
 
-    fn cancel_process(&mut self, cargo_handle: C) {
+    fn cancel_process(&self, cargo_handle: C) {
         self.report_task_start(
             TaskId {
                 id: TaskId::generate_random_id(),
@@ -533,8 +529,13 @@ where
         );
     }
 
-    fn cancel_tasks_and_request(&self) {
-        // TODO cancel other started tasks
+    fn cancel_task_and_request(&self) {
+        self.report_task_finish(
+            self.state.root_task_id.clone(),
+            StatusCode::Cancelled,
+            None,
+            None,
+        );
         self.send(RPCMessage::Response(Response {
             id: self.req_id.clone(),
             result: None,
@@ -700,7 +701,6 @@ pub mod compile_request_tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn simple_cancel() {
         #[allow(unused_mut)]
@@ -754,7 +754,7 @@ pub mod compile_request_tests {
         let proper_response = Response::new_err(
             "test_req_id".into(),
             ErrorCode::RequestCanceled as i32,
-            "".into(),
+            "Request \"test_req_id\" canceled".into(),
         );
         assert_eq!(
             recv_to_main.recv().unwrap(),
