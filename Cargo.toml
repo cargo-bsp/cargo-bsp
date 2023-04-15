@@ -17,7 +17,7 @@ crossbeam-channel = "0.5.6"
 rustc-hash = "1.1.0"
 anyhow = { version = "1.0.69", default-features = false }
 url = "2.3.1"
-command-group = "1.0.8"
+command-group = "2.1.0"
 cargo_metadata = "0.15.4"
 jod-thread = "0.1.2"
 stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
