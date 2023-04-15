@@ -53,30 +53,14 @@ pub struct BuildTarget {
 
     /** Language-specific metadata about this target.
      * See ScalaBuildTarget as an example. */
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<RustBuildTargetData>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RustBuildTargetData {
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    /** Language-specific metadata about this target.
-     * See ScalaBuildTarget as an example. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<RustBuildTarget>,
-}
-
-impl RustBuildTargetData {
-    pub fn new(data: RustBuildTarget) -> Self {
-        RustBuildTargetData {
-            data_kind: Some("rust".to_string()),
-            data: Some(data),
-        }
-    }
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum RustBuildTargetData {
+    Rust(RustBuildTarget),
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -199,7 +183,7 @@ mod tests {
             capabilities: BuildTargetCapabilities::default(),
             language_ids: vec!["test_languageId".to_string()],
             dependencies: vec![BuildTargetIdentifier::default()],
-            data: Some(RustBuildTargetData::new(RustBuildTarget::default())),
+            data: Some(RustBuildTargetData::Rust(RustBuildTarget::default())),
         };
 
         assert_json_snapshot!(test_data,
@@ -284,24 +268,16 @@ mod tests {
 
     #[test]
     fn rust_build_target_data() {
-        let test_data = RustBuildTargetData {
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(RustBuildTarget::default()),
-        };
-
-        assert_json_snapshot!(test_data,
+        assert_json_snapshot!(RustBuildTargetData::Rust(RustBuildTarget::default()),
             @r###"
         {
-          "dataKind": "test_dataKind",
+          "dataKind": "rust",
           "data": {
             "edition": "2015",
             "requiredFeatures": []
           }
         }
         "###
-        );
-        assert_json_snapshot!(RustBuildTargetData::default(),
-            @"{}"
         );
     }
 

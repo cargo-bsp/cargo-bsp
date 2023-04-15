@@ -85,7 +85,7 @@ impl From<&cargo_metadata::Target> for BuildTarget {
         // we assume that cargo metadata returns valid path to file, which additionally has a parent
         base_directory.pop();
 
-        let rust_specific_data = RustBuildTargetData::new(RustBuildTarget {
+        let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
             edition: cargo_target.edition,
             required_features: cargo_target.required_features.clone(),
         });
