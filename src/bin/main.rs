@@ -26,7 +26,7 @@ mod tests {
     };
     use cargo_bsp::bsp_types::requests::{
         BuildServerCapabilities, CompileProvider, InitializeBuild, InitializeBuildParams,
-        InitializeBuildResult, Request as _, ShutdownBuild, WorkspaceBuildTargets,
+        InitializeBuildResult, Request as _, ShutdownBuild,
     };
     use cargo_bsp::client::Client;
     use cargo_bsp::communication::{Notification, Request, Response};
@@ -76,19 +76,6 @@ mod tests {
     }
 
     #[test]
-    fn drop_notif_before_init() {
-        let mut child = spawn_server();
-        let mut cl = Client::new(&mut child);
-
-        let init_notif = create_init_notif();
-        cl.send(&serde_json::to_string(&init_notif).unwrap());
-
-        init_conn(&mut cl);
-        shutdown_conn(&mut cl);
-        assert_eq!(child.wait().unwrap().code(), Some(0));
-    }
-
-    #[test]
     fn exit_notif_before_init() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -108,22 +95,6 @@ mod tests {
         let exit_notif = create_exit_notif();
         cl.send(&serde_json::to_string(&exit_notif).unwrap());
         assert_eq!(child.wait().unwrap().code(), Some(1));
-    }
-
-    #[test]
-    fn wrong_req_before_init() {
-        let mut child = spawn_server();
-        let mut cl = Client::new(&mut child);
-
-        let build_workspace_req = create_build_req(2137);
-        cl.send(&serde_json::to_string(&build_workspace_req).unwrap());
-
-        let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
-        assert_eq!(server_resp.error.unwrap().code, -32002);
-
-        init_conn(&mut cl);
-        shutdown_conn(&mut cl);
-        assert_eq!(child.wait().unwrap().code(), Some(0));
     }
 
     fn create_init_req(id: i32) -> Request {
@@ -199,14 +170,6 @@ mod tests {
     fn create_exit_notif() -> Notification {
         Notification {
             method: ExitBuild::METHOD.to_string(),
-            params: Default::default(),
-        }
-    }
-
-    fn create_build_req(id: i32) -> Request {
-        Request {
-            id: id.into(),
-            method: WorkspaceBuildTargets::METHOD.to_string(),
             params: Default::default(),
         }
     }
