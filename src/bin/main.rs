@@ -27,8 +27,9 @@ mod tests {
     };
     use cargo_bsp::bsp_types::requests::{
         BuildServerCapabilities, CompileProvider, InitializeBuild, InitializeBuildParams,
-        InitializeBuildResult, Request as _, Run, RunParams, RunResult, ShutdownBuild, Test,
-        TestParams, TestResult, WorkspaceBuildTargets, WorkspaceBuildTargetsResult,
+        InitializeBuildResult, Request as _, Run, RunParams, RunProvider, RunResult, ShutdownBuild,
+        Test, TestParams, TestProvider, TestResult, WorkspaceBuildTargets,
+        WorkspaceBuildTargetsResult,
     };
     use cargo_bsp::bsp_types::{
         BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, StatusCode,
@@ -209,18 +210,22 @@ mod tests {
                 compile_provider: Some(CompileProvider {
                     language_ids: vec![],
                 }),
-                test_provider: None,
-                run_provider: None,
+                test_provider: Some(TestProvider {
+                    language_ids: vec![],
+                }),
+                run_provider: Some(RunProvider {
+                    language_ids: vec![],
+                }),
                 debug_provider: None,
                 inverse_sources_provider: Some(false),
                 dependency_sources_provider: Some(false),
                 dependency_modules_provider: Some(false),
-                resources_provider: Some(true),
+                resources_provider: Some(false),
                 output_paths_provider: Some(false),
                 build_target_changed_provider: Some(false),
                 jvm_run_environment_provider: Some(false),
                 jvm_test_environment_provider: Some(false),
-                can_reload: Some(false),
+                can_reload: Some(true),
             },
             data: None,
         };

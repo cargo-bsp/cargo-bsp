@@ -59,7 +59,6 @@ impl RequestHandle {
         }
     }
 
-    #[allow(dead_code)]
     pub fn cancel(&self) {
         self.sender_to_cancel.send(Event::Cancel).unwrap();
     }

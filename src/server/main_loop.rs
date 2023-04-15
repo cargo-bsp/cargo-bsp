@@ -5,7 +5,6 @@
 use std::time::Instant;
 
 use crossbeam_channel::{select, Receiver};
-use log::info;
 
 use communication::{Connection, Notification, Request};
 
@@ -33,6 +32,9 @@ impl GlobalState {
         while let Some(event) = self.next_message(&inbox) {
             if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
+                    if !self.shutdown_requested {
+                        break;
+                    }
                     return Ok(());
                 }
             }
@@ -124,16 +126,18 @@ impl GlobalState {
             .finish();
     }
 
-    // Handles an incoming notification.
+    /// Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
-        // TODO handle cancel request
-
         NotificationDispatcher {
             not: Some(not),
             global_state: self,
         }
-        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-            info!("Got exit notification");
+        .on::<lsp_types::notification::Cancel>(|this, params| {
+            let id: communication::RequestId = match params.id {
+                lsp_types::NumberOrString::Number(id) => id.into(),
+                lsp_types::NumberOrString::String(id) => id.into(),
+            };
+            this.cancel(id);
             Ok(())
         })?
         .finish();

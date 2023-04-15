@@ -91,9 +91,11 @@ impl GlobalState {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn cancel(&mut self, request_id: RequestId) {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
+            if let Some(handler) = self.handlers.get(&response.id) {
+                handler.cancel()
+            }
             self.send(response.into());
         }
     }
