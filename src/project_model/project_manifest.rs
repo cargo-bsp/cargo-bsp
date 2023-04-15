@@ -1,5 +1,3 @@
-// copy from rust-analyzer
-
 use std::path::{Path, PathBuf};
 use std::{
     fs::{self, read_dir, ReadDir},

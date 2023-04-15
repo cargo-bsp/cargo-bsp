@@ -1,11 +1,3 @@
-// copy from rust-analyzer
-
-//! Driver for rust-analyzer.
-//!
-//! Based on cli flags, either spawns an LSP server, or runs a batch analysis
-
-#![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
-
 use std::env;
 
 use log::info;

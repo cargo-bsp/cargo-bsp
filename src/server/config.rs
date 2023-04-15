@@ -1,5 +1,3 @@
-// copy from rust-analyzer
-
 use std::path::PathBuf;
 
 use log::error;

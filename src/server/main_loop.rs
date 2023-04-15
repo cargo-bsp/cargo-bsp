@@ -1,6 +1,4 @@
-// copy from rust-analyzer
-
-//! The main loop of `rust-analyzer` responsible for dispatching LSP
+//! The main loop responsible for dispatching BSP
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 

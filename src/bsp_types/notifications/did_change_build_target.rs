@@ -13,7 +13,7 @@ impl Notification for DidChangeBuildTarget {
     const METHOD: &'static str = "buildTarget/didChange";
 }
 
-/* Build Target Changed Notification params */
+/**Build Target Changed Notification params */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct DidChangeBuildTargetParams {
     pub changes: Vec<BuildTargetEvent>,

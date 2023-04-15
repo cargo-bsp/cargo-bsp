@@ -2,8 +2,8 @@ use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/**  A resource identifier that is a valid URI according
-* to rfc3986: * https://tools.ietf.org/html/rfc3986 */
+/** A resource identifier that is a valid URI according
+to rfc3986: https://tools.ietf.org/html/rfc3986 */
 pub type Uri = String;
 
 pub const RUST_ID: &str = "rust";
@@ -20,39 +20,40 @@ pub struct BuildTarget {
     pub id: BuildTargetIdentifier,
 
     /** A human readable name for this target.
-     * May be presented in the user interface.
-     * Should be unique if possible.
-     * The id.uri is used if None. */
+    May be presented in the user interface.
+    Should be unique if possible.
+    The id.uri is used if None. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
 
     /** The directory where this target belongs to. Multiple build targets are allowed to map
-     * to the same base directory, and a build target is not required to have a base directory.
-     * A base directory does not determine the sources of a target, see buildTarget/sources. */
+    to the same base directory, and a build target is not required to have a base directory.
+    A base directory does not determine the sources of a target, see buildTarget/sources. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub base_directory: Option<Uri>,
 
     /** Free-form string tags to categorize or label this build target.
-     * For example, can be used by the client to:
-     * - customize how the target should be translated into the client's project model.
-     * - group together different but related targets in the user interface.
-     * - display icons or colors in the user interface.
-     * Pre-defined tags are listed in `build_target_tag` but clients and servers
-     * are free to define new tags for custom purposes. */
+    For example, can be used by the client to:
+    * customize how the target should be translated into the client's project model.
+    * group together different but related targets in the user interface.
+    * display icons or colors in the user interface.
+
+    Pre-defined tags are listed in `build_target_tag` but clients and servers
+    are free to define new tags for custom purposes. */
     pub tags: Vec<BuildTargetTag>,
 
     /** The capabilities of this build target. */
     pub capabilities: BuildTargetCapabilities,
 
     /** The set of languages that this target contains.
-     * The ID string for each language is defined in the LSP. */
+    The ID string for each language is defined in the LSP. */
     pub language_ids: Vec<String>,
 
     /** The direct upstream build target dependencies of this build target */
     pub dependencies: Vec<BuildTargetIdentifier>,
 
     /** Language-specific metadata about this target.
-     * See ScalaBuildTarget as an example. */
+    See ScalaBuildTarget as an example. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<RustBuildTargetData>,
 }
@@ -71,8 +72,8 @@ pub struct RustBuildTarget {
 }
 
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
-* within the workspace. Clients should not infer metadata out of the URI structure such as the path
-* or query parameters, use BuildTarget instead.*/
+within the workspace. Clients should not infer metadata out of the URI structure such as the path
+or query parameters, use BuildTarget instead.*/
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
@@ -83,38 +84,38 @@ pub struct BuildTargetIdentifier {
 #[serde(rename_all = "kebab-case")]
 pub enum BuildTargetTag {
     /** Target contains re-usable functionality for downstream targets. May have any
-     * combination of capabilities. */
+    combination of capabilities. */
     Library,
 
     /** Target contains source code for producing any kind of application, may have
-     * but does not require the `canRun` capability. */
+    but does not require the `canRun` capability. */
     Application,
 
     /** Target contains source code for testing purposes, may have but does not
-     * require the `canTest` capability. */
+    require the `canTest` capability. */
     Test,
 
     /** Target contains source code for integration testing purposes, may have
-     * but does not require the `canTest` capability.
-     * The difference between "test" and "integration-test" is that
-     * integration tests traditionally run slower compared to normal tests
-     * and require more computing resources to execute. */
+    but does not require the `canTest` capability.
+    The difference between "test" and "integration-test" is that
+    integration tests traditionally run slower compared to normal tests
+    and require more computing resources to execute. */
     IntegrationTest,
 
     /** Target contains source code to measure performance of a program, may have
-     * but does not require the `canRun` build target capability. */
+    but does not require the `canRun` build target capability. */
     Benchmark,
 
     /** Target should be ignored by IDEs. */
     NoIde,
 
     /** Actions on the target such as build and test should only be invoked manually
-     * and explicitly. For example, triggering a build on all targets in the workspace
-     * should by default not include this target.
-     *
-     * The original motivation to add the "manual" tag comes from a similar functionality
-     * that exists in Bazel, where targets with this tag have to be specified explicitly
-     * on the command line. */
+    and explicitly. For example, triggering a build on all targets in the workspace
+    should by default not include this target.
+
+    The original motivation to add the "manual" tag comes from a similar functionality
+    that exists in Bazel, where targets with this tag have to be specified explicitly
+    on the command line. */
     #[default]
     Manual,
 }
@@ -132,7 +133,7 @@ pub struct BuildTargetCapabilities {
     pub can_debug: bool,
 }
 
-/* Included in notifications of tasks or requests to signal the completion state. */
+/** Included in notifications of tasks or requests to signal the completion state. */
 #[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
 pub enum StatusCode {

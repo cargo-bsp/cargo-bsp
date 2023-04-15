@@ -1,5 +1,3 @@
-// copy from rust-analyzer
-
 use std::{fmt, panic};
 
 use log::warn;

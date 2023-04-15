@@ -1,5 +1,3 @@
-// copy from rust-analyzer
-
 use crate::bsp_types::requests::{
     BuildServerCapabilities, CompileProvider, RunProvider, TestProvider,
 };

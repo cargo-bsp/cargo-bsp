@@ -35,8 +35,8 @@ pub struct OutputPathsItem {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct OutputPathItem {
     /** Either a file or a directory. A directory entry must end with a forward
-     * slash "/" and a directory entry implies that every nested path within the
-     * directory belongs to this output item. */
+    slash "/" and a directory entry implies that every nested path within the
+    directory belongs to this output item. */
     pub uri: Uri,
 
     /** Type of file of the output item, such as whether it is file or directory. */
