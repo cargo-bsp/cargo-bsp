@@ -106,16 +106,21 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(
+            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
                 handlers::handle_workspace_build_targets,
             )
-            .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
-            .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
-            .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_run_cargo::<bsp_types::requests::Compile>()
-            .on_run_cargo::<bsp_types::requests::Run>()
-            .on_run_cargo::<bsp_types::requests::Test>()
-            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync::<bsp_types::requests::Sources>(handlers::handle_sources)
+            .on_sync::<bsp_types::requests::Resources>(handlers::handle_resources)
+            .on_sync::<bsp_types::requests::JavaExtensions>(handlers::handle_java_extensions)
+            .on_sync::<bsp_types::requests::CleanCache>(handlers::handle_clean_cache)
+            .on_sync::<bsp_types::requests::DependencyModules>(handlers::handle_dependency_modules)
+            .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
+            .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
+            .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
+            .on_running_cargo::<bsp_types::requests::Compile>()
+            .on_running_cargo::<bsp_types::requests::Run>()
+            .on_running_cargo::<bsp_types::requests::Test>()
             .finish();
     }
 
