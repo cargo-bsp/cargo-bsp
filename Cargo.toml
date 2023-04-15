@@ -29,5 +29,4 @@ simplelog = "0.12.1"
 
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }
-ntest = "0.9.0"
 tempfile = "3.5.0"
