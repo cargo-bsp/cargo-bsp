@@ -32,32 +32,27 @@ impl Connection {
     /// Returns the request id and serialized `InitializeParams` from the client.
     pub fn initialize_start(&self) -> Result<(RequestId, serde_json::Value), ProtocolError> {
         loop {
-            match self.receiver.recv() {
-                Ok(Message::Request(req)) if req.is_initialize() => {
-                    return Ok((req.id, req.params));
-                }
+            break match self.receiver.recv() {
+                Ok(Message::Request(req)) if req.is_initialize() => Ok((req.id, req.params)),
                 // Respond to non-initialize requests with ServerNotInitialized
                 Ok(Message::Request(req)) => {
                     let resp = Response::new_err(
                         req.id.clone(),
                         ErrorCode::ServerNotInitialized as i32,
-                        format!("expected initialize request, got {:?}", req),
+                        format!("expected initialize request, got {req:?}"),
                     );
                     self.sender.send(resp.into()).unwrap();
+                    continue;
                 }
-                Ok(Message::Notification(n)) if !n.is_exit() => continue,
-                Ok(msg) => {
-                    return Err(ProtocolError(format!(
-                        "expected initialize request, got {:?}",
-                        msg
-                    )));
+                Ok(Message::Notification(n)) if !n.is_exit() => {
+                    continue;
                 }
-                Err(e) => {
-                    return Err(ProtocolError(format!(
-                        "expected initialize request, got error: {}",
-                        e
-                    )));
-                }
+                Ok(msg) => Err(ProtocolError(format!(
+                    "expected initialize request, got {msg:?}"
+                ))),
+                Err(e) => Err(ProtocolError(format!(
+                    "expected initialize request, got error: {e}"
+                ))),
             };
         }
     }
@@ -71,21 +66,14 @@ impl Connection {
         let resp = Response::new_ok(initialize_id, initialize_result);
         self.sender.send(resp.into()).unwrap();
         match &self.receiver.recv() {
-            Ok(Message::Notification(n)) if n.is_initialized() => (),
-            Ok(msg) => {
-                return Err(ProtocolError(format!(
-                    "expected Message::Notification, got: {:?}",
-                    msg,
-                )));
-            }
-            Err(e) => {
-                return Err(ProtocolError(format!(
-                    "expected initialized notification, got error: {}",
-                    e,
-                )));
-            }
+            Ok(Message::Notification(n)) if n.is_initialized() => Ok(()),
+            Ok(msg) => Err(ProtocolError(format!(
+                r#"expected initialized notification, got: {msg:?}"#
+            ))),
+            Err(e) => Err(ProtocolError(format!(
+                "expected initialized notification, got error: {e}",
+            ))),
         }
-        Ok(())
     }
 }
 
@@ -338,8 +326,8 @@ mod tests {
             test_f(TestCase {
                 test_message: Some(request.clone().into()),
                 expected_resp: Err(ProtocolError(format!(
-                    "expected Message::Notification, got: {:?}",
-                    Message::from(request),
+                    r#"expected initialized notification, got: {:?}"#,
+                    Message::from(request)
                 ))),
             });
         }
