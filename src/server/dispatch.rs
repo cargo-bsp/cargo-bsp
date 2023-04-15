@@ -2,11 +2,11 @@
 
 use std::{fmt, panic};
 
+use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::bsp_types::requests::CreateCommand;
 use crate::communication::ExtractError;
-use crate::logger::log;
 use crate::server::global_state::GlobalState;
 use crate::server::request_actor::RequestHandle;
 use crate::server::Result;
@@ -66,7 +66,7 @@ impl<'a> RequestDispatcher<'a> {
 
     pub(crate) fn finish(&mut self) {
         if let Some(req) = self.req.take() {
-            log(&format!("unknown request: {:?}", req));
+            warn!("unknown request: {:?}", req);
             let response = communication::Response::new_err(
                 req.id,
                 communication::ErrorCode::MethodNotFound as i32,
@@ -165,7 +165,7 @@ impl<'a> NotificationDispatcher<'a> {
     pub(crate) fn finish(&mut self) {
         if let Some(not) = &self.not {
             if !not.method.starts_with("$/") {
-                log(&format!("unhandled notification: {:?}", not));
+                warn!("unhandled notification: {:?}", not);
             }
         }
     }

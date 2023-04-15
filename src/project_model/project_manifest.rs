@@ -7,9 +7,8 @@ use std::{
 };
 
 use anyhow::Result;
+use log::warn;
 use rustc_hash::FxHashSet;
-
-use crate::logger::log;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub struct ProjectManifest {
@@ -83,10 +82,10 @@ impl ProjectManifest {
             0 => Err("Cargo.toml not found"),
             x => {
                 if x != 1 {
-                    log(&format!(
+                    warn!(
                         "warning: Discovered more than one workspace, proceeding with {:?}",
                         res[0]
-                    ));
+                    );
                 }
                 Ok(res[0].clone())
             }

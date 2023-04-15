@@ -5,10 +5,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use log::info;
 
 use crate::communication;
 use crate::communication::{Message, RequestId};
-use crate::logger::log;
 use crate::project_model::ProjectWorkspace;
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
@@ -76,10 +76,10 @@ impl GlobalState {
             }
 
             let duration = start.elapsed();
-            log(&format!(
+            info!(
                 "handled {} - ({}) in {:0.2?}",
                 method, response.id, duration
-            ));
+            );
             self.send(response.into());
         }
     }

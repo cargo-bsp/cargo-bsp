@@ -5,12 +5,12 @@
 use std::time::Instant;
 
 use crossbeam_channel::{select, Receiver};
+use log::info;
 
 use communication::{Connection, Notification, Request};
 
 use crate::bsp_types::notifications::Notification as _;
 use crate::communication::Message;
-use crate::logger::log;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
@@ -54,7 +54,6 @@ impl GlobalState {
 
     fn handle_message(&mut self, event: Event) -> Result<()> {
         let loop_start = Instant::now();
-        log(&format!("{:?} handle_message({:?})", loop_start, event));
 
         match event {
             Bsp(msg) => match msg {
@@ -129,7 +128,7 @@ impl GlobalState {
             global_state: self,
         }
         .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-            log("Got exit notification");
+            info!("Got exit notification");
             Ok(())
         })?
         .finish();

@@ -2,8 +2,9 @@
 
 use std::path::PathBuf;
 
+use log::error;
+
 use crate::bsp_types::requests::BuildClientCapabilities;
-use crate::logger::log;
 use crate::project_model::ProjectManifest;
 
 #[derive(Debug, Clone)]
@@ -35,7 +36,7 @@ impl Config {
             }
             Err(e) => {
                 // No Cargo.toml found
-                log(&format!("error: {}", e));
+                error!("error: {}", e);
                 todo!("Add Logging to client and change server state to waiting for reload");
             }
         }
