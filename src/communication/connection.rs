@@ -45,6 +45,7 @@ impl Connection {
                     );
                     self.sender.send(resp.into()).unwrap();
                 }
+                Ok(Message::Notification(n)) if !n.is_exit() => continue,
                 Ok(msg) => {
                     return Err(ProtocolError(format!(
                         "expected initialize request, got {:?}",
