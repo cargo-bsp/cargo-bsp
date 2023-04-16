@@ -9,7 +9,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use crate::communication;
 use crate::communication::{Message, RequestId};
 use crate::logger::log;
-use crate::project_model::ProjectWorkspace;
+use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
 
@@ -99,10 +99,13 @@ impl GlobalState {
     pub(crate) fn update_workspace_data(&mut self) {
         self.config.update_project_manifest();
 
-        //get a manifest path from config and pass it to new Project Workspace
-        self.workspace = Arc::new(ProjectWorkspace::from(
-            self.config.workspace_manifest.file.clone(),
-        ));
+        if let Ok(updated_workspace) =
+            ProjectWorkspace::new(self.config.workspace_manifest.file.clone())
+        {
+            self.workspace = Arc::new(updated_workspace);
+        } else {
+            log("error: Updating workspace state failed! `cargo metadata` failed to execute.");
+        }
     }
 }
 

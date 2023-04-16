@@ -4,10 +4,11 @@ use std::path::PathBuf;
 
 use crate::bsp_types::requests::BuildClientCapabilities;
 use crate::logger::log;
-use crate::project_model::ProjectManifest;
+use crate::project_model::project_manifest::ProjectManifest;
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    // we assume project has only one workspace, therefore one root Cargo.toml - ProjectManifest
     pub workspace_manifest: ProjectManifest,
     pub caps: BuildClientCapabilities,
     root_path: PathBuf,

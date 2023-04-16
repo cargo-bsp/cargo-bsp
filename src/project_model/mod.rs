@@ -1,5 +1,3 @@
-pub use project_manifest::ProjectManifest;
-pub use workspace::ProjectWorkspace;
-
-mod project_manifest;
-mod workspace;
+pub mod package_dependencies;
+pub mod project_manifest;
+pub mod workspace;

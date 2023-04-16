@@ -1,5 +1,3 @@
-// copy from rust-analyzer
-
 use std::path::{Path, PathBuf};
 use std::{
     fs::{self, read_dir, ReadDir},
@@ -71,6 +69,10 @@ impl ProjectManifest {
         }
     }
 
+    /// Discover the Cargo.toml files in the given path.
+    ///
+    /// However this BSP server implementation assumes that there is only one root Cargo.toml meaning one Workspace.
+    /// If found more than one takes the first one. If found none returns an error.
     pub fn discover(path: &PathBuf) -> Result<ProjectManifest, &'static str> {
         let res = ProjectManifest::discover_all(path)
             .unwrap_or_default()
