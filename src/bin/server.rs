@@ -12,13 +12,13 @@ fn log_file_location() -> PathBuf {
     let debug_dir = exe_path.parent().unwrap();
     let target_dir = debug_dir.parent().unwrap();
     let project_dir = target_dir.parent().unwrap();
-    return project_dir.join("logs.log");
+    project_dir.join("logs.log")
 }
 
 #[cfg(not(debug_assertions))]
 fn log_file_location() -> PathBuf {
     let project_dir = env::current_dir().unwrap();
-    return project_dir.join("cargo-bsp.log");
+    project_dir.join("cargo-bsp.log")
 }
 
 pub fn main() -> server::Result<()> {
