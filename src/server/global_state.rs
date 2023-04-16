@@ -18,7 +18,7 @@ pub(crate) struct GlobalState {
     sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
-    pub(crate) config: Config,
+    pub(crate) config: Arc<Config>,
 
     pub(crate) handlers: HashMap<RequestId, RequestHandle>,
     pub(crate) handlers_sender: Sender<Message>,
@@ -29,7 +29,7 @@ pub(crate) struct GlobalState {
 
 /// snapshot of server state for request handlers
 pub(crate) struct GlobalStateSnapshot {
-    pub(crate) _config: Config,
+    pub(crate) _config: Arc<Config>,
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
@@ -40,7 +40,7 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config,
+            config: Arc::new(config),
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
@@ -67,7 +67,7 @@ impl GlobalState {
 
     pub(crate) fn snapshot(&self) -> GlobalStateSnapshot {
         GlobalStateSnapshot {
-            _config: self.config.clone(),
+            _config: Arc::clone(&self.config),
             workspace: Arc::clone(&self.workspace),
         }
     }
@@ -104,7 +104,8 @@ impl GlobalState {
 
     // update the workspace data - called when (to be yet added) cargo watch discovers changes
     pub(crate) fn update_workspace_data(&mut self) {
-        self.config.update_project_manifest();
+        let mutable_config = Arc::make_mut(&mut self.config);
+        mutable_config.update_project_manifest();
 
         //get a manifest path from config and pass it to new Project Workspace
         self.workspace = Arc::new(ProjectWorkspace::from(

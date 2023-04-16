@@ -25,6 +25,8 @@ pub(crate) fn handle_resources(
     Ok(bsp_types::requests::ResourcesResult::default())
 }
 
+// the current version of the client sends a java extension request even though we are not working with java.
+// to be removed once it is fixed in the client
 pub(crate) fn handle_java_extensions(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::JavacOptionsParams,
