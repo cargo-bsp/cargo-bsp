@@ -33,8 +33,7 @@ impl Config {
                 self.workspace_manifest = workspace_manifest;
             }
             Err(e) => {
-                // No Cargo.toml found
-                error!("error: {}", e);
+                error!("No Cargo.toml found: {}", e);
                 todo!("Add Logging to client and change server state to waiting for reload");
             }
         }

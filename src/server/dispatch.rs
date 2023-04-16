@@ -65,7 +65,7 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
-    pub(crate) fn on_running_cargo<R>(&mut self) -> &mut Self
+    pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
         R::Params: CreateCommand + Send + fmt::Debug,

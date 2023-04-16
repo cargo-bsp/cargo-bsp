@@ -2,7 +2,7 @@ use crate::bsp_types::notifications::Notification;
 
 impl Notification for lsp_types::notification::Cancel {
     type Params = lsp_types::CancelParams;
-    const METHOD: &'static str = "build/cancelRequest";
+    const METHOD: &'static str = "$/cancelRequest";
 }
 
 #[cfg(test)]
@@ -12,11 +12,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exit_build_method() {
-        assert_eq!(
-            lsp_types::notification::Cancel::METHOD,
-            "build/cancelRequest"
-        );
+    fn cancel() {
+        assert_eq!(lsp_types::notification::Cancel::METHOD, "$/cancelRequest");
     }
 
     #[test]

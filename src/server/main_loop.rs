@@ -118,9 +118,9 @@ impl GlobalState {
             .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
             .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
             .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
-            .on_running_cargo::<bsp_types::requests::Compile>()
-            .on_running_cargo::<bsp_types::requests::Run>()
-            .on_running_cargo::<bsp_types::requests::Test>()
+            .on_cargo_run::<bsp_types::requests::Compile>()
+            .on_cargo_run::<bsp_types::requests::Run>()
+            .on_cargo_run::<bsp_types::requests::Test>()
             .finish();
     }
 

@@ -81,7 +81,7 @@ impl ProjectManifest {
             x => {
                 if x != 1 {
                     warn!(
-                        "warning: Discovered more than one workspace, proceeding with {:?}",
+                        "Discovered more than one workspace, proceeding with {:?}",
                         res[0]
                     );
                 }
