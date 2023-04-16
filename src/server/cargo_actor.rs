@@ -9,13 +9,12 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
-use crate::bsp_types::cargo_output::Message;
-// pub use cargo_metadata::diagnostic::{
-//     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-//     DiagnosticSpanMacroExpansion,
-// };
-// use cargo_metadata::Message;
 use crate::server::request_actor::{CargoHandleTrait, CargoMessage};
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
+use cargo_metadata::Message;
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with

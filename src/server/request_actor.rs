@@ -13,13 +13,6 @@ use paths::AbsPath;
 use serde::Serialize;
 use serde_json::to_value;
 
-use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
-// pub use cargo_metadata::diagnostic::{
-//     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-//     DiagnosticSpanMacroExpansion,
-// };
-// use cargo_metadata::Message;
-use crate::bsp_types::cargo_output::Message;
 use crate::bsp_types::mappings::test::{SuiteEvent, TestEvent, TestResult, TestType};
 use crate::bsp_types::mappings::to_publish_diagnostics::create_diagnostics;
 use crate::bsp_types::notifications::{
@@ -29,10 +22,16 @@ use crate::bsp_types::notifications::{
     TestStartData, TestStatus, TestTaskData,
 };
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::communication::{ErrorCode, Message as RPCMessage, Notification, ResponseError};
 use crate::communication::{RequestId, Response};
 use crate::logger::log;
 use crate::server::cargo_actor::CargoHandle;
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
+use cargo_metadata::Message;
 
 pub enum Event {
     Cancel,
@@ -157,7 +156,6 @@ where
         params: R::Params,
         root_path: &Path,
     ) -> RequestActor<R, C> {
-        log("Spawning a new request actor");
         RequestActor {
             sender,
             cargo_handle: None,
@@ -214,7 +212,7 @@ where
     fn log_message(&self, message_type: MessageType, message: String) {
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
-            task: Some(self.state.root_task_id.clone()),
+            task: Some(self.state.execution_task_id.clone()),
             origin_id: self.params.origin_id(),
             message,
         })
@@ -406,6 +404,7 @@ where
                     Err(_) => self.log_message(MessageType::Log, msg),
                 }
             }
+            _ => (),
         }
     }
 
@@ -504,6 +503,7 @@ where
             self.cancel_process(cargo_handle);
             self.cancel_task_and_request();
         } else {
+            // trzeba wyslac ze Task sie nie powiodl
             todo!()
         }
     }
@@ -565,20 +565,6 @@ pub trait CargoHandleTrait<T> {
 pub mod compile_request_tests {
     use std::os::unix::prelude::ExitStatusExt;
 
-    use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
-    use serde_json::to_string;
-
-    use crate::bsp_types::cargo_output::{
-        Artifact, ArtifactProfile, BuildFinished, BuildScript, CompilerMessage, Diagnostic,
-        DiagnosticCode, DiagnosticLevel, DiagnosticSpan, DiagnosticSpanLine, Edition,
-        Message::CompilerArtifact, PackageId, Target,
-    };
-    // use cargo_metadata::Message::CompilerArtifact;
-    // use cargo_metadata::{Artifact, ArtifactProfile, Edition, Target};
-    use crate::bsp_types::cargo_output::Message::{
-        BuildFinished as BuildFinishedEnum, BuildScriptExecuted,
-        CompilerMessage as CompilerMessageEnum,
-    };
     use crate::bsp_types::notifications::{
         CompileTaskData, Diagnostic as LSPDiagnostic, PublishDiagnosticsParams, TaskDataWithKind,
         TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
@@ -588,6 +574,18 @@ pub mod compile_request_tests {
     use crate::bsp_types::TextDocumentIdentifier;
     use crate::communication::{ErrorCode, Message, Notification, Response};
     use crate::server::request_actor::CargoMessage::CargoStdout;
+    use cargo_metadata::diagnostic::{
+        DiagnosticBuilder, DiagnosticCodeBuilder, DiagnosticSpanBuilder, DiagnosticSpanLineBuilder,
+    };
+    use cargo_metadata::Message::{
+        BuildFinished, BuildScriptExecuted, CompilerArtifact, CompilerMessage,
+    };
+    use cargo_metadata::{
+        ArtifactBuilder, ArtifactProfileBuilder, BuildFinishedBuilder, BuildScriptBuilder,
+        CompilerMessageBuilder, Edition, PackageId, TargetBuilder,
+    };
+    use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
+    use serde_json::to_string;
 
     use super::*;
 
@@ -783,33 +781,42 @@ pub mod compile_request_tests {
         let _ = recv_to_main.recv(); // main task started
         let _ = recv_to_main.recv(); // compilation task started
 
-        let compiler_artifact = Artifact {
-            package_id: PackageId {
+        let compiler_artifact = ArtifactBuilder::default()
+            .package_id(PackageId {
                 repr: "test_package_id".into(),
-            },
-            target: Target {
-                name: "test_target_name".to_string(),
-                kind: vec!["test_kind".into()],
-                crate_types: vec!["test_crate_type".into()],
-                required_features: vec!["test_required_feature".into()],
-                src_path: "test_src_path".into(),
-                edition: Edition::E2021,
-                doctest: false,
-                test: false,
-                doc: false,
-            },
-            profile: ArtifactProfile {
-                opt_level: "test_opt_level".into(),
-                debuginfo: Some(0),
-                debug_assertions: false,
-                overflow_checks: false,
-                test: false,
-            },
-            features: vec!["test_feature".into()],
-            filenames: vec!["test_filename".into()],
-            executable: Some("test_executable".into()),
-            fresh: false,
-        };
+            })
+            .manifest_path("test_manifest_path".to_string())
+            .target(
+                TargetBuilder::default()
+                    .name("test_target_name".to_string())
+                    .kind(vec!["test_kind".into()])
+                    .crate_types(vec!["test_crate_type".into()])
+                    .required_features(vec!["test_required_feature".into()])
+                    .src_path("test_src_path".to_string())
+                    .edition(Edition::E2021)
+                    .doctest(false)
+                    .test(false)
+                    .doc(false)
+                    .build()
+                    .unwrap(),
+            )
+            .profile(
+                ArtifactProfileBuilder::default()
+                    .opt_level("test_opt_level".to_string())
+                    .debuginfo(Some(0))
+                    .debug_assertions(false)
+                    .overflow_checks(false)
+                    .test(false)
+                    .build()
+                    .unwrap(),
+            )
+            .features(vec!["test_feature".into()])
+            .filenames(vec!["test_filename".into()])
+            .executable(Some("test_executable".into()))
+            .fresh(false)
+            .build()
+            .unwrap();
+
         send_from_cargo
             .send(CargoStdout(CompilerArtifact(compiler_artifact.clone())))
             .unwrap();
@@ -845,16 +852,18 @@ pub mod compile_request_tests {
         let _ = recv_to_main.recv(); // main task started
         let _ = recv_to_main.recv(); // compilation task started
 
-        let build_script_output = BuildScript {
-            package_id: PackageId {
-                repr: "test_package_id".into(),
-            },
-            linked_libs: vec!["test_linked_lib".into()],
-            linked_paths: vec!["test_linked_path".into()],
-            cfgs: vec!["test_cfg".into()],
-            env: vec![("test_env".into(), "test_env".into())],
-            out_dir: "test_out_dir".into(),
-        };
+        let build_script_output = BuildScriptBuilder::default()
+            .package_id(PackageId {
+                repr: "test_package_id".to_string(),
+            })
+            .linked_libs(vec!["test_linked_lib".into()])
+            .linked_paths(vec!["test_linked_path".into()])
+            .cfgs(vec!["test_cfg".into()])
+            .env(vec![("test_env".into(), "test_env".into())])
+            .out_dir("test_out_dir".to_string())
+            .build()
+            .unwrap();
+
         send_from_cargo
             .send(CargoStdout(BuildScriptExecuted(
                 build_script_output.clone(),
@@ -893,61 +902,84 @@ pub mod compile_request_tests {
         let _ = recv_to_main.recv(); // main task started
         let _ = recv_to_main.recv(); // compilation task started
 
-        let compiler_mess = CompilerMessage {
-            package_id: PackageId {
-                repr: "test_package_id".into(),
-            },
-            target: Target {
-                name: "test_target_name".into(),
-                kind: vec!["test_kind".into()],
-                crate_types: vec!["test_crate_type".into()],
-                required_features: vec!["test_required_feature".into()],
-                src_path: "test_src_path".into(),
-                edition: Edition::E2021,
-                doctest: false,
-                test: false,
-                doc: false,
-            },
-            message: Diagnostic {
-                message: "test_message".into(),
-                code: Some(DiagnosticCode {
-                    code: "test_code".to_string(),
-                    explanation: Some("test_explanation".into()),
-                }),
-                level: DiagnosticLevel::Warning,
-                spans: vec![DiagnosticSpan {
-                    file_name: "test_filename".into(),
-                    byte_start: 1,
-                    byte_end: 2,
-                    line_start: 3,
-                    line_end: 4,
-                    column_start: 5,
-                    column_end: 6,
-                    is_primary: true, // TODO czemu musi byc primary w to_publish_diagnostic.rs?
-                    text: vec![DiagnosticSpanLine {
-                        text: "test_text".into(),
-                        highlight_start: 7,
-                        highlight_end: 8,
-                    }],
-                    label: Some("test_label".into()),
-                    suggested_replacement: Some("test_suggested_replacement".into()),
-                    suggestion_applicability: None,
-                    expansion: None,
-                }],
-                children: vec![],
-                rendered: None,
-            },
-        };
-        send_from_cargo
-            .send(CargoStdout(CompilerMessageEnum(compiler_mess)))
+        let compiler_mess = CompilerMessageBuilder::default()
+            .package_id(PackageId {
+                repr: "test_package_id".to_string(),
+            })
+            .target(
+                TargetBuilder::default()
+                    .name("test_target_name".to_string())
+                    .kind(vec!["test_kind".into()])
+                    .crate_types(vec!["test_crate_type".into()])
+                    .required_features(vec!["test_required_feature".into()])
+                    .src_path("test_src_path".to_string())
+                    .edition(Edition::E2021)
+                    .doctest(false)
+                    .test(false)
+                    .doc(false)
+                    .build()
+                    .unwrap(),
+            )
+            .message(
+                DiagnosticBuilder::default()
+                    .message("test_message".to_string())
+                    .code(Some(
+                        DiagnosticCodeBuilder::default()
+                            .code("test_code".to_string())
+                            .explanation(Some("test_explanation".to_string()))
+                            .build()
+                            .unwrap(),
+                    ))
+                    .level(DiagnosticLevel::Error)
+                    .spans(vec![DiagnosticSpanBuilder::default()
+                        .file_name("test_file_name".to_string())
+                        .byte_start(0 as u32)
+                        .byte_end(0 as u32)
+                        .line_start(1 as usize)
+                        .line_end(2 as usize)
+                        .column_start(3 as usize)
+                        .column_end(4 as usize)
+                        .is_primary(true) // TODO czemu musi byc primary w to_publish_diagnostic.rs?
+                        .text(vec![DiagnosticSpanLineBuilder::default()
+                            .text("test_text".to_string())
+                            .highlight_start(0 as usize)
+                            .highlight_end(0 as usize)
+                            .build()
+                            .unwrap()])
+                        .label(Some("test_label".to_string()))
+                        .suggested_replacement(None)
+                        .suggestion_applicability(None)
+                        .expansion(None)
+                        .build()
+                        .unwrap()])
+                    .children(vec![DiagnosticBuilder::default()
+                        .message("test_child_message".to_string())
+                        .code(None)
+                        .level(DiagnosticLevel::Help)
+                        .spans(vec![])
+                        .children(vec![])
+                        .rendered(None)
+                        .build()
+                        .unwrap()])
+                    .rendered(Some("test_rendered".to_string()))
+                    .build()
+                    .unwrap(),
+            )
+            .build()
             .unwrap();
+
+        send_from_cargo
+            .send(CargoStdout(CompilerMessage(compiler_mess)))
+            .unwrap();
+
         let proper_publish_diagnostic = Notification::new(
             PublishDiagnostics::METHOD.to_string(),
             PublishDiagnosticsParams {
                 text_document: TextDocumentIdentifier {
                     uri: "file::///test_root_path/test_filename".into(),
                 },
-                build_target: "test_target_name".into(),
+                build_target: "".into(),
+                //TODO change to "test_target_name" later
                 origin_id: Some("test_origin_id".into()),
                 diagnostics: vec![LSPDiagnostic {
                     range: Range {
@@ -960,15 +992,16 @@ pub mod compile_request_tests {
                             character: 5,
                         },
                     },
-                    severity: Some(DiagnosticSeverity::WARNING),
+                    severity: Some(DiagnosticSeverity::ERROR),
                     code: Some(NumberOrString::String("test_code".to_string())),
                     code_description: None,
                     source: Some("cargo".into()),
-                    message: "test_text".to_string(),
+                    message: "test_message".to_string(),
                     related_information: None,
                     tags: None,
                     data: None,
                 }],
+                // TODO add children to list of diagnostics (?)
                 reset: false,
             },
         );
@@ -990,9 +1023,12 @@ pub mod compile_request_tests {
         let _ = recv_to_main.recv(); // main task started
         let _ = recv_to_main.recv(); // compilation task started
 
-        let build_finished = BuildFinished { success: true };
+        let build_finished = BuildFinishedBuilder::default()
+            .success(true)
+            .build()
+            .unwrap();
         send_from_cargo
-            .send(CargoStdout(BuildFinishedEnum(build_finished)))
+            .send(CargoStdout(BuildFinished(build_finished)))
             .unwrap();
         let proper_task_finished = Notification::new(
             TaskFinish::METHOD.to_string(),
@@ -1030,104 +1066,128 @@ pub mod compile_request_tests {
         let _ = recv_to_main.recv(); // main task started
         let _ = recv_to_main.recv(); // compilation task started
 
-        let compiler_message_warning = CompilerMessage {
-            package_id: PackageId {
-                repr: "test_package_id".into(),
-            },
-            target: Target {
-                name: "test_target_name".into(),
-                kind: vec!["test_kind".into()],
-                crate_types: vec!["test_crate_type".into()],
-                required_features: vec!["test_required_feature".into()],
-                src_path: "test_src_path".into(),
-                edition: Edition::E2021,
-                doctest: false,
-                test: false,
-                doc: false,
-            },
-            message: Diagnostic {
-                message: "".to_string(),
-                code: None,
-                level: DiagnosticLevel::Warning,
-                spans: vec![DiagnosticSpan {
-                    file_name: "test_filename".into(),
-                    byte_start: 1,
-                    byte_end: 2,
-                    line_start: 3,
-                    line_end: 4,
-                    column_start: 5,
-                    column_end: 6,
-                    is_primary: true,
-                    text: vec![DiagnosticSpanLine {
-                        text: "test_text".into(),
-                        highlight_start: 7,
-                        highlight_end: 8,
-                    }],
-                    label: Some("test_label".into()),
-                    suggested_replacement: Some("test_suggested_replacement".into()),
-                    suggestion_applicability: None,
-                    expansion: None,
-                }],
-                children: vec![],
-                rendered: None,
-            },
-        };
-        let compiler_message_error = CompilerMessage {
-            package_id: PackageId {
-                repr: "test_package_id".into(),
-            },
-            target: Target {
-                name: "test_target_name".into(),
-                kind: vec!["test_kind".into()],
-                crate_types: vec!["test_crate_type".into()],
-                required_features: vec!["test_required_feature".into()],
-                src_path: "test_src_path".into(),
-                edition: Edition::E2021,
-                doctest: false,
-                test: false,
-                doc: false,
-            },
-            message: Diagnostic {
-                message: "".to_string(),
-                code: None,
-                level: DiagnosticLevel::Error,
-                spans: vec![DiagnosticSpan {
-                    file_name: "test_filename".into(),
-                    byte_start: 1,
-                    byte_end: 2,
-                    line_start: 3,
-                    line_end: 4,
-                    column_start: 5,
-                    column_end: 6,
-                    is_primary: true,
-                    text: vec![DiagnosticSpanLine {
-                        text: "test_text".into(),
-                        highlight_start: 7,
-                        highlight_end: 8,
-                    }],
-                    label: Some("test_label".into()),
-                    suggested_replacement: Some("test_suggested_replacement".into()),
-                    suggestion_applicability: None,
-                    expansion: None,
-                }],
-                children: vec![],
-                rendered: None,
-            },
-        };
+        let compiler_message_warning = CompilerMessageBuilder::default()
+            .package_id(PackageId {
+                repr: "test_package_id".to_string(),
+            })
+            .target(
+                TargetBuilder::default()
+                    .name("test_target_name".to_string())
+                    .kind(vec!["test_kind".to_string()])
+                    .crate_types(vec!["test_crate_type".to_string()])
+                    .required_features(vec!["test_required_feature".to_string()])
+                    .src_path("test_src_path".to_string())
+                    .edition(Edition::E2021)
+                    .doctest(false)
+                    .test(false)
+                    .doc(false)
+                    .build()
+                    .unwrap(),
+            )
+            .message(
+                DiagnosticBuilder::default()
+                    .message("".to_string())
+                    .code(None)
+                    .level(DiagnosticLevel::Warning)
+                    .spans(vec![DiagnosticSpanBuilder::default()
+                        .file_name("test_filename".to_string())
+                        .byte_start(0 as u32)
+                        .byte_end(0 as u32)
+                        .line_start(0 as usize)
+                        .line_end(0 as usize)
+                        .column_start(0 as usize)
+                        .column_end(0 as usize)
+                        .is_primary(true)
+                        .text(vec![DiagnosticSpanLineBuilder::default()
+                            .text("test_text".to_string())
+                            .highlight_start(0 as usize)
+                            .highlight_end(0 as usize)
+                            .build()
+                            .unwrap()])
+                        .label(Some("test_label".to_string()))
+                        .suggested_replacement(None)
+                        .suggestion_applicability(None)
+                        .expansion(None)
+                        .build()
+                        .unwrap()])
+                    .children(vec![])
+                    .rendered(None)
+                    .build()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let compiler_message_error = CompilerMessageBuilder::default()
+            .package_id(PackageId {
+                repr: "test_package_id".to_string(),
+            })
+            .target(
+                TargetBuilder::default()
+                    .name("test_target_name".to_string())
+                    .kind(vec!["test_kind".to_string()])
+                    .crate_types(vec!["test_crate_type".to_string()])
+                    .required_features(vec!["test_required_feature".to_string()])
+                    .src_path("test_src_path".to_string())
+                    .edition(Edition::E2021)
+                    .doctest(false)
+                    .test(false)
+                    .doc(false)
+                    .build()
+                    .unwrap(),
+            )
+            .message(
+                DiagnosticBuilder::default()
+                    .message("".to_string())
+                    .code(None)
+                    .level(DiagnosticLevel::Error)
+                    .spans(vec![DiagnosticSpanBuilder::default()
+                        .file_name("test_filename".to_string())
+                        .byte_start(0 as u32)
+                        .byte_end(0 as u32)
+                        .line_start(0 as usize)
+                        .line_end(0 as usize)
+                        .column_start(0 as usize)
+                        .column_end(0 as usize)
+                        .is_primary(true)
+                        .text(vec![DiagnosticSpanLineBuilder::default()
+                            .text("test_text".to_string())
+                            .highlight_start(0 as usize)
+                            .highlight_end(0 as usize)
+                            .build()
+                            .unwrap()])
+                        .label(Some("test_label".to_string()))
+                        .suggested_replacement(None)
+                        .suggestion_applicability(None)
+                        .expansion(None)
+                        .build()
+                        .unwrap()])
+                    .children(vec![])
+                    .rendered(None)
+                    .build()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
         send_from_cargo
-            .send(CargoStdout(CompilerMessageEnum(compiler_message_warning)))
+            .send(CargoStdout(CompilerMessage(compiler_message_warning)))
             .unwrap();
         send_from_cargo
-            .send(CargoStdout(CompilerMessageEnum(compiler_message_error)))
+            .send(CargoStdout(CompilerMessage(compiler_message_error)))
             .unwrap();
 
         // TODO: sprawdzic czy powinno byc tak ze dostajemy publish diagnostic i dodajemy warningi tylko gdy jest cos w spanie
         let _ = recv_to_main.recv(); // publish diagnostic
         let _ = recv_to_main.recv(); // publish diagnostic
 
-        let build_finished = BuildFinished { success: true };
+        let build_finished = BuildFinishedBuilder::default()
+            .success(true)
+            .build()
+            .unwrap();
+
         send_from_cargo
-            .send(CargoStdout(BuildFinishedEnum(build_finished)))
+            .send(CargoStdout(BuildFinished(build_finished)))
             .unwrap();
         let proper_task_finished = Notification::new(
             TaskFinish::METHOD.to_string(),
@@ -1157,70 +1217,403 @@ pub mod compile_request_tests {
     }
 }
 
-// #[cfg(test)]
-// pub mod run_request_tests {
-//     use super::*;
-//     use crate::bsp_types::notifications::{
-//         CompileTaskData, TaskDataWithKind, TaskFinish, TaskFinishParams, TaskId, TaskProgress,
-//         TaskProgressParams, TaskStart, TaskStartParams,
-//     };
-//     use crate::bsp_types::requests::{
-//         Compile, CompileParams, CompileResult, Run, RunParams, Test, TestParams,
-//     };
-//     use crate::communication::{ErrorCode, Message, Notification, Response};
-//     use crate::server::request_actor::CargoMessage::CargoStdout;
-//     use crate::server::request_actor::Event::CargoFinish;
-//     use cargo_metadata::Message::CompilerArtifact;
-//     use std::os::unix::prelude::ExitStatusExt;
-//
-//     fn get_run_actor(
-//         sender_to_main: Sender<RPCMessage>,
-//     ) -> RequestActor<Run, MockCargoHandleTrait<CargoMessage>> {
-//         RequestActor::new(
-//             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-//             "test_req_id".into(),
-//             RunParams {
-//                 target: "test_target".into(),
-//                 origin_id: Some("test_origin_id".into()),
-//                 arguments: vec!["test_arguments".into()],
-//                 data_kind: Some("test_data_kind".into()),
-//                 data: Some("test_data".into()),
-//             },
-//             Path::new("test_root_path"),
-//         )
-//     }
-// }
-//
-// #[cfg(test)]
-// pub mod test_request_tests {
-//     use super::*;
-//     use crate::bsp_types::notifications::{
-//         CompileTaskData, TaskDataWithKind, TaskFinish, TaskFinishParams, TaskId, TaskProgress,
-//         TaskProgressParams, TaskStart, TaskStartParams,
-//     };
-//     use crate::bsp_types::requests::{
-//         Compile, CompileParams, CompileResult, Run, RunParams, Test, TestParams,
-//     };
-//     use crate::communication::{ErrorCode, Message, Notification, Response};
-//     use crate::server::request_actor::CargoMessage::CargoStdout;
-//     use crate::server::request_actor::Event::CargoFinish;
-//     use cargo_metadata::Message::CompilerArtifact;
-//     use std::os::unix::prelude::ExitStatusExt;
-//
-//     fn get_test_actor(
-//         sender_to_main: Sender<RPCMessage>,
-//     ) -> RequestActor<Test, MockCargoHandleTrait<CargoMessage>> {
-//         RequestActor::new(
-//             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-//             "test_req_id".into(),
-//             TestParams {
-//                 targets: vec!["test_target".into()],
-//                 origin_id: Some("test_origin_id".into()),
-//                 arguments: vec!["test_arguments".into()],
-//                 data_kind: Some("test_data_kind".into()),
-//                 data: Some("test_data".into()),
-//             },
-//             Path::new("test_root_path"),
-//         )
-//     }
-// }
+#[cfg(test)]
+pub mod run_request_tests {
+    use crate::bsp_types::requests::{Run, RunParams, RunResult};
+    use crate::communication::{Message, Notification, Response};
+    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
+    use cargo_metadata::BuildFinishedBuilder;
+    use cargo_metadata::Message::{BuildFinished, TextLine};
+    use std::os::unix::process::ExitStatusExt;
+
+    use super::*;
+
+    fn init_test(
+        mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>,
+    ) -> (Receiver<RPCMessage>, Sender<CargoMessage>, Sender<Event>) {
+        let (sender_to_main, receiver_to_main) = unbounded::<RPCMessage>();
+        let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
+
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+
+        let req_actor: RequestActor<Run, MockCargoHandleTrait<CargoMessage>> = RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            "test_req_id".into(),
+            RunParams {
+                target: "test_target".into(),
+                origin_id: Some("test_origin_id".into()),
+                arguments: vec!["--test_argument".into()],
+                data_kind: Some("test_data_kind".into()),
+                data: Some("test_data".into()),
+            },
+            Path::new("/test_root_path"),
+        );
+        let thread = jod_thread::Builder::new()
+            .spawn(move || req_actor.run(receiver_to_cancel, mock_cargo_handle))
+            .expect("failed to spawn thread")
+            .detach();
+
+        (receiver_to_main, sender_from_cargo, sender_to_cancel)
+    }
+
+    #[test]
+    fn simple_run() {
+        #[allow(unused_mut)]
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle
+            .expect_join()
+            .returning(|| Ok(ExitStatus::from_raw(0)));
+        let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
+
+        let _ = recv_to_main.recv(); // main task started
+        let _ = recv_to_main.recv(); // compilation task started
+        send_from_cargo
+            .send(CargoStdout(BuildFinished(
+                BuildFinishedBuilder::default()
+                    .success(true)
+                    .build()
+                    .unwrap(),
+            )))
+            .unwrap();
+        let compile_subtask_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: None,
+                status: StatusCode::Ok,
+                data: Some(TaskDataWithKind::CompileReport(CompileReportData {
+                    // TODO do poprawy
+                    target: BuildTargetIdentifier { uri: "".into() },
+                    origin_id: Some("test_origin_id".into()),
+                    errors: 0,
+                    warnings: 0,
+                    time: Some(0),
+                    no_op: None,
+                })),
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(compile_subtask_finished)
+        );
+        let run_subtask_started = Notification::new(
+            TaskStart::METHOD.to_string(),
+            TaskStartParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: Some("Started target execution".into()),
+                data: None,
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(run_subtask_started)
+        );
+        drop(send_from_cargo);
+
+        let run_subtask_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: Some("Finished target execution".into()),
+                status: StatusCode::Ok,
+                data: None,
+            },
+        );
+        let run_task_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "test_origin_id".into(),
+                    parents: vec![],
+                },
+                event_time: Some(1),
+                message: None,
+                status: StatusCode::Ok,
+                data: None,
+            },
+        );
+        let proper_resp = Response::new_ok(
+            "test_req_id".into(),
+            RunResult {
+                origin_id: Some("test_origin_id".into()),
+                status_code: StatusCode::Ok,
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(run_subtask_finished)
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(run_task_finished)
+        );
+        assert_eq!(recv_to_main.recv().unwrap(), Message::Response(proper_resp));
+    }
+
+    #[test]
+    fn simple_stdout() {
+        #[allow(unused_mut)]
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
+
+        let _ = recv_to_main.recv(); // main task started
+        let _ = recv_to_main.recv(); // compilation task started
+
+        let text_line = TextLine("test_text_line".to_string());
+        send_from_cargo.send(CargoStdout(text_line)).unwrap();
+
+        let proper_notif = Notification::new(
+            LogMessage::METHOD.to_string(),
+            LogMessageParams {
+                message_type: MessageType::Log,
+                message: "test_text_line".to_string(),
+                origin_id: Some("test_origin_id".into()),
+                task: Some(TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                }),
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(proper_notif)
+        );
+    }
+
+    #[test]
+    fn simple_stderr() {
+        #[allow(unused_mut)]
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
+
+        let _ = recv_to_main.recv(); // main task started
+        let _ = recv_to_main.recv(); // compilation task started
+
+        let stderr = CargoStderr("test_stderr".to_string());
+        send_from_cargo.send(stderr).unwrap();
+
+        let proper_notif = Notification::new(
+            LogMessage::METHOD.to_string(),
+            LogMessageParams {
+                message_type: MessageType::Error,
+                message: "test_stderr".to_string(),
+                origin_id: Some("test_origin_id".into()),
+                task: Some(TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                }),
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(proper_notif)
+        );
+    }
+}
+#[cfg(test)]
+pub mod test_request_tests {
+    use crate::bsp_types::mappings::test::{
+        SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName, TestResult as TestResultEnum,
+        TestType,
+    };
+    use crate::bsp_types::requests::{Test, TestParams, TestResult};
+    use crate::communication::{Message, Notification, Response};
+    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
+    use cargo_metadata::BuildFinishedBuilder;
+    use cargo_metadata::Message::{BuildFinished, TextLine};
+    use serde_json::to_string;
+    use std::os::unix::process::ExitStatusExt;
+
+    use super::*;
+
+    fn init_test(
+        mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>,
+    ) -> (Receiver<RPCMessage>, Sender<CargoMessage>, Sender<Event>) {
+        let (sender_to_main, receiver_to_main) = unbounded::<RPCMessage>();
+        let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
+        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
+
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+
+        let req_actor: RequestActor<Test, MockCargoHandleTrait<CargoMessage>> = RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            "test_req_id".into(),
+            TestParams {
+                targets: vec!["test_target".into()],
+                origin_id: Some("test_origin_id".into()),
+                arguments: vec!["--test_argument".into()],
+                data_kind: Some("test_data_kind".into()),
+                data: Some("test_data".into()),
+            },
+            Path::new("/test_root_path"),
+        );
+        let thread = jod_thread::Builder::new()
+            .spawn(move || req_actor.run(receiver_to_cancel, mock_cargo_handle))
+            .expect("failed to spawn thread")
+            .detach();
+
+        (receiver_to_main, sender_from_cargo, sender_to_cancel)
+    }
+
+    #[ignore]
+    #[test]
+    fn simple_test() {
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle
+            .expect_join()
+            .returning(|| Ok(ExitStatus::from_raw(0)));
+        let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
+
+        let _ = recv_to_main.recv(); // main task started
+        let _ = recv_to_main.recv(); // compilation task started
+        send_from_cargo
+            .send(CargoStdout(BuildFinished(
+                BuildFinishedBuilder::default()
+                    .success(true)
+                    .build()
+                    .unwrap(),
+            )))
+            .unwrap();
+        let compile_subtask_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: None,
+                status: StatusCode::Ok,
+                data: Some(TaskDataWithKind::CompileReport(CompileReportData {
+                    // TODO do poprawy
+                    target: BuildTargetIdentifier { uri: "".into() },
+                    origin_id: Some("test_origin_id".into()),
+                    errors: 0,
+                    warnings: 0,
+                    time: Some(0),
+                    no_op: None,
+                })),
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(compile_subtask_finished)
+        );
+        let test_subtask_started = Notification::new(
+            TaskStart::METHOD.to_string(),
+            TaskStartParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: Some("Started target testing".into()),
+                data: None,
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(test_subtask_started)
+        );
+        drop(send_from_cargo);
+        let test_subtask_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["test_origin_id".into()],
+                },
+                event_time: Some(1),
+                message: None,
+                status: StatusCode::Ok,
+                data: None,
+            },
+        );
+        let test_task_finished = Notification::new(
+            TaskFinish::METHOD.to_string(),
+            TaskFinishParams {
+                task_id: TaskId {
+                    id: "test_origin_id".into(),
+                    parents: vec![],
+                },
+                event_time: Some(1),
+                message: None,
+                status: StatusCode::Ok,
+                data: None,
+            },
+        );
+        let test_response = Response::new_ok(
+            "test_req_id".into(),
+            TestResult {
+                origin_id: Some("test_origin_id".into()),
+                status_code: StatusCode::Ok,
+                data_kind: Some("test_data_kind".into()),
+                data: Some("test_data".into()),
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(test_subtask_finished)
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(test_task_finished)
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Response(test_response)
+        );
+    }
+
+    #[ignore]
+    #[test]
+    fn suite_started() {
+        #[allow(unused_mut)]
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
+
+        let _ = recv_to_main.recv(); // main task started
+        let _ = recv_to_main.recv(); // compilation task started
+
+        let suite_started = SuiteStarted { test_count: 1 };
+        send_from_cargo
+            .send(CargoStdout(TextLine(
+                to_string(&TestType::Suite(SuiteEvent::Started(suite_started))).unwrap(),
+            )))
+            .unwrap();
+
+        let suite_task_started = Notification::new(
+            TaskStart::METHOD.to_string(),
+            TaskStartParams {
+                task_id: TaskId {
+                    id: "random_task_id".into(),
+                    parents: vec!["random_task_id".into()],
+                },
+                event_time: Some(1),
+                message: Some("Started test suite".into()),
+                data: None,
+            },
+        );
+        assert_eq!(
+            recv_to_main.recv().unwrap(),
+            Message::Notification(suite_task_started)
+        );
+    }
+}

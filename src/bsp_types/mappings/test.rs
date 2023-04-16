@@ -1,10 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::bsp_types::notifications::{
     TaskDataWithKind, TestFinishData, TestReportData, TestStatus,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "type")]
 pub enum TestType {
@@ -12,7 +12,7 @@ pub enum TestType {
     Test(TestEvent),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "event")]
 pub enum SuiteEvent {
@@ -21,20 +21,20 @@ pub enum SuiteEvent {
     Failed(SuiteResults),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SuiteStarted {
     #[allow(dead_code)]
-    test_count: i32,
+    pub(crate) test_count: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SuiteResults {
-    passed: i32,
-    failed: i32,
-    ignored: i32,
-    measured: i32,
-    filtered_out: i32,
-    exec_time: f64,
+    pub(crate) passed: i32,
+    pub(crate) failed: i32,
+    pub(crate) ignored: i32,
+    pub(crate) measured: i32,
+    pub(crate) filtered_out: i32,
+    pub(crate) exec_time: f64,
 }
 
 impl SuiteResults {
@@ -52,7 +52,7 @@ impl SuiteResults {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "event")]
 pub enum TestEvent {
@@ -63,9 +63,9 @@ pub enum TestEvent {
     Timeout(TestResult),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TestName {
-    name: String,
+    pub(crate) name: String,
 }
 
 impl TestName {
@@ -74,11 +74,11 @@ impl TestName {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TestResult {
-    name: String,
-    stdout: Option<String>,
-    stderr: Option<String>,
+    pub(crate) name: String,
+    pub(crate) stdout: Option<String>,
+    pub(crate) stderr: Option<String>,
 }
 
 impl TestResult {

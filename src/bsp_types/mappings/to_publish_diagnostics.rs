@@ -5,14 +5,11 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use paths::AbsPath;
 
+use crate::bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
 use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
-// use cargo_metadata::diagnostic::{
-//     Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-// };
-use crate::bsp_types::cargo_output::{
+use cargo_metadata::diagnostic::{
     Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
 };
-use crate::bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
 
 pub fn create_diagnostics(
     msg: &MetadataDiagnostic,
@@ -166,7 +163,7 @@ fn map_cargo_diagnostic_to_bsp(
                 message: message.clone(),
                 related_information: Some(information_for_additional_diagnostic),
                 tags: tags.as_ref().cloned(),
-                data: Some(serde_json::json!({ "rendered": diagnostic.rendered })),
+                data: None,
             };
             add_diagnostic(secondary_location.uri, diagnostic, &mut diagnostics);
         }
@@ -192,7 +189,7 @@ fn map_cargo_diagnostic_to_bsp(
                 }
             },
             tags: tags.as_ref().cloned(),
-            data: Some(serde_json::json!({ "rendered": diagnostic.rendered })),
+            data: None,
         };
         add_diagnostic(primary_location.uri.clone(), diagnostic, &mut diagnostics);
 
@@ -239,6 +236,7 @@ fn diagnostic_severity(level: DiagnosticLevel) -> Option<lsp_types::DiagnosticSe
         DiagnosticLevel::FailureNote => lsp_types::DiagnosticSeverity::INFORMATION,
         DiagnosticLevel::Note => lsp_types::DiagnosticSeverity::INFORMATION,
         DiagnosticLevel::Help => lsp_types::DiagnosticSeverity::HINT,
+        _ => return None,
     };
     Some(res)
 }

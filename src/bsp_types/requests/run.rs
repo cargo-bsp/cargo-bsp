@@ -25,7 +25,6 @@ impl CreateCommand for RunParams {
         let mut com = Command::new(toolchain::cargo());
         com.current_dir(root);
         com.args(["run", "--message-format=json"]);
-        com.arg("--target");
         com.arg(self.target.clone().uri);
         com.args(self.arguments.clone());
         com
