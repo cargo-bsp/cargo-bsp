@@ -142,3 +142,94 @@ impl GlobalState {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    mod test_shutdown_order {
+        use std::path::PathBuf;
+        use std::time::Duration;
+
+        use crossbeam_channel::unbounded;
+        use serde_json::to_value;
+
+        use crate::bsp_types::notifications::{ExitBuild, Notification};
+        use crate::bsp_types::requests::{BuildClientCapabilities, Request, ShutdownBuild};
+        use crate::communication;
+        use crate::communication::{Message, RequestId, Response};
+        use crate::server::config::Config;
+        use crate::server::global_state::GlobalState;
+
+        struct TestCase {
+            test_messages: Vec<Message>,
+            expected_send: Vec<Message>,
+            is_ok: bool,
+        }
+
+        fn test_f(test_case: TestCase) {
+            let (reader_sender, reader_receiver) = unbounded::<Message>();
+            let (writer_sender, writer_receiver) = unbounded::<Message>();
+
+            let global_state = GlobalState::new(
+                writer_sender,
+                Config::new(PathBuf::from("test"), BuildClientCapabilities::default()),
+            );
+
+            for msg in test_case.test_messages {
+                assert!(reader_sender.send(msg).is_ok());
+            }
+            let notification = communication::Notification {
+                method: ExitBuild::METHOD.into(),
+                params: to_value(()).unwrap(),
+            };
+            assert!(reader_sender.send(notification.into()).is_ok());
+
+            let result = global_state.run(reader_receiver);
+            if test_case.is_ok {
+                assert!(result.is_ok());
+            } else {
+                assert!(result.is_err());
+                assert_eq!(
+                    "client exited without proper shutdown sequence".to_string(),
+                    result.unwrap_err().to_string()
+                );
+            }
+
+            for msg in test_case.expected_send {
+                assert_eq!(
+                    msg,
+                    writer_receiver
+                        .recv_timeout(Duration::from_secs(1))
+                        .unwrap()
+                );
+            }
+            assert!(writer_receiver
+                .recv_timeout(Duration::from_secs(1))
+                .is_err());
+        }
+
+        #[test]
+        fn exit_notif_without_shutdown() {
+            test_f(TestCase {
+                test_messages: vec![],
+                expected_send: vec![],
+                is_ok: false,
+            });
+        }
+
+        #[test]
+        fn proper_shutdown_order() {
+            let req_id = RequestId::from(123);
+            let request = communication::Request {
+                id: req_id.clone(),
+                method: ShutdownBuild::METHOD.to_string(),
+                params: to_value(()).unwrap(),
+            };
+
+            test_f(TestCase {
+                test_messages: vec![request.into()],
+                expected_send: vec![Response::new_ok(req_id, to_value(()).unwrap()).into()],
+                is_ok: true,
+            });
+        }
+    }
+}
