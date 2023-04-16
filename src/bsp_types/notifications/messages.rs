@@ -19,7 +19,7 @@ impl Notification for LogMessage {
     const METHOD: &'static str = "build/logMessage";
 }
 
-/* Show message notification */
+/** Show message notification */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageParams {
@@ -39,7 +39,7 @@ pub struct ShowMessageParams {
     pub message: String,
 }
 
-/* Log message notification params */
+/** Log message notification params */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LogMessageParams {

@@ -1,6 +1,6 @@
 use crate::bsp_types::basic_bsp_structures::*;
-use crate::logger::log;
 use crate::project_model::package_dependencies::PackageDependency;
+use log::{error, warn};
 
 fn tags_and_capabilities_from_cargo_kind(
     cargo_target: &cargo_metadata::Target,
@@ -42,7 +42,7 @@ fn tags_and_capabilities_from_cargo_kind(
                 todo!("Custom-build target is unsupported by BSP server yet.");
             }
             _ => {
-                log(&format!("Unknown cargo target kind: {}", kind));
+                warn!("Unknown cargo target kind: {}", kind);
             }
         });
     (tags, capabilities)
@@ -54,10 +54,10 @@ fn establish_dependencies(
     let dependencies_manifest_paths = package_dependencies.iter().filter_map(|dep| {
         let manifest_path_str = dep.manifest_path.to_str();
         if manifest_path_str.is_none() {
-            log(&format!(
+            error!(
                 "Failed extracting manifest path from dependency: {:?}",
                 dep.manifest_path
-            ));
+            );
         }
         manifest_path_str
     });
@@ -79,7 +79,7 @@ pub fn new_bsp_build_target(
 
     let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
-    let rust_specific_data = RustBuildTargetData::new(RustBuildTarget {
+    let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
         edition: cargo_target.edition,
         required_features: cargo_target.required_features.clone(),
     });

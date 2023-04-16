@@ -1,9 +1,8 @@
-// copy from rust-analyzer
-
 use std::path::PathBuf;
 
+use log::error;
+
 use crate::bsp_types::requests::BuildClientCapabilities;
-use crate::logger::log;
 use crate::project_model::project_manifest::ProjectManifest;
 
 #[derive(Debug, Clone)]
@@ -35,8 +34,7 @@ impl Config {
                 self.workspace_manifest = workspace_manifest;
             }
             Err(e) => {
-                // No Cargo.toml found
-                log(&format!("error: {}", e));
+                error!("No Cargo.toml found: {}", e);
                 todo!("Add Logging to client and change server state to waiting for reload");
             }
         }

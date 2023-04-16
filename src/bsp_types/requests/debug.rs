@@ -23,7 +23,7 @@ pub struct DebugSessionParams {
     pub data_kind: String,
 
     /** Language-specific metadata for this execution.
-     * See ScalaMainClass as an example. */
+    See ScalaMainClass as an example. */
     pub data: Value,
 }
 

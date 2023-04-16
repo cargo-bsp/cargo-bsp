@@ -1,14 +1,12 @@
-// copy from rust-analyzer
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use log::{error, info};
 
 use crate::communication;
 use crate::communication::{Message, RequestId};
-use crate::logger::log;
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
@@ -20,7 +18,7 @@ pub(crate) struct GlobalState {
     sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
-    pub(crate) config: Config,
+    pub(crate) config: Arc<Config>,
 
     pub(crate) handlers: HashMap<RequestId, RequestHandle>,
     pub(crate) handlers_sender: Sender<Message>,
@@ -30,8 +28,8 @@ pub(crate) struct GlobalState {
 }
 
 /// snapshot of server state for request handlers
-pub(crate) struct _GlobalStateSnapshot {
-    pub(crate) config: Config,
+pub(crate) struct GlobalStateSnapshot {
+    pub(crate) _config: Arc<Config>,
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
@@ -42,7 +40,7 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config,
+            config: Arc::new(config),
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
@@ -67,6 +65,13 @@ impl GlobalState {
         );
     }
 
+    pub(crate) fn snapshot(&self) -> GlobalStateSnapshot {
+        GlobalStateSnapshot {
+            _config: Arc::clone(&self.config),
+            workspace: Arc::clone(&self.workspace),
+        }
+    }
+
     pub(crate) fn respond(&mut self, response: communication::Response) {
         if let Some((method, start)) = self.req_queue.incoming.complete(response.id.clone()) {
             if let Some(err) = &response.error {
@@ -76,17 +81,19 @@ impl GlobalState {
             }
 
             let duration = start.elapsed();
-            log(&format!(
+            info!(
                 "handled {} - ({}) in {:0.2?}",
                 method, response.id, duration
-            ));
+            );
             self.send(response.into());
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn cancel(&mut self, request_id: RequestId) {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
+            if let Some(handler) = self.handlers.get(&response.id) {
+                handler.cancel()
+            }
             self.send(response.into());
         }
     }
@@ -97,14 +104,15 @@ impl GlobalState {
 
     // update the workspace data - called when (to be yet added) cargo watch discovers changes
     pub(crate) fn update_workspace_data(&mut self) {
-        self.config.update_project_manifest();
+        let mutable_config = Arc::make_mut(&mut self.config);
+        mutable_config.update_project_manifest();
 
         if let Ok(updated_workspace) =
             ProjectWorkspace::new(self.config.workspace_manifest.file.clone())
         {
             self.workspace = Arc::new(updated_workspace);
         } else {
-            log("error: Updating workspace state failed! `cargo metadata` failed to execute.");
+            error!("Updating workspace state failed! `cargo metadata` failed to execute.");
         }
     }
 }

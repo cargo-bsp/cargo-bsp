@@ -1,13 +1,11 @@
-// copy from rust-analyzer
-
 use std::{fmt, panic};
 
+use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::bsp_types::requests::CreateCommand;
 use crate::communication::ExtractError;
-use crate::logger::log;
-use crate::server::global_state::GlobalState;
+use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::request_actor::RequestHandle;
 use crate::server::Result;
 use crate::server::{from_json, LspError};
@@ -42,7 +40,32 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
-    pub(crate) fn on_run_cargo<R>(&mut self) -> &mut Self
+    /// Dispatches the request onto the current thread.
+    pub(crate) fn on_sync<R>(
+        &mut self,
+        f: fn(GlobalStateSnapshot, R::Params) -> Result<R::Result>,
+    ) -> &mut Self
+    where
+        R: bsp_types::requests::Request,
+        R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
+        R::Result: Serialize,
+    {
+        let (req, params, _) = match self.parse::<R>() {
+            Some(it) => it,
+            None => return self,
+        };
+        let global_state_snapshot = self.global_state.snapshot();
+
+        let result = { f(global_state_snapshot, params) };
+
+        if let Ok(response) = result_to_response::<R>(req.id, result) {
+            self.global_state.respond(response);
+        }
+
+        self
+    }
+
+    pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
         R::Params: CreateCommand + Send + fmt::Debug,
@@ -66,7 +89,7 @@ impl<'a> RequestDispatcher<'a> {
 
     pub(crate) fn finish(&mut self) {
         if let Some(req) = self.req.take() {
-            log(&format!("unknown request: {:?}", req));
+            warn!("unknown request: {:?}", req);
             let response = communication::Response::new_err(
                 req.id,
                 communication::ErrorCode::MethodNotFound as i32,
@@ -165,7 +188,7 @@ impl<'a> NotificationDispatcher<'a> {
     pub(crate) fn finish(&mut self) {
         if let Some(not) = &self.not {
             if !not.method.starts_with("$/") {
-                log(&format!("unhandled notification: {:?}", not));
+                warn!("unhandled notification: {:?}", not);
             }
         }
     }

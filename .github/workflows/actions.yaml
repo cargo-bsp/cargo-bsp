@@ -1,6 +1,6 @@
 name: Cargo BSP Workflow
 
-on: [push]
+on: [ push ]
 
 jobs:
   build:
@@ -11,11 +11,6 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --all-features
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
       - name: Check rustfmt
         uses: actions-rs/cargo@v1
         with:
@@ -26,3 +21,8 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
+      - run: cargo build --all-features
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
