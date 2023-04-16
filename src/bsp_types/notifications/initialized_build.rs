@@ -10,7 +10,7 @@ impl Notification for InitializedBuild {
     const METHOD: &'static str = "build/initialized";
 }
 
-/* Initialized Build notification params */
+/** Initialized Build notification params */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct InitializedBuildParams {}
 

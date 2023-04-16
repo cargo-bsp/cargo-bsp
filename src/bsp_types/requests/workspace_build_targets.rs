@@ -19,7 +19,7 @@ pub struct WorkspaceBuildTargetsParams {}
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkspaceBuildTargetsResult {
     /** The build targets in this workspace that
-     * contain sources with the given language ids. */
+    contain sources with the given language ids. */
     pub targets: Vec<BuildTarget>,
 }
 

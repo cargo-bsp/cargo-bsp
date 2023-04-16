@@ -4,10 +4,10 @@ use std::{
     io::{self, BufRead, Write},
 };
 
+use log::debug;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::communication::error::ExtractError;
-use crate::logger::log;
+use crate::communication::ExtractError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -305,12 +305,12 @@ fn read_msg_text(inp: &mut dyn BufRead) -> io::Result<Option<String>> {
     buf.resize(size, 0);
     inp.read_exact(&mut buf)?;
     let buf = String::from_utf8(buf).map_err(invalid_data)?;
-    log(&format!("< {}", buf));
+    debug!("< {}", buf);
     Ok(Some(buf))
 }
 
 fn write_msg_text(out: &mut dyn Write, msg: &str) -> io::Result<()> {
-    log(&format!("> {}", msg));
+    debug!("> {}", msg);
     write!(out, "Content-Length: {}\r\n\r\n", msg.len())?;
     out.write_all(msg.as_bytes())?;
     out.flush()?;

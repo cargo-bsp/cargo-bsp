@@ -14,6 +14,7 @@ pub use cargo_metadata::diagnostic::{
 use cargo_metadata::Message;
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
+use log::info;
 use lsp_types::DiagnosticSeverity;
 use paths::AbsPath;
 use serde::Deserialize;
@@ -28,7 +29,6 @@ use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::communication::Message as RPCMessage;
 use crate::communication::{RequestId, Response};
-use crate::logger::log;
 
 #[derive(Debug)]
 pub struct RequestHandle {
@@ -59,7 +59,6 @@ impl RequestHandle {
         }
     }
 
-    #[allow(dead_code)]
     pub fn cancel(&self) {
         self.sender_to_cancel.send(Event::Cancel).unwrap();
     }
@@ -101,7 +100,7 @@ where
         params: R::Params,
         root_path: &Path,
     ) -> RequestActor<R> {
-        log("Spawning a new request actor");
+        info!("Spawning a new request actor");
         RequestActor {
             sender,
             cargo_handle: None,

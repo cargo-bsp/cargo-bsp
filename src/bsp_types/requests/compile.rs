@@ -62,7 +62,7 @@ pub struct CompileResult {
     pub data_kind: Option<String>,
 
     /** A field containing language-specific information, like products
-     * of compilation or compiler-specific metadata the client needs to know. */
+    of compilation or compiler-specific metadata the client needs to know. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }

@@ -11,7 +11,7 @@ impl Notification for PublishDiagnostics {
     const METHOD: &'static str = "build/publishDiagnostics";
 }
 
-/* Publish Diagnostics notification params */
+/** Publish Diagnostics notification params */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PublishDiagnosticsParams {
@@ -19,9 +19,9 @@ pub struct PublishDiagnosticsParams {
     pub text_document: TextDocumentIdentifier,
 
     /** The build target where the diagnostics origin.
-     * It is valid for one text document to belong to multiple
-     * build targets, for example sources that are compiled against multiple
-     * platforms (JVM, JavaScript). */
+    It is valid for one text document to belong to multiple
+    build targets, for example sources that are compiled against multiple
+    platforms (JVM, JavaScript). */
     pub build_target: BuildTargetIdentifier,
 
     /** The request id that originated this notification. */
@@ -32,7 +32,7 @@ pub struct PublishDiagnosticsParams {
     pub diagnostics: Vec<Diagnostic>,
 
     /** Whether the client should clear the previous diagnostics
-     * mapped to the same `textDocument` and `buildTarget`. */
+    mapped to the same `textDocument` and `buildTarget`. */
     pub reset: bool,
 }
 

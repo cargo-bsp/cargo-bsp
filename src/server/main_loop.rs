@@ -1,6 +1,4 @@
-// copy from rust-analyzer
-
-//! The main loop of `rust-analyzer` responsible for dispatching LSP
+//! The main loop responsible for dispatching BSP
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
@@ -10,7 +8,6 @@ use communication::{Connection, Notification, Request};
 
 use crate::bsp_types::notifications::Notification as _;
 use crate::communication::Message;
-use crate::logger::log;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
@@ -33,6 +30,9 @@ impl GlobalState {
         while let Some(event) = self.next_message(&inbox) {
             if let Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
+                    if !self.shutdown_requested {
+                        break;
+                    }
                     return Ok(());
                 }
             }
@@ -54,7 +54,6 @@ impl GlobalState {
 
     fn handle_message(&mut self, event: Event) -> Result<()> {
         let loop_start = Instant::now();
-        log(&format!("{:?} handle_message({:?})", loop_start, event));
 
         match event {
             Bsp(msg) => match msg {
@@ -107,29 +106,36 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::WorkspaceBuildTargets>(
+            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
                 handlers::handle_workspace_build_targets,
             )
-            .on_sync_mut::<bsp_types::requests::Sources>(handlers::handle_sources)
-            .on_sync_mut::<bsp_types::requests::Resources>(handlers::handle_resources)
-            .on_sync_mut::<bsp_types::requests::JavaExtensions>(handlers::handle_extensions)
-            .on_run_cargo::<bsp_types::requests::Compile>()
-            .on_run_cargo::<bsp_types::requests::Run>()
-            .on_run_cargo::<bsp_types::requests::Test>()
-            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync::<bsp_types::requests::Sources>(handlers::handle_sources)
+            .on_sync::<bsp_types::requests::Resources>(handlers::handle_resources)
+            .on_sync::<bsp_types::requests::JavaExtensions>(handlers::handle_java_extensions)
+            .on_sync::<bsp_types::requests::CleanCache>(handlers::handle_clean_cache)
+            .on_sync::<bsp_types::requests::DependencyModules>(handlers::handle_dependency_modules)
+            .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
+            .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
+            .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
+            .on_cargo_run::<bsp_types::requests::Compile>()
+            .on_cargo_run::<bsp_types::requests::Run>()
+            .on_cargo_run::<bsp_types::requests::Test>()
             .finish();
     }
 
-    // Handles an incoming notification.
+    /// Handles an incoming notification.
     fn on_notification(&mut self, not: Notification) -> Result<()> {
-        // TODO handle cancel request
-
         NotificationDispatcher {
             not: Some(not),
             global_state: self,
         }
-        .on::<bsp_types::notifications::ExitBuild>(|_, _| {
-            log("Got exit notification");
+        .on::<lsp_types::notification::Cancel>(|this, params| {
+            let id: communication::RequestId = match params.id {
+                lsp_types::NumberOrString::Number(id) => id.into(),
+                lsp_types::NumberOrString::String(id) => id.into(),
+            };
+            this.cancel(id);
             Ok(())
         })?
         .finish();

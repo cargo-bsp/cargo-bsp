@@ -44,13 +44,14 @@ pub struct TaskStartParams {
     pub message: Option<String>,
 
     /** Serializes to:
-     * dataKind: String,
-     * data: Option<Value>
-     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
-     * the kind of data is not specified. Kind names for specific tasks like compile, test,
-     * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
-     * etc are specified in the protocol. */
+    * dataKind: String,
+    * data: Option<Value>
+
+    Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+    the kind of data is not specified. Kind names for specific tasks like compile, test,
+    etc are specified in the protocol. Data kind options specified in task_data_kind module
+    and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+    etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskDataWithKind>,
 }
@@ -66,7 +67,7 @@ pub struct TaskProgressParams {
     pub event_time: Option<i64>,
 
     /** Message describing the task progress.
-     * Information about the state of the task at the time the event is sent. */
+    Information about the state of the task at the time the event is sent. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 
@@ -83,13 +84,14 @@ pub struct TaskProgressParams {
     pub unit: Option<String>,
 
     /** Serializes to:
-     * dataKind: String,
-     * data: Option<Value>
-     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
-     * the kind of data is not specified. Kind names for specific tasks like compile, test,
-     * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
-     * etc are specified in the protocol. */
+    * dataKind: String,
+    * data: Option<Value>
+
+    Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+    the kind of data is not specified. Kind names for specific tasks like compile, test,
+    etc are specified in the protocol. Data kind options specified in task_data_kind module
+    and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+    etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskDataWithKind>,
 }
@@ -112,13 +114,14 @@ pub struct TaskFinishParams {
     pub status: StatusCode,
 
     /** Serializes to:
-     * dataKind: String,
-     * data: Option<Value>
-     * Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
-     * the kind of data is not specified. Kind names for specific tasks like compile, test,
-     * etc are specified in the protocol. Data kind options specified in task_data_kind module
-     * and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
-     * etc are specified in the protocol. */
+    * dataKind: String,
+    * data: Option<Value>
+
+    Where dataKind is: kind of data to expect in the `data` field. If this field is not set,
+    the kind of data is not specified. Kind names for specific tasks like compile, test,
+    etc are specified in the protocol. Data kind options specified in task_data_kind module
+    and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
+    etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskDataWithKind>,
 }
@@ -134,17 +137,17 @@ pub enum TaskDataWithKind {
     TestFinish(TestFinishData),
 }
 
-/* The beginning of a compilation unit may be signalled to the client with a build/taskStart
- * notification. When the compilation unit is a build target, the notification's dataKind field
- * must be "compile-task" and the data field must include a CompileTask object. */
+/** The beginning of a compilation unit may be signalled to the client with a build/taskStart
+notification. When the compilation unit is a build target, the notification's dataKind field
+must be "compile-task" and the data field must include a CompileTask object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct CompileTaskData {
     pub target: BuildTargetIdentifier,
 }
 
-/* The completion of a compilation task should be signalled with a build/taskFinish notification.
- * When the compilation unit is a build target, the notification's dataKind field must be
- * compile-report and the data field must include a CompileReport object. */
+/** The completion of a compilation task should be signalled with a build/taskFinish notification.
+When the compilation unit is a build target, the notification's dataKind field must be
+compile-report and the data field must include a CompileReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileReportData {
@@ -170,17 +173,17 @@ pub struct CompileReportData {
     pub no_op: Option<bool>,
 }
 
-/* The beginning of a testing unit may be signalled to the client with a build/taskStart notification.
- * When the testing unit is a build target, the notification's dataKind field must be
- * test-task and the data field must include a TestTask object. */
+/** The beginning of a testing unit may be signalled to the client with a build/taskStart notification.
+When the testing unit is a build target, the notification's dataKind field must be
+test-task and the data field must include a TestTask object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestTaskData {
     pub target: BuildTargetIdentifier,
 }
 
-/* The completion of a test task should be signalled with a build/taskFinish notification.
- * When the testing unit is a build target, the notification's dataKind field must be
- * test-report and the data field must include a TestReport object. */
+/** The completion of a test task should be signalled with a build/taskFinish notification.
+When the testing unit is a build target, the notification's dataKind field must be
+test-report and the data field must include a TestReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestReportData {
     /** The build target that was compiled. */

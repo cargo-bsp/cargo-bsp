@@ -8,6 +8,7 @@ pub use messages::*;
 pub use publish_diagnostics::*;
 pub use tasks::*;
 
+mod cancel;
 mod did_change_build_target;
 mod exit_build;
 mod initialized_build;
@@ -26,10 +27,10 @@ pub struct TaskId {
     pub id: String,
 
     /** The parent task ids, if any. A non-empty parents field means
-     * this task is a sub-task of every parent task id. The child-parent
-     * relationship of tasks makes it possible to render tasks in
-     * a tree-like user interface or inspect what caused a certain task
-     * execution. */
+    this task is a sub-task of every parent task id. The child-parent
+    relationship of tasks makes it possible to render tasks in
+    a tree-like user interface or inspect what caused a certain task
+    execution. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parents: Vec<String>,
 }

@@ -43,7 +43,7 @@ pub struct DependencyModule {
     pub data_kind: Option<String>,
 
     /** Language-specific metadata about this module.
-     * See MavenDependencyModule as an example. */
+    See MavenDependencyModule as an example. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }

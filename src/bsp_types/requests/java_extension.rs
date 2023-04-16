@@ -28,13 +28,13 @@ pub struct JavacOptionsItem {
     pub target: BuildTargetIdentifier,
 
     /** Additional arguments to the compiler.
-     * For example, -deprecation. */
+    For example, -deprecation. */
     options: Vec<String>,
 
     /** The dependency classpath for this target, must be
-     * identical to what is passed as arguments to
-     * the -classpath flag in the command line interface
-     * of javac. */
+    identical to what is passed as arguments to
+    the -classpath flag in the command line interface
+    of javac. */
     classpath: Vec<Uri>,
 
     /** The output directory for classfiles produced by this target */

@@ -1,25 +1,17 @@
-// copy from rust-analyzer
-
-//! Driver for rust-analyzer.
-//!
-//! Based on cli flags, either spawns an LSP server, or runs a batch analysis
-
-#![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
-
 use std::env;
 
+use log::info;
 use url::Url;
 
 use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
 use crate::communication::Connection;
-use crate::logger::log;
 use crate::server;
 use crate::server::caps::server_capabilities;
 use crate::server::config::Config;
 use crate::server::{from_json, Result};
 
 pub fn run_server() -> Result<()> {
-    log("server will start");
+    info!("server will start");
 
     let (connection, io_threads) = Connection::stdio();
 
@@ -53,6 +45,6 @@ pub fn run_server() -> Result<()> {
     server::main_loop(config, connection)?;
 
     io_threads.join()?;
-    log("server did shut down");
+    info!("server did shut down");
     Ok(())
 }
