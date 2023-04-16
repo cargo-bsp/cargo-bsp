@@ -6,11 +6,18 @@ use std::path::PathBuf;
 
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {
+    /// cargo_metadata targets from all packages in the workspace
     pub _cargo_targets: Vec<cargo_metadata::Target>,
-    build_targets: Vec<BuildTarget>,
+    /// BSP build targets from all packages in the workspace
+    pub build_targets: Vec<BuildTarget>,
 }
 
 impl ProjectWorkspace {
+    /// Retrieves build targets from *'cargo metadata'*, maps them to BSP build
+    /// targets and stores in new instance of ProjectWorkspace.
+    ///
+    /// Skips unit_tests discovery, look:
+    /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
         let metadata = MetadataCommand::new()
             .manifest_path(project_manifest_path)
@@ -32,13 +39,11 @@ impl ProjectWorkspace {
             })
             .collect();
 
-        //packages and dependencies can be transformed Vec<(&Package, Vec<PathBuf>)> where PathBuf is project manifest to dep, if features won 't be needed
         let targets =
             ProjectWorkspace::bsp_targets_from_metadata_packages(&packages_with_dependencies);
 
         let workspace_packages = metadata.workspace_packages();
         let cargo_targets = ProjectWorkspace::cargo_targets(&workspace_packages);
-        // let targets = ProjectWorkspace::bsp_targets_from_metadata_packages(&workspace_packages);
 
         Ok(ProjectWorkspace {
             _cargo_targets: cargo_targets,

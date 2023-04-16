@@ -101,9 +101,8 @@ mod tests {
     use std::fs::File;
     use std::path::PathBuf;
 
+    use crate::project_model::project_manifest::ProjectManifest;
     use tempfile::{tempdir, tempdir_in};
-
-    use crate::project_model::ProjectManifest;
 
     struct TestCase<'a> {
         path: &'a PathBuf,
