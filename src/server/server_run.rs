@@ -85,7 +85,7 @@ mod tests {
             };
 
             for msg in test_case.test_messages {
-                assert!(reader_sender.send(msg).is_ok());
+                reader_sender.send(msg).unwrap();
             }
 
             if !test_case.channel_works_ok {
@@ -112,7 +112,7 @@ mod tests {
             let test_id = 234;
 
             let init_params = InitializeBuildParams {
-                display_name: "TestClient1".to_string(),
+                display_name: "TestClient".to_string(),
                 ..InitializeBuildParams::default()
             };
             let config = Config::from_initialize_params(init_params.clone()).unwrap();
