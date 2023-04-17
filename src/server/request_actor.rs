@@ -107,13 +107,32 @@ where
 
 struct RequestActorState {
     root_task_id: TaskId,
+    compile_state: CompileState,
+    execution_state: ExecutionState,
+    test_state: TestState,
+}
+
+struct CompileState {
     compile_task_id: TaskId,
     compile_errors: i32,
     compile_warnings: i32,
     compile_start_time: i64,
+}
+
+struct ExecutionState {
     execution_task_id: TaskId,
-    root_test_task_id: TaskId,
+}
+
+struct TestState {
+    test_task_id: TaskId,
+    suite_test_task_id: TaskId,
+    suite_task_progress: SuiteTaskProgress,
     single_test_task_ids: HashMap<String, TaskId>,
+}
+
+struct SuiteTaskProgress {
+    progress: i64,
+    total: i64,
 }
 
 impl RequestActorState {
@@ -122,24 +141,39 @@ impl RequestActorState {
             id: origin_id.unwrap_or(TaskId::generate_random_id()),
             parents: vec![],
         };
+        let test_task_id = TaskId {
+            id: TaskId::generate_random_id(),
+            parents: vec![root_task_id.id.clone()],
+        };
         RequestActorState {
             root_task_id: root_task_id.clone(),
-            compile_task_id: TaskId {
-                id: TaskId::generate_random_id(),
-                parents: vec![root_task_id.id.clone()],
+            compile_state: CompileState {
+                compile_task_id: TaskId {
+                    id: TaskId::generate_random_id(),
+                    parents: vec![root_task_id.id.clone()],
+                },
+                compile_errors: 0,
+                compile_warnings: 0,
+                compile_start_time: 0,
             },
-            compile_errors: 0,
-            compile_warnings: 0,
-            compile_start_time: 0,
-            execution_task_id: TaskId {
-                id: TaskId::generate_random_id(),
-                parents: vec![root_task_id.id.clone()],
+            execution_state: ExecutionState {
+                execution_task_id: TaskId {
+                    id: TaskId::generate_random_id(),
+                    parents: vec![root_task_id.id],
+                },
             },
-            root_test_task_id: TaskId {
-                id: TaskId::generate_random_id(),
-                parents: vec![root_task_id.id],
+            test_state: TestState {
+                suite_test_task_id: TaskId {
+                    id: Default::default(),
+                    parents: vec![test_task_id.id.clone()],
+                },
+                suite_task_progress: SuiteTaskProgress {
+                    progress: 0,
+                    total: 0,
+                },
+                test_task_id,
+                single_test_task_ids: HashMap::new(),
             },
-            single_test_task_ids: HashMap::new(),
         }
     }
 }
@@ -180,16 +214,22 @@ where
         });
     }
 
-    fn report_task_progress(&self, task_id: TaskId, message: Option<String>) {
-        // TODO improve this
+    fn report_task_progress(
+        &self,
+        task_id: TaskId,
+        message: Option<String>,
+        total: Option<i64>,
+        progress: Option<i64>,
+        unit: Option<String>,
+    ) {
         self.send_notification::<TaskProgress>(TaskProgressParams {
             task_id,
             event_time: get_event_time(),
             message,
-            total: None,
-            progress: None,
+            total,
+            progress,
             data: None,
-            unit: None,
+            unit,
         });
     }
 
@@ -209,13 +249,19 @@ where
         });
     }
 
-    fn log_message(&self, message_type: MessageType, message: String) {
+    fn log_message(&self, message_type: MessageType, message: String, method: &str) {
+        let task_id = match method {
+            "buildTarget/compile" => self.state.root_task_id.clone(),
+            "buildTarget/run" => self.state.execution_state.execution_task_id.clone(),
+            "buildTarget/test" => self.state.test_state.test_task_id.clone(),
+            _ => return,
+        };
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
-            task: Some(self.state.execution_task_id.clone()),
+            task: Some(task_id),
             origin_id: self.params.origin_id(),
             message,
-        })
+        });
     }
 
     fn send_notification<T>(&self, notification: T::Params)
@@ -271,7 +317,7 @@ where
                     let res = cargo_handle.join();
                     let status_code = self.get_request_status_code(&res);
                     let resp = self.create_response(res, &status_code);
-                    self.finish_execution_task(&status_code, R::METHOD.to_string());
+                    self.finish_execution_task(&status_code, R::METHOD);
                     self.report_task_finish(
                         self.state.root_task_id.clone(),
                         status_code,
@@ -286,7 +332,7 @@ where
                     match message {
                         CargoMessage::CargoStdout(stdout) => self.handle_cargo_information(stdout),
                         CargoMessage::CargoStderr(stderr) => {
-                            self.log_message(MessageType::Error, stderr)
+                            self.log_message(MessageType::Error, stderr, R::METHOD)
                         }
                     }
                 }
@@ -295,10 +341,10 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_start_time = get_event_time().unwrap();
+        self.state.compile_state.compile_start_time = get_event_time().unwrap();
         // TODO change to actual BuildTargetIdentifier
         self.report_task_start(
-            self.state.compile_task_id.clone(),
+            self.state.compile_state.compile_task_id.clone(),
             None,
             Some(TaskDataWithKind::CompileTask(CompileTaskData {
                 target: Default::default(),
@@ -338,8 +384,11 @@ where
         match message {
             Message::CompilerArtifact(msg) => {
                 self.report_task_progress(
-                    self.state.compile_task_id.clone(),
+                    self.state.compile_state.compile_task_id.clone(),
                     serde_json::to_string(&msg).ok(),
+                    None,
+                    None,
+                    None,
                 );
             }
             Message::CompilerMessage(msg) => {
@@ -357,8 +406,12 @@ where
                     diagnostic.diagnostics.iter().for_each(|d| {
                         if let Some(severity) = d.severity {
                             match severity {
-                                DiagnosticSeverity::ERROR => self.state.compile_errors += 1,
-                                DiagnosticSeverity::WARNING => self.state.compile_warnings += 1,
+                                DiagnosticSeverity::ERROR => {
+                                    self.state.compile_state.compile_errors += 1
+                                }
+                                DiagnosticSeverity::WARNING => {
+                                    self.state.compile_state.compile_warnings += 1
+                                }
                                 _ => (),
                             }
                         }
@@ -368,8 +421,11 @@ where
             }
             Message::BuildScriptExecuted(msg) => {
                 self.report_task_progress(
-                    self.state.compile_task_id.clone(),
+                    self.state.compile_state.compile_task_id.clone(),
                     serde_json::to_string(&msg).ok(),
+                    None,
+                    None,
+                    None,
                 );
             }
             Message::BuildFinished(msg) => {
@@ -382,18 +438,21 @@ where
                     // TODO change to actual BuildTargetIdentifier
                     target: Default::default(),
                     origin_id: self.params.origin_id(),
-                    errors: self.state.compile_errors,
-                    warnings: self.state.compile_warnings,
-                    time: Some((get_event_time().unwrap() - self.state.compile_start_time) as i32),
+                    errors: self.state.compile_state.compile_errors,
+                    warnings: self.state.compile_state.compile_warnings,
+                    time: Some(
+                        (get_event_time().unwrap() - self.state.compile_state.compile_start_time)
+                            as i32,
+                    ),
                     no_op: None,
                 });
                 self.report_task_finish(
-                    self.state.compile_task_id.clone(),
+                    self.state.compile_state.compile_task_id.clone(),
                     status_code,
                     None,
                     Some(compile_report),
                 );
-                self.start_execution_task(R::METHOD.to_string());
+                self.start_execution_task(R::METHOD);
             }
             Message::TextLine(msg) => {
                 let deserialized_message = serde_json::from_str::<TestType>(&msg);
@@ -401,31 +460,44 @@ where
                     // Message comes from running tests.
                     Ok(test_type) => self.handle_information_from_test(test_type),
                     // Message is a line from stdout.
-                    Err(_) => self.log_message(MessageType::Log, msg),
+                    Err(_) => self.log_message(MessageType::Log, msg, R::METHOD),
                 }
             }
             _ => (),
         }
     }
 
-    fn start_execution_task(&self, method: String) {
-        if method.eq("buildTarget/run") {
-            self.report_task_start(
-                self.state.execution_task_id.clone(),
+    fn start_execution_task(&self, method: &str) {
+        match method {
+            "buildTarget/run" => self.report_task_start(
+                self.state.execution_state.execution_task_id.clone(),
                 Some("Started target execution".to_string()),
                 None,
-            );
+            ),
+            "buildTarget/test" => self.report_task_start(
+                self.state.test_state.test_task_id.clone(),
+                Some("Started target testing".to_string()),
+                None,
+            ),
+            _ => (),
         }
     }
 
-    fn finish_execution_task(&self, status_code: &StatusCode, method: String) {
-        if method.eq("buildTarget/run") {
-            self.report_task_finish(
-                self.state.execution_task_id.clone(),
+    fn finish_execution_task(&self, status_code: &StatusCode, method: &str) {
+        match method {
+            "buildTarget/run" => self.report_task_finish(
+                self.state.execution_state.execution_task_id.clone(),
                 status_code.clone(),
                 Some("Finished target execution".to_string()),
                 None,
-            );
+            ),
+            "buildTarget/test" => self.report_task_finish(
+                self.state.test_state.test_task_id.clone(),
+                status_code.clone(),
+                Some("Finished target testing".to_string()),
+                None,
+            ),
+            _ => (),
         }
     }
 
@@ -434,21 +506,25 @@ where
         match test_type {
             // Handle information about whole test suite.
             TestType::Suite(event) => match event {
-                SuiteEvent::Started(_) => self.report_task_start(
-                    self.state.root_test_task_id.clone(),
-                    None,
-                    Some(TaskDataWithKind::TestTask(TestTaskData {
-                        target: Default::default(),
-                    })),
-                ),
+                SuiteEvent::Started(s) => {
+                    self.state.test_state.suite_test_task_id.id = TaskId::generate_random_id();
+                    self.report_task_start(
+                        self.state.test_state.suite_test_task_id.clone(),
+                        None,
+                        Some(TaskDataWithKind::TestTask(TestTaskData {
+                            target: Default::default(),
+                        })),
+                    );
+                    self.state.test_state.suite_task_progress.total = s.test_count as i64;
+                }
                 SuiteEvent::Ok(result) => self.report_task_finish(
-                    self.state.root_test_task_id.clone(),
+                    self.state.test_state.suite_test_task_id.clone(),
                     StatusCode::Ok,
                     None,
                     Some(result.to_test_report()),
                 ),
                 SuiteEvent::Failed(result) => self.report_task_finish(
-                    self.state.root_test_task_id.clone(),
+                    self.state.test_state.suite_test_task_id.clone(),
                     StatusCode::Error,
                     None,
                     Some(result.to_test_report()),
@@ -459,9 +535,10 @@ where
                 TestEvent::Started(started) => {
                     let test_task_id = TaskId {
                         id: TaskId::generate_random_id(),
-                        parents: vec![self.state.root_test_task_id.id.clone()],
+                        parents: vec![self.state.test_state.suite_test_task_id.id.clone()],
                     };
                     self.state
+                        .test_state
                         .single_test_task_ids
                         .insert(started.get_name(), test_task_id.clone());
                     self.report_task_start(
@@ -484,6 +561,7 @@ where
     fn finish_single_test(&mut self, test_result: TestResult, status: TestStatus) {
         let task_id = self
             .state
+            .test_state
             .single_test_task_ids
             .remove(&test_result.get_name());
         if let Some(id) = task_id {
@@ -495,6 +573,14 @@ where
                     test_result.map_to_test_notification(status),
                 )),
             );
+            self.state.test_state.suite_task_progress.progress += 1;
+            self.report_task_progress(
+                self.state.test_state.suite_test_task_id.clone(),
+                None,
+                Some(self.state.test_state.suite_task_progress.total),
+                Some(self.state.test_state.suite_task_progress.progress),
+                Some("tests".to_string()),
+            );
         }
     }
 
@@ -503,8 +589,7 @@ where
             self.cancel_process(cargo_handle);
             self.cancel_task_and_request();
         } else {
-            // trzeba wyslac ze Task sie nie powiodl
-            todo!()
+            todo!("trzeba wyslac ze Task sie nie powiodl")
         }
     }
 
@@ -933,17 +1018,17 @@ pub mod compile_request_tests {
                     .level(DiagnosticLevel::Error)
                     .spans(vec![DiagnosticSpanBuilder::default()
                         .file_name("test_file_name".to_string())
-                        .byte_start(0 as u32)
-                        .byte_end(0 as u32)
-                        .line_start(1 as usize)
-                        .line_end(2 as usize)
-                        .column_start(3 as usize)
-                        .column_end(4 as usize)
+                        .byte_start(0_u32)
+                        .byte_end(0_u32)
+                        .line_start(1_usize)
+                        .line_end(2_usize)
+                        .column_start(3_usize)
+                        .column_end(4_usize)
                         .is_primary(true) // TODO czemu musi byc primary w to_publish_diagnostic.rs?
                         .text(vec![DiagnosticSpanLineBuilder::default()
                             .text("test_text".to_string())
-                            .highlight_start(0 as usize)
-                            .highlight_end(0 as usize)
+                            .highlight_start(0_usize)
+                            .highlight_end(0_usize)
                             .build()
                             .unwrap()])
                         .label(Some("test_label".to_string()))
@@ -1091,17 +1176,17 @@ pub mod compile_request_tests {
                     .level(DiagnosticLevel::Warning)
                     .spans(vec![DiagnosticSpanBuilder::default()
                         .file_name("test_filename".to_string())
-                        .byte_start(0 as u32)
-                        .byte_end(0 as u32)
-                        .line_start(0 as usize)
-                        .line_end(0 as usize)
-                        .column_start(0 as usize)
-                        .column_end(0 as usize)
+                        .byte_start(0_u32)
+                        .byte_end(0_u32)
+                        .line_start(0_usize)
+                        .line_end(0_usize)
+                        .column_start(0_usize)
+                        .column_end(0_usize)
                         .is_primary(true)
                         .text(vec![DiagnosticSpanLineBuilder::default()
                             .text("test_text".to_string())
-                            .highlight_start(0 as usize)
-                            .highlight_end(0 as usize)
+                            .highlight_start(0_usize)
+                            .highlight_end(0_usize)
                             .build()
                             .unwrap()])
                         .label(Some("test_label".to_string()))
@@ -1143,17 +1228,17 @@ pub mod compile_request_tests {
                     .level(DiagnosticLevel::Error)
                     .spans(vec![DiagnosticSpanBuilder::default()
                         .file_name("test_filename".to_string())
-                        .byte_start(0 as u32)
-                        .byte_end(0 as u32)
-                        .line_start(0 as usize)
-                        .line_end(0 as usize)
-                        .column_start(0 as usize)
-                        .column_end(0 as usize)
+                        .byte_start(0_u32)
+                        .byte_end(0_u32)
+                        .line_start(0_usize)
+                        .line_end(0_usize)
+                        .column_start(0_usize)
+                        .column_end(0_usize)
                         .is_primary(true)
                         .text(vec![DiagnosticSpanLineBuilder::default()
                             .text("test_text".to_string())
-                            .highlight_start(0 as usize)
-                            .highlight_end(0 as usize)
+                            .highlight_start(0_usize)
+                            .highlight_end(0_usize)
                             .build()
                             .unwrap()])
                         .label(Some("test_label".to_string()))
@@ -1427,13 +1512,10 @@ pub mod run_request_tests {
 }
 #[cfg(test)]
 pub mod test_request_tests {
-    use crate::bsp_types::mappings::test::{
-        SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName, TestResult as TestResultEnum,
-        TestType,
-    };
+    use crate::bsp_types::mappings::test::{SuiteEvent, SuiteStarted, TestType};
     use crate::bsp_types::requests::{Test, TestParams, TestResult};
     use crate::communication::{Message, Notification, Response};
-    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
+    use crate::server::request_actor::CargoMessage::CargoStdout;
     use cargo_metadata::BuildFinishedBuilder;
     use cargo_metadata::Message::{BuildFinished, TextLine};
     use serde_json::to_string;
