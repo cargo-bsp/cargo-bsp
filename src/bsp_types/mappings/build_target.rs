@@ -1,4 +1,5 @@
 use crate::bsp_types::basic_bsp_structures::*;
+use crate::bsp_types::mappings::file_uri;
 use crate::project_model::package_dependencies::PackageDependency;
 use log::{error, warn};
 
@@ -51,20 +52,20 @@ fn tags_and_capabilities_from_cargo_kind(
 fn establish_dependencies(
     package_dependencies: &[PackageDependency],
 ) -> Vec<BuildTargetIdentifier> {
-    let dependencies_manifest_paths = package_dependencies.iter().filter_map(|dep| {
-        let manifest_path_str = dep.manifest_path.to_str();
-        if manifest_path_str.is_none() {
-            error!(
-                "Failed extracting manifest path from dependency: {:?}",
-                dep.manifest_path
-            );
-        }
-        manifest_path_str
-    });
-
-    dependencies_manifest_paths
+    package_dependencies
+        .iter()
+        .filter_map(|dep| {
+            let manifest_path_str = dep.manifest_path.to_str();
+            if manifest_path_str.is_none() {
+                error!(
+                    "Failed extracting manifest path from dependency: {:?}",
+                    dep.manifest_path
+                );
+            }
+            manifest_path_str
+        })
         .map(|path| BuildTargetIdentifier {
-            uri: format!("file://{}", path),
+            uri: file_uri(path),
         })
         .collect()
 }
@@ -89,7 +90,7 @@ pub fn new_bsp_build_target(
             uri: format!("{}:{}", cargo_target.src_path, cargo_target.name),
         },
         display_name: Some(cargo_target.name.clone()),
-        base_directory: Some(format!("file://{}", base_directory)),
+        base_directory: Some(file_uri(base_directory)),
         tags,
         capabilities,
         language_ids: vec![RUST_ID.to_string()],

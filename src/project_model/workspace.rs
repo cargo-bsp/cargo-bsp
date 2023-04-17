@@ -24,8 +24,10 @@ impl ProjectWorkspace {
             .features(CargoOpt::AllFeatures)
             .exec()?;
 
-        let packages_with_dependencies: Vec<PackageWithDependencies> = metadata
-            .workspace_packages()
+        let workspace_packages = metadata.workspace_packages();
+        let cargo_targets = ProjectWorkspace::cargo_targets(&workspace_packages);
+
+        let packages_with_dependencies: Vec<PackageWithDependencies> = workspace_packages
             .iter()
             .map(|&package| {
                 PackageWithDependencies(
@@ -41,9 +43,6 @@ impl ProjectWorkspace {
 
         let targets =
             ProjectWorkspace::bsp_targets_from_metadata_packages(&packages_with_dependencies);
-
-        let workspace_packages = metadata.workspace_packages();
-        let cargo_targets = ProjectWorkspace::cargo_targets(&workspace_packages);
 
         Ok(ProjectWorkspace {
             _cargo_targets: cargo_targets,

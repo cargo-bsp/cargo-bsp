@@ -2,7 +2,10 @@
 //!
 //! Current implementation is based on the mapping Cargo metadata targets to BSP build targets.
 //! Meaning that unit tests are not considered as a separate build targets.
-//!
+//! Therefore unit test execution is based on running tests on BSP build targets,
+//! which runs all the unit tests within BSP build target,
+//! including those written in files on which build target depends.
+//! <br><br>
 //! Unit tests discovery is possible using
 //!
 //! *`cargo +nightly test -- --list --format json -Zunstable-options`*
