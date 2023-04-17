@@ -25,6 +25,24 @@ impl Connection {
         (Connection { sender, receiver }, io_threads)
     }
 
+    /// Creates a pair of connected connections.
+    ///
+    /// Use this for testing.
+    pub fn memory() -> (Connection, Connection) {
+        let (s1, r1) = crossbeam_channel::unbounded();
+        let (s2, r2) = crossbeam_channel::unbounded();
+        (
+            Connection {
+                sender: s1,
+                receiver: r2,
+            },
+            Connection {
+                sender: s2,
+                receiver: r1,
+            },
+        )
+    }
+
     /// Starts the initialization process by waiting for an initialize
     /// request from the client. Use this for more advanced customization than
     /// `initialize` can provide.

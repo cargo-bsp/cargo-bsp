@@ -52,7 +52,6 @@ mod tests {
     mod test_initialize {
         use std::time::Duration;
 
-        use crossbeam_channel::unbounded;
         use crossbeam_channel::RecvError;
         use serde_json::to_value;
 
@@ -77,22 +76,17 @@ mod tests {
         }
 
         fn test_f(test_case: TestCase) {
-            let (reader_sender, reader_receiver) = unbounded::<Message>();
-            let (writer_sender, writer_receiver) = unbounded::<Message>();
-            let conn = Connection {
-                sender: writer_sender,
-                receiver: reader_receiver,
-            };
+            let (client, server) = Connection::memory();
 
             for msg in test_case.test_messages {
-                reader_sender.send(msg).unwrap();
+                client.sender.send(msg).unwrap();
             }
 
             if !test_case.channel_works_ok {
-                drop(reader_sender)
+                drop(client.sender)
             }
 
-            let resp = initialize(&conn);
+            let resp = initialize(&server);
             if test_case.is_ok {
                 assert!(resp.is_ok());
             } else {
@@ -101,9 +95,16 @@ mod tests {
             }
 
             for msg in test_case.expected_send {
-                assert_eq!(msg, writer_receiver.recv().unwrap());
+                assert_eq!(
+                    msg,
+                    client
+                        .receiver
+                        .recv_timeout(Duration::from_secs(1))
+                        .unwrap()
+                );
             }
-            assert!(writer_receiver
+            assert!(client
+                .receiver
                 .recv_timeout(Duration::from_secs(1))
                 .is_err());
         }
