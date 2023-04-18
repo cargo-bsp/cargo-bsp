@@ -2,9 +2,8 @@ use std::io::prelude::*;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout};
 
+use bsp_server::Message;
 use serde_json::from_str;
-
-use crate::communication::Message;
 
 pub struct Client<'a> {
     buf_reader: BufReader<&'a mut ChildStdout>,

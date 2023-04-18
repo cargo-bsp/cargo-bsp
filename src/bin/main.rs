@@ -19,6 +19,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use bsp_server::{Notification, Request, Response};
     use serde_json::{from_str, to_value};
 
     use cargo_bsp::bsp_types::notifications::{
@@ -34,7 +35,6 @@ mod tests {
         BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, StatusCode,
     };
     use cargo_bsp::client::Client;
-    use cargo_bsp::communication::{Notification, Request, Response};
 
     use crate::spawn_server;
 

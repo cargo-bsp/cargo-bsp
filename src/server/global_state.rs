@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
+use bsp_server;
+use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::{error, info};
 
-use crate::communication;
-use crate::communication::{Message, RequestId};
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
 use crate::server::request_actor::RequestHandle;
 
-pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
-pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;
+pub(crate) type ReqHandler = fn(&mut GlobalState, bsp_server::Response);
+pub(crate) type ReqQueue = bsp_server::ReqQueue<(String, Instant), ReqHandler>;
 
 pub(crate) struct GlobalState {
     sender: Sender<Message>,
@@ -50,13 +50,13 @@ impl GlobalState {
         this
     }
 
-    pub(crate) fn send_notification(&mut self, not: communication::Notification) {
+    pub(crate) fn send_notification(&mut self, not: bsp_server::Notification) {
         self.send(not.into());
     }
 
     pub(crate) fn register_request(
         &mut self,
-        request: &communication::Request,
+        request: &bsp_server::Request,
         request_received: Instant,
     ) {
         self.req_queue.incoming.register(
@@ -72,7 +72,7 @@ impl GlobalState {
         }
     }
 
-    pub(crate) fn respond(&mut self, response: communication::Response) {
+    pub(crate) fn respond(&mut self, response: bsp_server::Response) {
         if let Some((method, start)) = self.req_queue.incoming.complete(response.id.clone()) {
             if let Some(err) = &response.error {
                 if err.message.starts_with("server panicked") {

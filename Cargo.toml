@@ -25,6 +25,7 @@ paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "pat
 itertools = "0.10.5"
 log = "0.4"
 simplelog = "0.12.1"
+bsp-server = { git = "https://github.com/KatKlo/rust-analyzer", branch = "bsp_support", package = "lsp-server", features = ["bsp"] }
 
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }

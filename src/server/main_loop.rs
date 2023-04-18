@@ -2,18 +2,17 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
+use bsp_server::Message;
+use bsp_server::{Connection, Notification, Request};
 use crossbeam_channel::{select, Receiver};
 
-use communication::{Connection, Notification, Request};
-
+use crate::bsp_types;
 use crate::bsp_types::notifications::Notification as _;
-use crate::communication::Message;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::main_loop::Event::{Bsp, FromThread};
 use crate::server::{handlers, Result};
-use crate::{bsp_types, communication};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -96,9 +95,9 @@ impl GlobalState {
         } = &mut dispatcher
         {
             if this.shutdown_requested {
-                this.respond(communication::Response::new_err(
+                this.respond(bsp_server::Response::new_err(
                     req.id.clone(),
-                    communication::ErrorCode::InvalidRequest as i32,
+                    bsp_server::ErrorCode::InvalidRequest as i32,
                     "Shutdown already requested.".to_owned(),
                 ));
                 return;
@@ -131,7 +130,7 @@ impl GlobalState {
             global_state: self,
         }
         .on::<lsp_types::notification::Cancel>(|this, params| {
-            let id: communication::RequestId = match params.id {
+            let id: bsp_server::RequestId = match params.id {
                 lsp_types::NumberOrString::Number(id) => id.into(),
                 lsp_types::NumberOrString::String(id) => id.into(),
             };

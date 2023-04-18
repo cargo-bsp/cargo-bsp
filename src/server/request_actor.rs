@@ -7,6 +7,8 @@ use std::{
     process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
+use bsp_server::Message as RPCMessage;
+use bsp_server::{RequestId, Response};
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
@@ -27,8 +29,6 @@ use crate::bsp_types::notifications::{
 };
 use crate::bsp_types::requests::{CreateCommand, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
-use crate::communication::Message as RPCMessage;
-use crate::communication::{RequestId, Response};
 
 #[derive(Debug)]
 pub struct RequestHandle {
