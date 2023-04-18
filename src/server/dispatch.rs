@@ -1,19 +1,18 @@
 use std::{fmt, panic};
 
+use bsp_server::ExtractError;
 use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
+use crate::bsp_types;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::request_handle::RequestHandle;
-use crate::communication::ExtractError;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
-use crate::server::Result;
-use crate::server::{from_json, LspError};
-use crate::{bsp_types, communication};
+use crate::server::{from_json, LspError, Result};
 
 pub(crate) struct RequestDispatcher<'a> {
-    pub(crate) req: Option<communication::Request>,
+    pub(crate) req: Option<bsp_server::Request>,
     pub(crate) global_state: &'a mut GlobalState,
 }
 
@@ -91,16 +90,16 @@ impl<'a> RequestDispatcher<'a> {
     pub(crate) fn finish(&mut self) {
         if let Some(req) = self.req.take() {
             warn!("unknown request: {:?}", req);
-            let response = communication::Response::new_err(
+            let response = bsp_server::Response::new_err(
                 req.id,
-                communication::ErrorCode::MethodNotFound as i32,
+                bsp_server::ErrorCode::MethodNotFound as i32,
                 "unknown request".to_string(),
             );
             self.global_state.respond(response);
         }
     }
 
-    fn parse<R>(&mut self) -> Option<(communication::Request, R::Params, String)>
+    fn parse<R>(&mut self) -> Option<(bsp_server::Request, R::Params, String)>
     where
         R: bsp_types::requests::Request,
         R::Params: DeserializeOwned + fmt::Debug,
@@ -117,9 +116,9 @@ impl<'a> RequestDispatcher<'a> {
                 Some((req, params, panic_context))
             }
             Err(err) => {
-                let response = communication::Response::new_err(
+                let response = bsp_server::Response::new_err(
                     req.id,
-                    communication::ErrorCode::InvalidParams as i32,
+                    bsp_server::ErrorCode::InvalidParams as i32,
                     err.to_string(),
                 );
                 self.global_state.respond(response);
@@ -130,23 +129,21 @@ impl<'a> RequestDispatcher<'a> {
 }
 
 fn result_to_response<R>(
-    id: communication::RequestId,
+    id: bsp_server::RequestId,
     result: Result<R::Result>,
-) -> Result<communication::Response>
+) -> Result<bsp_server::Response>
 where
     R: bsp_types::requests::Request,
     R::Params: DeserializeOwned,
     R::Result: Serialize,
 {
     let res = match result {
-        Ok(resp) => communication::Response::new_ok(id, &resp),
+        Ok(resp) => bsp_server::Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
-            Ok(lsp_error) => {
-                communication::Response::new_err(id, lsp_error.code, lsp_error.message)
-            }
-            Err(e) => communication::Response::new_err(
+            Ok(lsp_error) => bsp_server::Response::new_err(id, lsp_error.code, lsp_error.message),
+            Err(e) => bsp_server::Response::new_err(
                 id,
-                communication::ErrorCode::InternalError as i32,
+                bsp_server::ErrorCode::InternalError as i32,
                 e.to_string(),
             ),
         },
@@ -155,7 +152,7 @@ where
 }
 
 pub(crate) struct NotificationDispatcher<'a> {
-    pub(crate) not: Option<communication::Notification>,
+    pub(crate) not: Option<bsp_server::Notification>,
     pub(crate) global_state: &'a mut GlobalState,
 }
 

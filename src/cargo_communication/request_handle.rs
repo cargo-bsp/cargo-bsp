@@ -1,11 +1,13 @@
+use std::path::Path;
+
+use bsp_server::{Message, RequestId};
+use crossbeam_channel::{unbounded, Sender};
+
 use crate::bsp_types::requests::Request;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::request_actor::RequestActor;
-use crate::communication::{Message, RequestId};
-use crossbeam_channel::{unbounded, Sender};
-use std::path::Path;
 
 #[derive(Debug)]
 pub struct RequestHandle {
