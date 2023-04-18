@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
+use log::info;
 use lsp_types::DiagnosticSeverity;
 use mockall::*;
 use paths::AbsPath;
@@ -74,7 +75,6 @@ impl RequestHandle {
         }
     }
 
-    #[allow(dead_code)]
     pub fn cancel(&self) {
         self.sender_to_cancel.send(Event::Cancel).unwrap();
     }
@@ -290,7 +290,7 @@ where
 
     pub fn spawn_handle(&mut self) -> Result<CargoHandle, String> {
         let command = self.params.create_command(self.root_path.clone());
-        log(format!("Created command: {:?}", command).as_str());
+        info!(format!("Created command: {:?}", command).as_str());
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => Ok(cargo_handle),
             Err(err) => {

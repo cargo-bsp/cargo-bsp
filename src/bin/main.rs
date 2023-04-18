@@ -19,16 +19,16 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use ntest::timeout;
     use serde_json::{from_str, to_value};
 
     use cargo_bsp::bsp_types::notifications::{
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
     use cargo_bsp::bsp_types::requests::{
-        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild,
-        InitializeBuildParams, InitializeBuildResult, Request as _, Run, RunParams, RunResult,
-        ShutdownBuild, Test, TestParams, TestResult, WorkspaceBuildTargetsResult,
+        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild, InitializeBuildParams,
+        InitializeBuildResult, Request as _, Run, RunParams, RunProvider, RunResult, ShutdownBuild,
+        Test, TestParams, TestProvider, TestResult, WorkspaceBuildTargets,
+        WorkspaceBuildTargetsResult,
     };
     use cargo_bsp::bsp_types::{
         BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, StatusCode,
@@ -71,7 +71,6 @@ mod tests {
     }
 
     #[test]
-    #[timeout(2000)]
     fn simple_lifetime() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -80,7 +79,6 @@ mod tests {
         assert_eq!(child.wait().unwrap().code(), Some(0));
     }
 
-    #[ignore]
     #[test]
     fn immediate_shutdown() {
         let mut child = spawn_server();
@@ -90,15 +88,12 @@ mod tests {
         assert_eq!(child.wait().unwrap().code(), Some(1));
     }
 
-    #[ignore]
     #[test]
-    #[timeout(2000)]
     fn initialize_fail() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
 
         let build_workspace_req = create_build_req("2137");
-
         cl.send(&serde_json::to_string(&build_workspace_req).unwrap());
 
         let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
@@ -106,14 +101,11 @@ mod tests {
 
         init_conn(&mut cl);
         shutdown_conn(&mut cl);
-        let exit_notif = create_exit_notif();
-        cl.send(&serde_json::to_string(&exit_notif).unwrap());
-        assert_eq!(child.wait().unwrap().code(), Some(1));
+        assert_eq!(child.wait().unwrap().code(), Some(0));
     }
 
     #[ignore]
     #[test]
-    #[timeout(1000)]
     fn simple_build_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -136,7 +128,6 @@ mod tests {
 
     #[ignore]
     #[test]
-    #[timeout(1000)]
     fn simple_run_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -161,7 +152,6 @@ mod tests {
 
     #[ignore]
     #[test]
-    #[timeout(1000)]
     fn simple_test_req() {
         let mut child = spawn_server();
         let mut cl = Client::new(&mut child);
@@ -209,18 +199,22 @@ mod tests {
                 compile_provider: Some(CompileProvider {
                     language_ids: vec![],
                 }),
-                test_provider: None,
-                run_provider: None,
+                test_provider: Some(TestProvider {
+                    language_ids: vec![],
+                }),
+                run_provider: Some(RunProvider {
+                    language_ids: vec![],
+                }),
                 debug_provider: None,
                 inverse_sources_provider: Some(false),
                 dependency_sources_provider: Some(false),
                 dependency_modules_provider: Some(false),
-                resources_provider: Some(true),
+                resources_provider: Some(false),
                 output_paths_provider: Some(false),
                 build_target_changed_provider: Some(false),
                 jvm_run_environment_provider: Some(false),
                 jvm_test_environment_provider: Some(false),
-                can_reload: Some(false),
+                can_reload: Some(true),
             },
             data: None,
         };

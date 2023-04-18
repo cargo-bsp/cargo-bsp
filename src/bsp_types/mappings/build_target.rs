@@ -1,7 +1,7 @@
 use cargo_metadata::camino::Utf8Path;
+use log::warn;
 
 use crate::bsp_types::basic_bsp_structures::*;
-use crate::logger::log;
 
 impl BuildTargetCapabilities {
     pub fn new() -> Self {
@@ -67,7 +67,7 @@ fn tags_and_capabilities_from_cargo_kind(
                 todo!("Custom-build target is unsupported by BSP server yet.");
             }
             _ => {
-                log(&format!("Unknown cargo target kind: {}", kind));
+                warn!("Unknown cargo target kind: {}", kind);
             }
         });
     (tags, capabilities)
@@ -85,7 +85,7 @@ impl From<&cargo_metadata::Target> for BuildTarget {
         // we assume that cargo metadata returns valid path to file, which additionally has a parent
         base_directory.pop();
 
-        let rust_specific_data = RustBuildTargetData::new(RustBuildTarget {
+        let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
             edition: cargo_target.edition,
             required_features: cargo_target.required_features.clone(),
         });

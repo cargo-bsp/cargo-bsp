@@ -62,9 +62,9 @@ pub struct InitializeBuildResult {
 #[serde(rename_all = "camelCase")]
 pub struct BuildClientCapabilities {
     /** The languages that this client supports.
-     * The ID strings for each language is defined in the LSP.
-     * The server must never respond with build targets for other
-     * languages than those that appear in this list. */
+    The ID strings for each language is defined in the LSP.
+    The server must never respond with build targets for other
+    languages than those that appear in this list. */
     pub language_ids: Vec<String>,
 }
 
@@ -88,43 +88,43 @@ pub struct BuildServerCapabilities {
     pub debug_provider: Option<DebugProvider>,
 
     /** The server can provide a list of targets that contain a
-     * single text document via the method buildTarget/inverseSources */
+    single text document via the method buildTarget/inverseSources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inverse_sources_provider: Option<bool>,
 
     /** The server provides sources for library dependencies
-     * via method buildTarget/dependencySources */
+    via method buildTarget/dependencySources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependency_sources_provider: Option<bool>,
 
     /** The server can provide a list of dependency modules (libraries with meta information)
-     * via method buildTarget/dependencyModules */
+    via method buildTarget/dependencyModules */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependency_modules_provider: Option<bool>,
 
     /** The server provides all the resource dependencies
-     * via method buildTarget/resources */
+    via method buildTarget/resources */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resources_provider: Option<bool>,
 
     /** The server provides all output paths
-     * via method buildTarget/outputPaths */
+    via method buildTarget/outputPaths */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_paths_provider: Option<bool>,
 
     /** The server sends notifications to the client on build
-     * target change events via buildTarget/didChange */
+    target change events via buildTarget/didChange */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub build_target_changed_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmRunEnvironment` requests with the
-     * necessary information required to launch a Java process to run a main class. */
+    necessary information required to launch a Java process to run a main class. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jvm_run_environment_provider: Option<bool>,
 
     /** The server can respond to `buildTarget/jvmTestEnvironment` requests with the
-     * necessary information required to launch a Java process for testing or
-     * debugging. */
+    necessary information required to launch a Java process for testing or
+    debugging. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jvm_test_environment_provider: Option<bool>,
 
