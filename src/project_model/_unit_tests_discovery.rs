@@ -23,12 +23,11 @@
 //! **Alternative next steps:** Analyze how cargo discovers tests and compile only
 //! to the moment when unit tests can be obtained.
 
-use crate::bsp_types::RustBuildTargetData::Rust;
-use crate::bsp_types::{
-    BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, RustBuildTarget, RUST_ID,
+use crate::bsp_types::mappings::build_target::{
+    build_target_id_from_name_and_path, path_parent_directory_uri,
 };
+use crate::bsp_types::BuildTarget;
 use cargo_metadata::camino::Utf8PathBuf;
-use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -71,30 +70,13 @@ struct CargoTestTarget {
     ignore_message: String,
 }
 
-impl From<&CargoTestTarget> for BuildTarget {
-    /// **Unfinished** implementation of mapping CargoTestTarget to BuildTarget
-    fn from(test_target: &CargoTestTarget) -> Self {
-        let rust_specific_data = Rust(RustBuildTarget {
-            edition: Edition::E2021,
-            required_features: vec![],
-        });
-
-        let mut base_directory = test_target.source_path.clone();
-        // we assume that cargo test returns valid path to file, which additionally has a parent
-        base_directory.pop();
-
-        BuildTarget {
-            id: BuildTargetIdentifier {
-                uri: format!("{}:{}", test_target.source_path, test_target.name),
-            },
-            display_name: Some(test_target.name.clone()),
-            base_directory: Some(format!("file://{}", base_directory)),
-            tags: vec![],
-            capabilities: BuildTargetCapabilities::default(),
-            language_ids: vec![RUST_ID.to_string()],
-            dependencies: vec![],
-            data: Some(rust_specific_data),
-        }
+/// TODO: implementation of mapping CargoTestTarget to BuildTarget
+fn bsp_target_from_cargo_test_target(test_target: &CargoTestTarget) -> BuildTarget {
+    BuildTarget {
+        id: build_target_id_from_name_and_path(&test_target.name, &test_target.source_path),
+        display_name: Some(test_target.name.clone()),
+        base_directory: Some(path_parent_directory_uri(&test_target.source_path)),
+        ..BuildTarget::default()
     }
 }
 
@@ -128,12 +110,12 @@ fn get_test_targets_from_cargo_test() -> Vec<CargoTestTarget> {
     tests_targets
 }
 
-/// **Unfinished** - mapping of *test_targets* is not implemented yet.
+/// TODO: mapping of *test_targets* is not implemented yet.
 #[allow(dead_code)]
 pub fn get_unit_tests_build_targets() -> Vec<BuildTarget> {
     let test_targets = get_test_targets_from_cargo_test();
     test_targets
         .iter()
-        .map(|test_target| test_target.into())
+        .map(bsp_target_from_cargo_test_target)
         .collect()
 }

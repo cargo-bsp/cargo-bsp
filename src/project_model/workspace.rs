@@ -1,6 +1,6 @@
 use crate::bsp_types::mappings::build_target::new_bsp_build_target;
 use crate::bsp_types::BuildTarget;
-use crate::project_model::package_dependencies::{PackageDependency, PackageWithDependencies};
+use crate::project_model::package_dependencies::{PackageDependency, PackageWithDependenciesIds};
 use cargo_metadata::{CargoOpt, Error, MetadataCommand, Package};
 use std::path::PathBuf;
 
@@ -16,33 +16,36 @@ impl ProjectWorkspace {
     /// Retrieves build targets from *'cargo metadata'*, maps them to BSP build
     /// targets and stores in new instance of ProjectWorkspace.
     ///
-    /// Skips unit_tests discovery, look:
+    /// Skips unit_tests discovery, see:
     /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
         let metadata = MetadataCommand::new()
             .manifest_path(project_manifest_path)
-            .features(CargoOpt::AllFeatures)
+            .features(CargoOpt::AllFeatures) // TODO: in future can be a way to discover dependencies with features
             .exec()?;
 
         let workspace_packages = metadata.workspace_packages();
         let cargo_targets = ProjectWorkspace::cargo_targets(&workspace_packages);
 
-        let packages_with_dependencies: Vec<PackageWithDependencies> = workspace_packages
+        let packages_with_dependencies: Vec<PackageWithDependenciesIds> = workspace_packages
             .iter()
             .map(|&package| {
-                PackageWithDependencies(
+                PackageWithDependenciesIds(
                     package,
                     package
                         .dependencies
                         .iter()
-                        .map(|dep| PackageDependency::new(dep, &metadata.packages))
+                        .filter_map(|dep| {
+                            PackageDependency::new(dep, &metadata.packages)?
+                                .create_id_from_dependency()
+                        })
                         .collect(),
                 )
             })
             .collect();
 
         let targets =
-            ProjectWorkspace::bsp_targets_from_metadata_packages(&packages_with_dependencies);
+            ProjectWorkspace::bsp_targets_from_metadata_packages(packages_with_dependencies);
 
         Ok(ProjectWorkspace {
             _cargo_targets: cargo_targets,
@@ -61,12 +64,12 @@ impl ProjectWorkspace {
 
     /// Create BSP build targets from cargo targets from all packages in the workspace
     fn bsp_targets_from_metadata_packages(
-        packages_with_deps: &[PackageWithDependencies],
+        packages_with_deps: Vec<PackageWithDependenciesIds>,
     ) -> Vec<BuildTarget> {
         packages_with_deps
-            .iter()
-            .flat_map(|PackageWithDependencies(p, d)| {
-                p.targets.iter().map(|t| new_bsp_build_target(t, d))
+            .into_iter()
+            .flat_map(|PackageWithDependenciesIds(p, d)| {
+                p.targets.iter().map(move |t| new_bsp_build_target(t, &d))
             })
             .collect()
     }

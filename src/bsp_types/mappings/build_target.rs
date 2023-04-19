@@ -1,7 +1,24 @@
 use crate::bsp_types::basic_bsp_structures::*;
 use crate::bsp_types::mappings::file_uri;
-use crate::project_model::package_dependencies::PackageDependency;
-use log::{error, warn};
+use cargo_metadata::camino::Utf8PathBuf;
+use log::warn;
+use std::fmt::Display;
+
+pub fn build_target_id_from_name_and_path<T: Display, R: Display>(
+    name: T,
+    path: R,
+) -> BuildTargetIdentifier {
+    BuildTargetIdentifier {
+        uri: format!("targetId:/{}:{}", path, name),
+    }
+}
+
+/// Assumes calling only with valid path which additionally has a parent
+pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+    let mut parent_directory = path.clone();
+    parent_directory.pop();
+    file_uri(parent_directory)
+}
 
 fn tags_and_capabilities_from_cargo_kind(
     cargo_target: &cargo_metadata::Target,
@@ -49,35 +66,10 @@ fn tags_and_capabilities_from_cargo_kind(
     (tags, capabilities)
 }
 
-fn establish_dependencies(
-    package_dependencies: &[PackageDependency],
-) -> Vec<BuildTargetIdentifier> {
-    package_dependencies
-        .iter()
-        .filter_map(|dep| {
-            let manifest_path_str = dep.manifest_path.to_str();
-            if manifest_path_str.is_none() {
-                error!(
-                    "Failed extracting manifest path from dependency: {:?}",
-                    dep.manifest_path
-                );
-            }
-            manifest_path_str
-        })
-        .map(|path| BuildTargetIdentifier {
-            uri: file_uri(path),
-        })
-        .collect()
-}
-
 pub fn new_bsp_build_target(
     cargo_target: &cargo_metadata::Target,
-    package_dependencies: &[PackageDependency],
+    target_dependencies: &[BuildTargetIdentifier],
 ) -> BuildTarget {
-    let mut base_directory = cargo_target.src_path.clone();
-    // we assume that cargo metadata returns valid path to file, which additionally has a parent
-    base_directory.pop();
-
     let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
     let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
@@ -86,15 +78,14 @@ pub fn new_bsp_build_target(
     });
 
     BuildTarget {
-        id: BuildTargetIdentifier {
-            uri: format!("{}:{}", cargo_target.src_path, cargo_target.name),
-        },
+        id: build_target_id_from_name_and_path(&cargo_target.name, &cargo_target.src_path),
         display_name: Some(cargo_target.name.clone()),
-        base_directory: Some(file_uri(base_directory)),
+        // We assume that cargo metadata always returns valid paths, which additionally have a parent
+        base_directory: Some(path_parent_directory_uri(&cargo_target.src_path)),
         tags,
         capabilities,
         language_ids: vec![RUST_ID.to_string()],
-        dependencies: establish_dependencies(package_dependencies),
+        dependencies: Vec::from(target_dependencies),
         data: Some(rust_specific_data),
     }
 }

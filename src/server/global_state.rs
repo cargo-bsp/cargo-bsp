@@ -107,12 +107,13 @@ impl GlobalState {
         let mutable_config = Arc::make_mut(&mut self.config);
         mutable_config.update_project_manifest();
 
-        if let Ok(updated_workspace) =
-            ProjectWorkspace::new(self.config.workspace_manifest.file.clone())
-        {
-            self.workspace = Arc::new(updated_workspace);
-        } else {
-            error!("Updating workspace state failed! `cargo metadata` failed to execute.");
+        match ProjectWorkspace::new(self.config.workspace_manifest.file.clone()) {
+            Ok(updated_workspace) => {
+                self.workspace = Arc::new(updated_workspace);
+            }
+            Err(e) => {
+                error!("Updating workspace state failed: {}", e);
+            }
         }
     }
 }
