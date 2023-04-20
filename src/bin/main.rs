@@ -184,7 +184,7 @@ mod tests {
             data: None,
         };
         Request {
-            id: id.into(),
+            id: id.to_string().into(),
             method: InitializeBuild::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -219,7 +219,7 @@ mod tests {
             data: None,
         };
         Response {
-            id: id.into(),
+            id: id.to_string().into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -234,7 +234,7 @@ mod tests {
 
     fn create_shutdown_req(id: &str) -> Request {
         Request {
-            id: id.into(),
+            id: id.to_string().into(),
             method: ShutdownBuild::METHOD.to_string(),
             params: Default::default(),
         }
@@ -242,7 +242,7 @@ mod tests {
 
     fn create_shutdown_resp(id: &str) -> Response {
         Response {
-            id: id.into(),
+            id: id.to_string().into(),
             result: None,
             error: None,
         }
@@ -264,7 +264,7 @@ mod tests {
             arguments: vec![],
         };
         Request {
-            id: id.into(),
+            id: id.to_string().into(),
             method: Compile::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -291,7 +291,7 @@ mod tests {
             }],
         };
         Response {
-            id: id.into(),
+            id: id.to_string().into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -306,7 +306,7 @@ mod tests {
             data: None,
         };
         Request {
-            id: id.into(),
+            id: id.to_string().into(),
             method: Run::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -318,7 +318,7 @@ mod tests {
             status_code: StatusCode::Ok,
         };
         Response {
-            id: id.into(),
+            id: id.to_string().into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }
@@ -333,7 +333,7 @@ mod tests {
             data: None,
         };
         Request {
-            id: id.into(),
+            id: id.to_string().into(),
             method: Test::METHOD.to_string(),
             params: to_value(params).unwrap(),
         }
@@ -347,7 +347,7 @@ mod tests {
             data: None,
         };
         Response {
-            id: id.into(),
+            id: id.to_string().into(),
             result: Some(to_value(result).unwrap()),
             error: None,
         }

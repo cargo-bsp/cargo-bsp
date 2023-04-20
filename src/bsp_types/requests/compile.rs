@@ -28,13 +28,15 @@ impl CreateCommand for CompileParams {
     }
 
     fn create_command(&self, root: PathBuf) -> Command {
-        let mut com = Command::new(toolchain::cargo());
-        com.current_dir(root);
-        com.args(["build", "--message-format=json"]);
-        com.arg("--target");
-        com.arg(self.targets[0].clone().uri);
-        com.args(self.arguments.clone());
-        com
+        let mut cmd = Command::new(toolchain::cargo());
+        cmd.current_dir(root)
+            .args([
+                "build",
+                "--message-format=json",
+                self.targets[0].clone().uri.as_str(),
+            ])
+            .args(self.arguments.clone());
+        cmd
     }
 }
 

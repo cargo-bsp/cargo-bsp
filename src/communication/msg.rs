@@ -58,12 +58,6 @@ impl From<String> for RequestId {
     }
 }
 
-impl From<&str> for RequestId {
-    fn from(id: &str) -> RequestId {
-        RequestId(IdRepr::String(id.to_string()))
-    }
-}
-
 impl fmt::Display for RequestId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
