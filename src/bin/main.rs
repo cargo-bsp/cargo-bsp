@@ -25,9 +25,9 @@ mod tests {
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
     use cargo_bsp::bsp_types::requests::{
-        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild, InitializeBuildParams,
-        InitializeBuildResult, Request as _, Run, RunParams, RunProvider, RunResult, ShutdownBuild,
-        Test, TestParams, TestProvider, TestResult, WorkspaceBuildTargets,
+        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild,
+        InitializeBuildParams, InitializeBuildResult, Request as _, Run, RunParams, RunProvider,
+        RunResult, ShutdownBuild, Test, TestParams, TestProvider, TestResult,
         WorkspaceBuildTargetsResult,
     };
     use cargo_bsp::bsp_types::{

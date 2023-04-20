@@ -26,7 +26,6 @@ use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::communication::{ErrorCode, Message as RPCMessage, Notification, ResponseError};
 use crate::communication::{RequestId, Response};
-use crate::logger::log;
 use crate::server::cargo_actor::CargoHandle;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
@@ -290,7 +289,7 @@ where
 
     pub fn spawn_handle(&mut self) -> Result<CargoHandle, String> {
         let command = self.params.create_command(self.root_path.clone());
-        info!(format!("Created command: {:?}", command).as_str());
+        info!("Created command: {:?}", command);
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => Ok(cargo_handle),
             Err(err) => {
@@ -688,7 +687,7 @@ pub mod compile_request_tests {
         let req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
             RequestActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-                "test_req_id".into(),
+                "test_req_id".to_string().into(),
                 CompileParams {
                     targets: vec!["test_target".into()],
                     origin_id: Some("test_origin_id".into()),
@@ -763,7 +762,7 @@ pub mod compile_request_tests {
             },
         );
         let proper_response = Response::new_ok(
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             CompileResult {
                 origin_id: "test_origin_id".to_string().into(),
                 status_code: StatusCode::Ok,
@@ -835,7 +834,7 @@ pub mod compile_request_tests {
             },
         );
         let proper_response = Response::new_err(
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             ErrorCode::RequestCanceled as i32,
             "Request \"test_req_id\" canceled".into(),
         );
@@ -1326,7 +1325,7 @@ pub mod run_request_tests {
 
         let req_actor: RequestActor<Run, MockCargoHandleTrait<CargoMessage>> = RequestActor::new(
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             RunParams {
                 target: "test_target".into(),
                 origin_id: Some("test_origin_id".into()),
@@ -1433,7 +1432,7 @@ pub mod run_request_tests {
             },
         );
         let proper_resp = Response::new_ok(
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             RunResult {
                 origin_id: Some("test_origin_id".into()),
                 status_code: StatusCode::Ok,
@@ -1512,10 +1511,15 @@ pub mod run_request_tests {
 }
 #[cfg(test)]
 pub mod test_request_tests {
-    use crate::bsp_types::mappings::test::{SuiteEvent, SuiteStarted, TestType};
+    #[allow(unused_imports)]
+    use crate::bsp_types::mappings::test::{
+        SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName, TestResult as TestResultEnum,
+        TestType,
+    };
     use crate::bsp_types::requests::{Test, TestParams, TestResult};
     use crate::communication::{Message, Notification, Response};
-    use crate::server::request_actor::CargoMessage::CargoStdout;
+    #[allow(unused_imports)]
+    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
     use cargo_metadata::BuildFinishedBuilder;
     use cargo_metadata::Message::{BuildFinished, TextLine};
     use serde_json::to_string;
@@ -1536,7 +1540,7 @@ pub mod test_request_tests {
 
         let req_actor: RequestActor<Test, MockCargoHandleTrait<CargoMessage>> = RequestActor::new(
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             TestParams {
                 targets: vec!["test_target".into()],
                 origin_id: Some("test_origin_id".into()),
@@ -1642,7 +1646,7 @@ pub mod test_request_tests {
             },
         );
         let test_response = Response::new_ok(
-            "test_req_id".into(),
+            "test_req_id".to_string().into(),
             TestResult {
                 origin_id: Some("test_origin_id".into()),
                 status_code: StatusCode::Ok,
