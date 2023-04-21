@@ -6,10 +6,11 @@ use std::{
 
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use log::warn;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
-use crate::server::request_actor::{CargoHandleTrait, CargoMessage};
+use crate::cargo_communication::request_actor::{CargoHandleTrait, CargoMessage};
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
@@ -121,8 +122,8 @@ impl CargoActor {
                             .send(CargoMessage::CargoStdout(message))
                             .expect("TODO: panic message");
                     }
-                    Err(_e) => {
-                        // todo!("Log that we couldn't parse a message: {:?}", line")
+                    Err(e) => {
+                        warn!("Could not parse a message from cargo: {}", e.to_string());
                     }
                 };
             },

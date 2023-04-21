@@ -6,27 +6,20 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
-use crossbeam_channel::{never, select, unbounded, Receiver, Sender};
+use crossbeam_channel::{never, select, Receiver};
 use log::info;
-use lsp_types::DiagnosticSeverity;
 use mockall::*;
-use paths::AbsPath;
 use serde::Serialize;
 use serde_json::to_value;
 
-use crate::bsp_types::mappings::test::{SuiteEvent, TestEvent, TestResult, TestType};
-use crate::bsp_types::mappings::to_publish_diagnostics::create_diagnostics;
 use crate::bsp_types::notifications::{
-    get_event_time, CompileReportData, CompileTaskData, LogMessage, LogMessageParams, MessageType,
-    Notification as NotificationTrait, PublishDiagnostics, TaskDataWithKind, TaskFinish,
-    TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart, TaskStartParams,
-    TestStartData, TestStatus, TestTaskData,
+    get_event_time, CompileTaskData, MessageType, TaskDataWithKind, TaskId,
 };
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
-use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
-use crate::communication::{ErrorCode, Message as RPCMessage, Notification, ResponseError};
+use crate::bsp_types::StatusCode;
+use crate::cargo_communication::cargo_actor::CargoHandle;
+use crate::communication::{ErrorCode, Message as RPCMessage, ResponseError};
 use crate::communication::{RequestId, Response};
-use crate::server::cargo_actor::CargoHandle;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
@@ -37,46 +30,6 @@ pub enum Event {
     Cancel,
     CargoEvent(CargoMessage),
     CargoFinish,
-}
-
-#[derive(Debug)]
-pub struct RequestHandle {
-    #[allow(dead_code)]
-    sender_to_cancel: Sender<Event>,
-    _thread: jod_thread::JoinHandle,
-}
-
-impl RequestHandle {
-    pub fn spawn<R>(
-        sender_to_main: Box<dyn Fn(RPCMessage) + Send>,
-        req_id: RequestId,
-        params: R::Params,
-        root_path: &Path,
-    ) -> RequestHandle
-    where
-        R: Request + 'static,
-        R::Params: CreateCommand + Send + CreateResult<R::Result>,
-    {
-        let mut actor: RequestActor<R, CargoHandle> =
-            RequestActor::new(sender_to_main, req_id, params, root_path);
-        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
-        let thread = jod_thread::Builder::new()
-            .spawn(move || match actor.spawn_handle() {
-                Ok(cargo_handle) => actor.run(receiver_to_cancel, cargo_handle),
-                Err(err) => {
-                    todo!()
-                }
-            })
-            .expect("failed to spawn thread");
-        RequestHandle {
-            sender_to_cancel,
-            _thread: thread,
-        }
-    }
-
-    pub fn cancel(&self) {
-        self.sender_to_cancel.send(Event::Cancel).unwrap();
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
@@ -91,7 +44,7 @@ where
     R::Params: CreateCommand + CreateResult<R::Result>,
     C: CargoHandleTrait<CargoMessage>,
 {
-    sender: Box<dyn Fn(RPCMessage) + Send>,
+    pub(super) sender: Box<dyn Fn(RPCMessage) + Send>,
     /// CargoHandle exists to wrap around the communication needed to be able to
     /// run `cargo build/run/test` without blocking. Currently the Rust standard library
     /// doesn't provide a way to read sub-process output without blocking, so we
@@ -99,50 +52,51 @@ where
     /// back over a channel.
     cargo_handle: Option<C>,
     req_id: RequestId,
-    params: R::Params,
-    root_path: PathBuf,
-    state: RequestActorState,
+    pub(super) params: R::Params,
+    pub(super) root_path: PathBuf,
+    pub(super) state: RequestActorState,
 }
 
-struct RequestActorState {
-    root_task_id: TaskId,
-    compile_state: CompileState,
-    execution_state: ExecutionState,
-    test_state: TestState,
+pub struct RequestActorState {
+    pub(super) root_task_id: TaskId,
+    pub(super) compile_state: CompileState,
+    pub(super) execution_state: ExecutionState,
 }
 
-struct CompileState {
-    compile_task_id: TaskId,
-    compile_errors: i32,
-    compile_warnings: i32,
-    compile_start_time: i64,
+pub enum ExecutionState {
+    Compile,
+    Run(RunState),
+    Test(TestState),
 }
 
-struct ExecutionState {
-    execution_task_id: TaskId,
+pub struct CompileState {
+    pub(super) compile_task_id: TaskId,
+    pub(super) compile_errors: i32,
+    pub(super) compile_warnings: i32,
+    pub(super) compile_start_time: i64,
 }
 
-struct TestState {
-    test_task_id: TaskId,
-    suite_test_task_id: TaskId,
-    suite_task_progress: SuiteTaskProgress,
-    single_test_task_ids: HashMap<String, TaskId>,
+pub struct RunState {
+    pub(super) run_task_id: TaskId,
 }
 
-struct SuiteTaskProgress {
-    progress: i64,
-    total: i64,
+pub struct TestState {
+    pub(super) test_task_id: TaskId,
+    pub(super) suite_test_task_id: TaskId,
+    pub(super) suite_task_progress: SuiteTaskProgress,
+    pub(super) single_test_task_ids: HashMap<String, TaskId>,
+}
+
+pub struct SuiteTaskProgress {
+    pub(super) progress: i64,
+    pub(super) total: i64,
 }
 
 impl RequestActorState {
-    fn new(origin_id: Option<String>) -> RequestActorState {
+    fn new<R: Request>(origin_id: Option<String>) -> RequestActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(TaskId::generate_random_id()),
             parents: vec![],
-        };
-        let test_task_id = TaskId {
-            id: TaskId::generate_random_id(),
-            parents: vec![root_task_id.id.clone()],
         };
         RequestActorState {
             root_task_id: root_task_id.clone(),
@@ -155,24 +109,37 @@ impl RequestActorState {
                 compile_warnings: 0,
                 compile_start_time: 0,
             },
-            execution_state: ExecutionState {
-                execution_task_id: TaskId {
+            execution_state: RequestActorState::set_execution_state::<R>(root_task_id),
+        }
+    }
+
+    fn set_execution_state<R: Request>(root_task_id: TaskId) -> ExecutionState {
+        match R::METHOD {
+            "buildTarget/run" => ExecutionState::Run(RunState {
+                run_task_id: TaskId {
                     id: TaskId::generate_random_id(),
                     parents: vec![root_task_id.id],
                 },
-            },
-            test_state: TestState {
-                suite_test_task_id: TaskId {
-                    id: Default::default(),
-                    parents: vec![test_task_id.id.clone()],
-                },
-                suite_task_progress: SuiteTaskProgress {
-                    progress: 0,
-                    total: 0,
-                },
-                test_task_id,
-                single_test_task_ids: HashMap::new(),
-            },
+            }),
+            "buildTarget/test" => {
+                let test_task_id = TaskId {
+                    id: TaskId::generate_random_id(),
+                    parents: vec![root_task_id.id],
+                };
+                ExecutionState::Test(TestState {
+                    suite_test_task_id: TaskId {
+                        id: Default::default(),
+                        parents: vec![test_task_id.id.clone()],
+                    },
+                    suite_task_progress: SuiteTaskProgress {
+                        progress: 0,
+                        total: 0,
+                    },
+                    test_task_id,
+                    single_test_task_ids: HashMap::new(),
+                })
+            }
+            _ => ExecutionState::Compile,
         }
     }
 }
@@ -193,87 +160,10 @@ where
             sender,
             cargo_handle: None,
             req_id,
-            state: RequestActorState::new(params.origin_id()),
+            state: RequestActorState::new::<R>(params.origin_id()),
             params,
             root_path: root_path.to_path_buf(),
         }
-    }
-
-    fn report_task_start(
-        &self,
-        task_id: TaskId,
-        message: Option<String>,
-        data: Option<TaskDataWithKind>,
-    ) {
-        self.send_notification::<TaskStart>(TaskStartParams {
-            task_id,
-            event_time: get_event_time(),
-            message,
-            data,
-        });
-    }
-
-    fn report_task_progress(
-        &self,
-        task_id: TaskId,
-        message: Option<String>,
-        total: Option<i64>,
-        progress: Option<i64>,
-        unit: Option<String>,
-    ) {
-        self.send_notification::<TaskProgress>(TaskProgressParams {
-            task_id,
-            event_time: get_event_time(),
-            message,
-            total,
-            progress,
-            data: None,
-            unit,
-        });
-    }
-
-    fn report_task_finish(
-        &self,
-        task_id: TaskId,
-        status: StatusCode,
-        message: Option<String>,
-        data: Option<TaskDataWithKind>,
-    ) {
-        self.send_notification::<TaskFinish>(TaskFinishParams {
-            task_id,
-            event_time: get_event_time(),
-            message,
-            status,
-            data,
-        });
-    }
-
-    fn log_message(&self, message_type: MessageType, message: String, method: &str) {
-        let task_id = match method {
-            "buildTarget/compile" => self.state.root_task_id.clone(),
-            "buildTarget/run" => self.state.execution_state.execution_task_id.clone(),
-            "buildTarget/test" => self.state.test_state.test_task_id.clone(),
-            _ => return,
-        };
-        self.send_notification::<LogMessage>(LogMessageParams {
-            message_type,
-            task: Some(task_id),
-            origin_id: self.params.origin_id(),
-            message,
-        });
-    }
-
-    fn send_notification<T>(&self, notification: T::Params)
-    where
-        T: NotificationTrait,
-    {
-        self.send(
-            Notification {
-                method: T::METHOD.to_string(),
-                params: to_value(notification).unwrap(),
-            }
-            .into(),
-        );
     }
 
     fn next_event(&self, inbox: &Receiver<Event>) -> Option<Event> {
@@ -299,10 +189,9 @@ where
     }
 
     pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: C) {
-        self.report_task_start(self.state.root_task_id.clone(), None, None);
-
         self.cargo_handle = Some(cargo_handle);
 
+        self.report_task_start(self.state.root_task_id.clone(), None, None);
         self.start_compile_task();
 
         while let Some(event) = self.next_event(&cancel_receiver) {
@@ -312,18 +201,7 @@ where
                     return;
                 }
                 Event::CargoFinish => {
-                    let cargo_handle = self.cargo_handle.take().unwrap();
-                    let res = cargo_handle.join();
-                    let status_code = self.get_request_status_code(&res);
-                    let resp = self.create_response(res, &status_code);
-                    self.finish_execution_task(&status_code, R::METHOD);
-                    self.report_task_finish(
-                        self.state.root_task_id.clone(),
-                        status_code,
-                        None,
-                        None,
-                    );
-                    self.send(RPCMessage::Response(resp));
+                    self.finish_command();
                     return;
                 }
                 Event::CargoEvent(message) => {
@@ -331,7 +209,7 @@ where
                     match message {
                         CargoMessage::CargoStdout(stdout) => self.handle_cargo_information(stdout),
                         CargoMessage::CargoStderr(stderr) => {
-                            self.log_message(MessageType::Error, stderr, R::METHOD)
+                            self.log_message(MessageType::Error, stderr)
                         }
                     }
                 }
@@ -349,6 +227,40 @@ where
                 target: Default::default(),
             })),
         );
+    }
+
+    fn finish_command(&mut self) {
+        let res = self.cargo_handle.take().unwrap().join();
+        let status_code = self.get_request_status_code(&res);
+
+        self.finish_execution_task(&status_code);
+        self.report_task_finish(
+            self.state.root_task_id.clone(),
+            status_code.clone(),
+            None,
+            None,
+        );
+        self.send(RPCMessage::Response(
+            self.create_response(res, &status_code),
+        ));
+    }
+
+    fn finish_execution_task(&self, status_code: &StatusCode) {
+        match &self.state.execution_state {
+            ExecutionState::Compile => (),
+            ExecutionState::Run(run_state) => self.report_task_finish(
+                run_state.run_task_id.clone(),
+                status_code.clone(),
+                Some("Finished target execution".to_string()),
+                None,
+            ),
+            ExecutionState::Test(test_state) => self.report_task_finish(
+                test_state.test_task_id.clone(),
+                status_code.clone(),
+                Some("Finished target testing".to_string()),
+                None,
+            ),
+        }
     }
 
     fn get_request_status_code(&self, result: &io::Result<ExitStatus>) -> StatusCode {
@@ -374,212 +286,8 @@ where
             result: result
                 .ok()
                 .map(|_| to_value(self.params.create_result(status_code.clone())).unwrap()),
-            // TODO create error for response and finish any started tasks
+            // TODO create error for response
             error: None,
-        }
-    }
-
-    fn handle_cargo_information(&mut self, message: Message) {
-        match message {
-            Message::CompilerArtifact(msg) => {
-                self.report_task_progress(
-                    self.state.compile_state.compile_task_id.clone(),
-                    serde_json::to_string(&msg).ok(),
-                    None,
-                    None,
-                    None,
-                );
-            }
-            Message::CompilerMessage(msg) => {
-                let diagnostics = create_diagnostics(
-                    &msg.message,
-                    self.params.origin_id(),
-                    // TODO change to actual BuildTargetIdentifier
-                    &BuildTargetIdentifier {
-                        uri: "".to_string(),
-                    },
-                    AbsPath::assert(&self.root_path),
-                );
-                diagnostics.into_iter().for_each(|diagnostic| {
-                    // Count errors and warnings.
-                    diagnostic.diagnostics.iter().for_each(|d| {
-                        if let Some(severity) = d.severity {
-                            match severity {
-                                DiagnosticSeverity::ERROR => {
-                                    self.state.compile_state.compile_errors += 1
-                                }
-                                DiagnosticSeverity::WARNING => {
-                                    self.state.compile_state.compile_warnings += 1
-                                }
-                                _ => (),
-                            }
-                        }
-                    });
-                    self.send_notification::<PublishDiagnostics>(diagnostic)
-                });
-            }
-            Message::BuildScriptExecuted(msg) => {
-                self.report_task_progress(
-                    self.state.compile_state.compile_task_id.clone(),
-                    serde_json::to_string(&msg).ok(),
-                    None,
-                    None,
-                    None,
-                );
-            }
-            Message::BuildFinished(msg) => {
-                let status_code = if msg.success {
-                    StatusCode::Ok
-                } else {
-                    StatusCode::Error
-                };
-                let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
-                    // TODO change to actual BuildTargetIdentifier
-                    target: Default::default(),
-                    origin_id: self.params.origin_id(),
-                    errors: self.state.compile_state.compile_errors,
-                    warnings: self.state.compile_state.compile_warnings,
-                    time: Some(
-                        (get_event_time().unwrap() - self.state.compile_state.compile_start_time)
-                            as i32,
-                    ),
-                    no_op: None,
-                });
-                self.report_task_finish(
-                    self.state.compile_state.compile_task_id.clone(),
-                    status_code,
-                    None,
-                    Some(compile_report),
-                );
-                self.start_execution_task(R::METHOD);
-            }
-            Message::TextLine(msg) => {
-                let deserialized_message = serde_json::from_str::<TestType>(&msg);
-                match deserialized_message {
-                    // Message comes from running tests.
-                    Ok(test_type) => self.handle_information_from_test(test_type),
-                    // Message is a line from stdout.
-                    Err(_) => self.log_message(MessageType::Log, msg, R::METHOD),
-                }
-            }
-            _ => (),
-        }
-    }
-
-    fn start_execution_task(&self, method: &str) {
-        match method {
-            "buildTarget/run" => self.report_task_start(
-                self.state.execution_state.execution_task_id.clone(),
-                Some("Started target execution".to_string()),
-                None,
-            ),
-            "buildTarget/test" => self.report_task_start(
-                self.state.test_state.test_task_id.clone(),
-                Some("Started target testing".to_string()),
-                None,
-            ),
-            _ => (),
-        }
-    }
-
-    fn finish_execution_task(&self, status_code: &StatusCode, method: &str) {
-        match method {
-            "buildTarget/run" => self.report_task_finish(
-                self.state.execution_state.execution_task_id.clone(),
-                status_code.clone(),
-                Some("Finished target execution".to_string()),
-                None,
-            ),
-            "buildTarget/test" => self.report_task_finish(
-                self.state.test_state.test_task_id.clone(),
-                status_code.clone(),
-                Some("Finished target testing".to_string()),
-                None,
-            ),
-            _ => (),
-        }
-    }
-
-    fn handle_information_from_test(&mut self, test_type: TestType) {
-        // TODO change target to actual BuildTargetIdentifier
-        match test_type {
-            // Handle information about whole test suite.
-            TestType::Suite(event) => match event {
-                SuiteEvent::Started(s) => {
-                    self.state.test_state.suite_test_task_id.id = TaskId::generate_random_id();
-                    self.report_task_start(
-                        self.state.test_state.suite_test_task_id.clone(),
-                        None,
-                        Some(TaskDataWithKind::TestTask(TestTaskData {
-                            target: Default::default(),
-                        })),
-                    );
-                    self.state.test_state.suite_task_progress.total = s.test_count as i64;
-                }
-                SuiteEvent::Ok(result) => self.report_task_finish(
-                    self.state.test_state.suite_test_task_id.clone(),
-                    StatusCode::Ok,
-                    None,
-                    Some(result.to_test_report()),
-                ),
-                SuiteEvent::Failed(result) => self.report_task_finish(
-                    self.state.test_state.suite_test_task_id.clone(),
-                    StatusCode::Error,
-                    None,
-                    Some(result.to_test_report()),
-                ),
-            },
-            // Handle information about single test.
-            TestType::Test(event) => match event {
-                TestEvent::Started(started) => {
-                    let test_task_id = TaskId {
-                        id: TaskId::generate_random_id(),
-                        parents: vec![self.state.test_state.suite_test_task_id.id.clone()],
-                    };
-                    self.state
-                        .test_state
-                        .single_test_task_ids
-                        .insert(started.get_name(), test_task_id.clone());
-                    self.report_task_start(
-                        test_task_id,
-                        None,
-                        Some(TaskDataWithKind::TestStart(TestStartData {
-                            display_name: started.get_name(),
-                            location: None,
-                        })),
-                    );
-                }
-                TestEvent::Ok(result) => self.finish_single_test(result, TestStatus::Passed),
-                TestEvent::Failed(result) => self.finish_single_test(result, TestStatus::Failed),
-                TestEvent::Ignored(result) => self.finish_single_test(result, TestStatus::Ignored),
-                TestEvent::Timeout(result) => self.finish_single_test(result, TestStatus::Failed),
-            },
-        }
-    }
-
-    fn finish_single_test(&mut self, test_result: TestResult, status: TestStatus) {
-        let task_id = self
-            .state
-            .test_state
-            .single_test_task_ids
-            .remove(&test_result.get_name());
-        if let Some(id) = task_id {
-            self.report_task_finish(
-                id,
-                StatusCode::Ok,
-                None,
-                Some(TaskDataWithKind::TestFinish(
-                    test_result.map_to_test_notification(status),
-                )),
-            );
-            self.state.test_state.suite_task_progress.progress += 1;
-            self.report_task_progress(
-                self.state.test_state.suite_test_task_id.clone(),
-                None,
-                Some(self.state.test_state.suite_task_progress.total),
-                Some(self.state.test_state.suite_task_progress.progress),
-                Some("tests".to_string()),
-            );
         }
     }
 
@@ -630,10 +338,6 @@ where
             }),
         }));
     }
-
-    fn send(&self, msg: RPCMessage) {
-        (self.sender)(msg);
-    }
 }
 
 #[automock]
@@ -650,14 +354,15 @@ pub mod compile_request_tests {
     use std::os::unix::prelude::ExitStatusExt;
 
     use crate::bsp_types::notifications::{
-        CompileTaskData, Diagnostic as LSPDiagnostic, PublishDiagnosticsParams, TaskDataWithKind,
-        TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
-        TaskStartParams,
+        CompileReportData, CompileTaskData, Diagnostic as LSPDiagnostic,
+        Notification as NotificationTrait, PublishDiagnostics, PublishDiagnosticsParams,
+        TaskDataWithKind, TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams,
+        TaskStart, TaskStartParams,
     };
     use crate::bsp_types::requests::{Compile, CompileParams, CompileResult};
-    use crate::bsp_types::TextDocumentIdentifier;
+    use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+    use crate::cargo_communication::request_actor::CargoMessage::CargoStdout;
     use crate::communication::{ErrorCode, Message, Notification, Response};
-    use crate::server::request_actor::CargoMessage::CargoStdout;
     use cargo_metadata::diagnostic::{
         DiagnosticBuilder, DiagnosticCodeBuilder, DiagnosticSpanBuilder, DiagnosticSpanLineBuilder,
     };
@@ -668,6 +373,7 @@ pub mod compile_request_tests {
         ArtifactBuilder, ArtifactProfileBuilder, BuildFinishedBuilder, BuildScriptBuilder,
         CompilerMessageBuilder, Edition, PackageId, TargetBuilder,
     };
+    use crossbeam_channel::{unbounded, Sender};
     use lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
     use serde_json::to_string;
 
@@ -1303,11 +1009,17 @@ pub mod compile_request_tests {
 
 #[cfg(test)]
 pub mod run_request_tests {
+    use crate::bsp_types::notifications::{
+        CompileReportData, LogMessage, LogMessageParams, Notification as NotificationTrait,
+        TaskFinish, TaskFinishParams, TaskStart, TaskStartParams,
+    };
     use crate::bsp_types::requests::{Run, RunParams, RunResult};
+    use crate::bsp_types::BuildTargetIdentifier;
+    use crate::cargo_communication::request_actor::CargoMessage::{CargoStderr, CargoStdout};
     use crate::communication::{Message, Notification, Response};
-    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
     use cargo_metadata::BuildFinishedBuilder;
     use cargo_metadata::Message::{BuildFinished, TextLine};
+    use crossbeam_channel::{unbounded, Sender};
     use std::os::unix::process::ExitStatusExt;
 
     use super::*;
@@ -1516,12 +1228,18 @@ pub mod test_request_tests {
         SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName, TestResult as TestResultEnum,
         TestType,
     };
+    use crate::bsp_types::notifications::{
+        CompileReportData, Notification as NotificationTrait, TaskFinish, TaskFinishParams,
+        TaskStart, TaskStartParams,
+    };
     use crate::bsp_types::requests::{Test, TestParams, TestResult};
-    use crate::communication::{Message, Notification, Response};
+    use crate::bsp_types::BuildTargetIdentifier;
     #[allow(unused_imports)]
-    use crate::server::request_actor::CargoMessage::{CargoStderr, CargoStdout};
+    use crate::cargo_communication::request_actor::CargoMessage::{CargoStderr, CargoStdout};
+    use crate::communication::{Message, Notification, Response};
     use cargo_metadata::BuildFinishedBuilder;
     use cargo_metadata::Message::{BuildFinished, TextLine};
+    use crossbeam_channel::{unbounded, Sender};
     use serde_json::to_string;
     use std::os::unix::process::ExitStatusExt;
 

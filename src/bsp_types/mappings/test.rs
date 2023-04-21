@@ -23,7 +23,6 @@ pub enum SuiteEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SuiteStarted {
-    #[allow(dead_code)]
     pub(crate) test_count: i32,
 }
 
@@ -68,12 +67,6 @@ pub struct TestName {
     pub(crate) name: String,
 }
 
-impl TestName {
-    pub fn get_name(&self) -> String {
-        self.name.clone()
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TestResult {
     pub(crate) name: String,
@@ -82,17 +75,16 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    pub fn get_name(&self) -> String {
-        self.name.clone()
-    }
-
     pub fn map_to_test_notification(self, status: TestStatus) -> TestFinishData {
         TestFinishData {
             display_name: self.name,
+            /// Because of a bug in cargo, all messages from tests go to stdout.
+            /// When fixed, send stdout as logMessage and stderr as message below.
             message: self
                 .stdout
                 .and_then(|out| self.stderr.map(|err| format!("{}\n{}", out, err))),
             status,
+            // TODO add location of build target
             location: None,
             data_kind: None,
             data: None,

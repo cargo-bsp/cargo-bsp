@@ -1,6 +1,3 @@
-#[cfg(not(test))]
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -30,21 +27,6 @@ pub enum TaskFinish {}
 impl Notification for TaskFinish {
     type Params = TaskFinishParams;
     const METHOD: &'static str = "build/taskFinish";
-}
-
-#[cfg(not(test))]
-pub fn get_event_time() -> Option<i64> {
-    Some(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64,
-    )
-}
-
-#[cfg(test)]
-pub fn get_event_time() -> Option<i64> {
-    Some(1)
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

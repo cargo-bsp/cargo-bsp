@@ -28,6 +28,7 @@ impl CreateCommand for CompileParams {
     }
 
     fn create_command(&self, root: PathBuf) -> Command {
+        // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)
             .args([

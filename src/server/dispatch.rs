@@ -4,9 +4,9 @@ use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::bsp_types::requests::{CreateCommand, CreateResult};
+use crate::cargo_communication::request_handle::RequestHandle;
 use crate::communication::ExtractError;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
-use crate::server::request_actor::RequestHandle;
 use crate::server::Result;
 use crate::server::{from_json, LspError};
 use crate::{bsp_types, communication};
