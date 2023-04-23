@@ -209,7 +209,7 @@ where
                     match message {
                         CargoMessage::CargoStdout(stdout) => self.handle_cargo_information(stdout),
                         CargoMessage::CargoStderr(stderr) => {
-                            self.log_message(MessageType::Error, stderr)
+                            self.log_message(MessageType::Error, stderr, None)
                         }
                     }
                 }

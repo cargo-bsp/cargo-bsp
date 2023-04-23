@@ -66,12 +66,17 @@ where
         });
     }
 
-    pub(super) fn log_message(&self, message_type: MessageType, message: String) {
-        let task_id = match &self.state.execution_state {
+    pub(super) fn log_message(
+        &self,
+        message_type: MessageType,
+        message: String,
+        task_id: Option<TaskId>,
+    ) {
+        let task_id = task_id.unwrap_or(match &self.state.execution_state {
             ExecutionState::Compile => self.state.root_task_id.clone(),
             ExecutionState::Run(run_state) => run_state.run_task_id.clone(),
             ExecutionState::Test(test_state) => test_state.test_task_id.clone(),
-        };
+        });
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
             task: Some(task_id),

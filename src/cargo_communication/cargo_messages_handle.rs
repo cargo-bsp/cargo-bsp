@@ -43,7 +43,7 @@ where
                     // Message comes from running tests.
                     Ok(test_type) => self.handle_information_from_test(test_type),
                     // Message is a line from stdout.
-                    Err(_) => self.log_message(MessageType::Log, msg),
+                    Err(_) => self.log_message(MessageType::Log, msg, None),
                 }
             }
             _ => (),
@@ -226,13 +226,16 @@ where
         }
     }
 
-    fn finish_single_test(&mut self, test_result: TestResult, status: TestStatus) {
+    fn finish_single_test(&mut self, mut test_result: TestResult, status: TestStatus) {
         if let ExecutionState::Test(test_state) = &mut self.state.execution_state {
             if let Some(id) = test_state.single_test_task_ids.remove(&test_result.name) {
                 let test_task_id = test_state.suite_test_task_id.clone();
                 let total = test_state.suite_task_progress.total;
                 let progress = test_state.suite_task_progress.progress + 1;
                 test_state.suite_task_progress.progress = progress;
+                if let Some(message) = test_result.handle_test_stdout() {
+                    self.log_message(MessageType::Log, message, Some(id.clone()));
+                }
                 self.report_task_finish(
                     id,
                     StatusCode::Ok,

@@ -71,18 +71,29 @@ pub struct TestName {
 pub struct TestResult {
     pub(crate) name: String,
     pub(crate) stdout: Option<String>,
-    pub(crate) stderr: Option<String>,
 }
 
 impl TestResult {
+    /// Split test output into stdout and stderr (to delete, if cargo starts
+    /// sending stderr for tests).
+    pub fn handle_test_stdout(&mut self) -> Option<String> {
+        let mut true_stdout = Default::default();
+        self.stdout = self.stdout.as_ref().and_then(|stdout| {
+            if let Some((out, err)) = stdout.rsplit_once("thread '") {
+                true_stdout = out.to_string();
+                Some(format!("thread '{}", err))
+            } else {
+                true_stdout = stdout.clone();
+                None
+            }
+        });
+        (!true_stdout.is_empty()).then_some(true_stdout)
+    }
+
     pub fn map_to_test_notification(self, status: TestStatus) -> TestFinishData {
         TestFinishData {
             display_name: self.name,
-            /// Because of a bug in cargo, all messages from tests go to stdout.
-            /// When fixed, send stdout as logMessage and stderr as message below.
-            message: self
-                .stdout
-                .and_then(|out| self.stderr.map(|err| format!("{}\n{}", out, err))),
+            message: self.stdout,
             status,
             // TODO add location of build target
             location: None,
