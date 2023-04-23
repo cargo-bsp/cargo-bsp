@@ -68,6 +68,10 @@ impl ProjectManifest {
         }
     }
 
+    /// Discover the Cargo.toml files in the given path.
+    ///
+    /// However this BSP server implementation assumes that there is only one root Cargo.toml meaning one Workspace.
+    /// If found more than one takes the first one. If found none returns an error.
     pub fn discover(path: &PathBuf) -> Result<ProjectManifest, &'static str> {
         let res = ProjectManifest::discover_all(path)
             .unwrap_or_default()
@@ -97,9 +101,8 @@ mod tests {
     use std::fs::File;
     use std::path::PathBuf;
 
+    use crate::project_model::project_manifest::ProjectManifest;
     use tempfile::{tempdir, tempdir_in};
-
-    use crate::project_model::ProjectManifest;
 
     struct TestCase<'a> {
         path: &'a PathBuf,
