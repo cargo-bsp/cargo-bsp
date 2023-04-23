@@ -1,67 +1,60 @@
-use cargo_metadata::camino::Utf8Path;
-use log::warn;
-
 use crate::bsp_types::basic_bsp_structures::*;
+use crate::bsp_types::mappings::file_uri;
+use cargo_metadata::camino::Utf8PathBuf;
+use log::warn;
+use std::fmt::Display;
 
-impl BuildTargetCapabilities {
-    pub fn new() -> Self {
-        BuildTargetCapabilities {
-            can_compile: false,
-            can_test: false,
-            can_run: false,
-            can_debug: false,
-        }
+pub fn build_target_id_from_name_and_path<T: Display, R: Display>(
+    name: T,
+    path: R,
+) -> BuildTargetIdentifier {
+    BuildTargetIdentifier {
+        uri: format!("targetId:/{}:{}", path, name),
     }
+}
 
-    pub fn enable_compile(&mut self) -> &mut Self {
-        self.can_compile = true;
-        self
-    }
-
-    pub fn enable_test(&mut self) -> &mut Self {
-        self.can_test = true;
-        self
-    }
-
-    pub fn enable_run(&mut self) -> &mut Self {
-        self.can_run = true;
-        self
-    }
-
-    pub fn enable_debug(&mut self) -> &mut Self {
-        self.can_debug = true;
-        self
-    }
+/// Assumes calling only with valid path which additionally has a parent
+pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+    let mut parent_directory = path.clone();
+    parent_directory.pop();
+    file_uri(parent_directory)
 }
 
 fn tags_and_capabilities_from_cargo_kind(
     cargo_target: &cargo_metadata::Target,
 ) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
     let mut tags = vec![];
-    let mut capabilities = BuildTargetCapabilities::new();
+    let mut capabilities = BuildTargetCapabilities {
+        can_compile: true,
+        can_test: true,
+        can_run: true,
+        can_debug: true,
+    };
     cargo_target
         .kind
         .iter()
         .for_each(|kind| match kind.as_str() {
             "lib" => {
                 tags.push(BuildTargetTag::Library);
-                capabilities.enable_compile();
+                capabilities.can_debug = false;
+                capabilities.can_run = false;
+                capabilities.can_test = false;
             }
             "bin" => {
                 tags.push(BuildTargetTag::Application);
-                capabilities.enable_compile().enable_run().enable_debug();
+                capabilities.can_test = false;
             }
             "example" => {
                 tags.push(BuildTargetTag::Application);
-                capabilities.enable_compile().enable_run().enable_debug();
+                capabilities.can_test = false;
             }
             "test" => {
                 tags.push(BuildTargetTag::Test);
-                capabilities.enable_compile().enable_test().enable_debug();
+                capabilities.can_run = false;
             }
             "bench" => {
                 tags.push(BuildTargetTag::Benchmark);
-                capabilities.enable_compile().enable_test().enable_debug();
+                capabilities.can_run = false;
             }
             "custom-build" => {
                 todo!("Custom-build target is unsupported by BSP server yet.");
@@ -73,34 +66,26 @@ fn tags_and_capabilities_from_cargo_kind(
     (tags, capabilities)
 }
 
-fn discover_dependencies(_path: &Utf8Path) -> Vec<BuildTargetIdentifier> {
-    vec![] //todo
-}
+pub fn new_bsp_build_target(
+    cargo_target: &cargo_metadata::Target,
+    target_dependencies: &[BuildTargetIdentifier],
+) -> BuildTarget {
+    let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
-impl From<&cargo_metadata::Target> for BuildTarget {
-    fn from(cargo_target: &cargo_metadata::Target) -> Self {
-        let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
+    let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
+        edition: cargo_target.edition,
+        required_features: cargo_target.required_features.clone(),
+    });
 
-        let mut base_directory = cargo_target.src_path.clone();
-        // we assume that cargo metadata returns valid path to file, which additionally has a parent
-        base_directory.pop();
-
-        let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
-            edition: cargo_target.edition,
-            required_features: cargo_target.required_features.clone(),
-        });
-
-        BuildTarget {
-            id: BuildTargetIdentifier {
-                uri: format!("{}:{}", cargo_target.src_path, cargo_target.name),
-            },
-            display_name: Some(cargo_target.name.clone()),
-            base_directory: Some(format!("file://{}", base_directory)),
-            tags,
-            capabilities,
-            language_ids: vec![RUST_ID.to_string()],
-            dependencies: discover_dependencies(&cargo_target.src_path),
-            data: Some(rust_specific_data),
-        }
+    BuildTarget {
+        id: build_target_id_from_name_and_path(&cargo_target.name, &cargo_target.src_path),
+        display_name: Some(cargo_target.name.clone()),
+        // We assume that cargo metadata always returns valid paths, which additionally have a parent
+        base_directory: Some(path_parent_directory_uri(&cargo_target.src_path)),
+        tags,
+        capabilities,
+        language_ids: vec![RUST_ID.to_string()],
+        dependencies: Vec::from(target_dependencies),
+        data: Some(rust_specific_data),
     }
 }

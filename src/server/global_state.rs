@@ -3,12 +3,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use log::info;
+use log::{error, info};
 
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::communication;
 use crate::communication::{Message, RequestId};
-use crate::project_model::ProjectWorkspace;
+use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
@@ -107,10 +107,14 @@ impl GlobalState {
         let mutable_config = Arc::make_mut(&mut self.config);
         mutable_config.update_project_manifest();
 
-        //get a manifest path from config and pass it to new Project Workspace
-        self.workspace = Arc::new(ProjectWorkspace::from(
-            self.config.workspace_manifest.file.clone(),
-        ));
+        match ProjectWorkspace::new(self.config.workspace_manifest.file.clone()) {
+            Ok(updated_workspace) => {
+                self.workspace = Arc::new(updated_workspace);
+            }
+            Err(e) => {
+                error!("Updating workspace state failed: {}", e);
+            }
+        }
     }
 }
 
