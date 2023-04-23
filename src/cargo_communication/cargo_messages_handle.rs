@@ -10,7 +10,7 @@ use crate::bsp_types::notifications::{
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::cargo_communication::request_actor::{
-    CargoHandleTrait, CargoMessage, ExecutionState, RequestActor,
+    CargoHandleTrait, CargoMessage, RequestActor, TaskState,
 };
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
@@ -52,7 +52,7 @@ where
 
     fn report_compile_step(&self, msg: Option<String>) {
         self.report_task_progress(
-            self.state.compile_state.compile_task_id.clone(),
+            self.state.compile_task_state.compile_task_id.clone(),
             msg,
             None,
             None,
@@ -84,9 +84,11 @@ where
             diagnostic.diagnostics.iter().for_each(|d| {
                 if let Some(severity) = d.severity {
                     match severity {
-                        DiagnosticSeverity::ERROR => self.state.compile_state.compile_errors += 1,
+                        DiagnosticSeverity::ERROR => {
+                            self.state.compile_task_state.compile_errors += 1
+                        }
                         DiagnosticSeverity::WARNING => {
-                            self.state.compile_state.compile_warnings += 1
+                            self.state.compile_task_state.compile_warnings += 1
                         }
                         _ => (),
                     }
@@ -108,7 +110,7 @@ where
         };
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
-            task: Some(self.state.compile_state.compile_task_id.clone()),
+            task: Some(self.state.compile_task_state.compile_task_id.clone()),
             origin_id: self.params.origin_id(),
             message: global_msg.message,
         });
@@ -124,15 +126,16 @@ where
             // TODO change to actual BuildTargetIdentifier
             target: Default::default(),
             origin_id: self.params.origin_id(),
-            errors: self.state.compile_state.compile_errors,
-            warnings: self.state.compile_state.compile_warnings,
+            errors: self.state.compile_task_state.compile_errors,
+            warnings: self.state.compile_task_state.compile_warnings,
             time: Some(
-                (get_event_time().unwrap() - self.state.compile_state.compile_start_time) as i32,
+                (get_event_time().unwrap() - self.state.compile_task_state.compile_start_time)
+                    as i32,
             ),
             no_op: None,
         });
         self.report_task_finish(
-            self.state.compile_state.compile_task_id.clone(),
+            self.state.compile_task_state.compile_task_id.clone(),
             status_code,
             None,
             Some(compile_report),
@@ -141,14 +144,14 @@ where
     }
 
     fn start_execution_task(&self) {
-        match &self.state.execution_state {
-            ExecutionState::Compile => (),
-            ExecutionState::Run(run_state) => self.report_task_start(
+        match &self.state.task_state {
+            TaskState::Compile => (),
+            TaskState::Run(run_state) => self.report_task_start(
                 run_state.run_task_id.clone(),
                 Some("Started target execution".to_string()),
                 None,
             ),
-            ExecutionState::Test(test_state) => self.report_task_start(
+            TaskState::Test(test_state) => self.report_task_start(
                 test_state.test_task_id.clone(),
                 Some("Started target testing".to_string()),
                 None,
@@ -164,7 +167,7 @@ where
     }
 
     fn handle_test_suite(&mut self, event: SuiteEvent) {
-        if let ExecutionState::Test(test_state) = &mut self.state.execution_state {
+        if let TaskState::Test(test_state) = &mut self.state.task_state {
             let mut task_id = test_state.suite_test_task_id.clone();
             match event {
                 SuiteEvent::Started(s) => {
@@ -198,7 +201,7 @@ where
     }
 
     fn handle_single_test(&mut self, event: TestEvent) {
-        if let ExecutionState::Test(test_state) = &mut self.state.execution_state {
+        if let TaskState::Test(test_state) = &mut self.state.task_state {
             match event {
                 TestEvent::Started(started) => {
                     let test_task_id = TaskId {
@@ -227,7 +230,7 @@ where
     }
 
     fn finish_single_test(&mut self, mut test_result: TestResult, status: TestStatus) {
-        if let ExecutionState::Test(test_state) = &mut self.state.execution_state {
+        if let TaskState::Test(test_state) = &mut self.state.task_state {
             if let Some(id) = test_state.single_test_task_ids.remove(&test_result.name) {
                 let test_task_id = test_state.suite_test_task_id.clone();
                 let total = test_state.suite_task_progress.total;

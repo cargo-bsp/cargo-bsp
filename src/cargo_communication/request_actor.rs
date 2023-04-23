@@ -59,28 +59,28 @@ where
 
 pub struct RequestActorState {
     pub(super) root_task_id: TaskId,
-    pub(super) compile_state: CompileState,
-    pub(super) execution_state: ExecutionState,
+    pub(super) compile_task_state: CompileTaskState,
+    pub(super) task_state: TaskState,
 }
 
-pub enum ExecutionState {
+pub enum TaskState {
     Compile,
-    Run(RunState),
-    Test(TestState),
+    Run(RunTaskState),
+    Test(TestTaskState),
 }
 
-pub struct CompileState {
+pub struct CompileTaskState {
     pub(super) compile_task_id: TaskId,
     pub(super) compile_errors: i32,
     pub(super) compile_warnings: i32,
     pub(super) compile_start_time: i64,
 }
 
-pub struct RunState {
+pub struct RunTaskState {
     pub(super) run_task_id: TaskId,
 }
 
-pub struct TestState {
+pub struct TestTaskState {
     pub(super) test_task_id: TaskId,
     pub(super) suite_test_task_id: TaskId,
     pub(super) suite_task_progress: SuiteTaskProgress,
@@ -100,7 +100,7 @@ impl RequestActorState {
         };
         RequestActorState {
             root_task_id: root_task_id.clone(),
-            compile_state: CompileState {
+            compile_task_state: CompileTaskState {
                 compile_task_id: TaskId {
                     id: TaskId::generate_random_id(),
                     parents: vec![root_task_id.id.clone()],
@@ -109,13 +109,13 @@ impl RequestActorState {
                 compile_warnings: 0,
                 compile_start_time: 0,
             },
-            execution_state: RequestActorState::set_execution_state::<R>(root_task_id),
+            task_state: RequestActorState::set_task_state::<R>(root_task_id),
         }
     }
 
-    fn set_execution_state<R: Request>(root_task_id: TaskId) -> ExecutionState {
+    fn set_task_state<R: Request>(root_task_id: TaskId) -> TaskState {
         match R::METHOD {
-            "buildTarget/run" => ExecutionState::Run(RunState {
+            "buildTarget/run" => TaskState::Run(RunTaskState {
                 run_task_id: TaskId {
                     id: TaskId::generate_random_id(),
                     parents: vec![root_task_id.id],
@@ -126,7 +126,7 @@ impl RequestActorState {
                     id: TaskId::generate_random_id(),
                     parents: vec![root_task_id.id],
                 };
-                ExecutionState::Test(TestState {
+                TaskState::Test(TestTaskState {
                     suite_test_task_id: TaskId {
                         id: Default::default(),
                         parents: vec![test_task_id.id.clone()],
@@ -139,7 +139,7 @@ impl RequestActorState {
                     single_test_task_ids: HashMap::new(),
                 })
             }
-            _ => ExecutionState::Compile,
+            _ => TaskState::Compile,
         }
     }
 }
@@ -201,7 +201,7 @@ where
                     return;
                 }
                 Event::CargoFinish => {
-                    self.finish_command();
+                    self.finish_request();
                     return;
                 }
                 Event::CargoEvent(message) => {
@@ -218,10 +218,10 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_state.compile_start_time = get_event_time().unwrap();
+        self.state.compile_task_state.compile_start_time = get_event_time().unwrap();
         // TODO change to actual BuildTargetIdentifier
         self.report_task_start(
-            self.state.compile_state.compile_task_id.clone(),
+            self.state.compile_task_state.compile_task_id.clone(),
             None,
             Some(TaskDataWithKind::CompileTask(CompileTaskData {
                 target: Default::default(),
@@ -229,7 +229,7 @@ where
         );
     }
 
-    fn finish_command(&mut self) {
+    fn finish_request(&mut self) {
         let res = self.cargo_handle.take().unwrap().join();
         let status_code = self.get_request_status_code(&res);
 
@@ -246,15 +246,15 @@ where
     }
 
     fn finish_execution_task(&self, status_code: &StatusCode) {
-        match &self.state.execution_state {
-            ExecutionState::Compile => (),
-            ExecutionState::Run(run_state) => self.report_task_finish(
+        match &self.state.task_state {
+            TaskState::Compile => (),
+            TaskState::Run(run_state) => self.report_task_finish(
                 run_state.run_task_id.clone(),
                 status_code.clone(),
                 Some("Finished target execution".to_string()),
                 None,
             ),
-            ExecutionState::Test(test_state) => self.report_task_finish(
+            TaskState::Test(test_state) => self.report_task_finish(
                 test_state.test_task_id.clone(),
                 status_code.clone(),
                 Some("Finished target testing".to_string()),

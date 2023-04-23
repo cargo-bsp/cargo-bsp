@@ -6,7 +6,7 @@ use crate::bsp_types::notifications::{
 use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
 use crate::bsp_types::StatusCode;
 use crate::cargo_communication::request_actor::{
-    CargoHandleTrait, CargoMessage, ExecutionState, RequestActor,
+    CargoHandleTrait, CargoMessage, RequestActor, TaskState,
 };
 use crate::communication::{Message as RPCMessage, Notification};
 use serde_json::to_value;
@@ -72,10 +72,10 @@ where
         message: String,
         task_id: Option<TaskId>,
     ) {
-        let task_id = task_id.unwrap_or(match &self.state.execution_state {
-            ExecutionState::Compile => self.state.root_task_id.clone(),
-            ExecutionState::Run(run_state) => run_state.run_task_id.clone(),
-            ExecutionState::Test(test_state) => test_state.test_task_id.clone(),
+        let task_id = task_id.unwrap_or(match &self.state.task_state {
+            TaskState::Compile => self.state.root_task_id.clone(),
+            TaskState::Run(run_state) => run_state.run_task_id.clone(),
+            TaskState::Test(test_state) => test_state.test_task_id.clone(),
         });
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
