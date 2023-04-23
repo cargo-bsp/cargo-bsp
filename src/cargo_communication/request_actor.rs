@@ -351,6 +351,8 @@ pub trait CargoHandleTrait<T> {
 
 #[cfg(test)]
 pub mod compile_request_tests {
+    use std::collections::HashSet;
+    use std::hash::Hash;
     use std::os::unix::prelude::ExitStatusExt;
 
     use crate::bsp_types::notifications::{
@@ -685,6 +687,16 @@ pub mod compile_request_tests {
         );
     }
 
+    fn eq_unordered_vec<T>(a: &[T], b: &[T]) -> bool
+    where
+        T: Eq + Hash,
+    {
+        let a: HashSet<_> = a.iter().collect();
+        let b: HashSet<_> = b.iter().collect();
+
+        a == b
+    }
+
     #[test]
     fn compiler_message() {
         #[allow(unused_mut)]
@@ -753,7 +765,7 @@ pub mod compile_request_tests {
                             .line_end(2_usize)
                             .column_start(3_usize)
                             .column_end(4_usize)
-                            .is_primary(true)
+                            .is_primary(false)
                             .text(vec![DiagnosticSpanLineBuilder::default()
                                 .text("test_text".to_string())
                                 .highlight_start(0_usize)
@@ -807,7 +819,7 @@ pub mod compile_request_tests {
             .send(CargoStdout(CompilerMessage(compiler_mess)))
             .unwrap();
 
-        let proper_publish_diagnostic_first = Notification::new(
+        let proper_publish_diagnostic_first = Message::Notification(Notification::new(
             PublishDiagnostics::METHOD.to_string(),
             PublishDiagnosticsParams {
                 text_document: TextDocumentIdentifier {
@@ -816,51 +828,103 @@ pub mod compile_request_tests {
                 build_target: "".into(),
                 //TODO change to "test_target_name" later
                 origin_id: Some("test_origin_id".into()),
-                diagnostics: vec![LSPDiagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 2,
-                        },
-                        end: Position {
-                            line: 1,
-                            character: 3,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    code: Some(NumberOrString::String("test_code".to_string())),
-                    code_description: None,
-                    source: Some("cargo".into()),
-                    message: "test_message\ntest_label".to_string(),
-                    related_information: Some(vec![DiagnosticRelatedInformation {
-                        location: Location {
-                            uri: Url::parse("file:///test_root_path/test_filename1").unwrap(),
-                            range: Range {
-                                start: Position {
-                                    line: 4,
-                                    character: 6,
-                                },
-                                end: Position {
-                                    line: 5,
-                                    character: 7,
-                                },
+                diagnostics: vec![
+                    LSPDiagnostic {
+                        range: Range {
+                            start: Position {
+                                line: 0,
+                                character: 2,
+                            },
+                            end: Position {
+                                line: 1,
+                                character: 3,
                             },
                         },
+                        severity: Some(DiagnosticSeverity::ERROR),
+                        code: Some(NumberOrString::String("test_code".to_string())),
+                        code_description: None,
+                        source: Some("cargo".into()),
+                        message: "test_message\ntest_label".to_string(),
+                        related_information: Some(vec![
+                            DiagnosticRelatedInformation {
+                                location: Location {
+                                    uri: Url::parse("file:///test_root_path/test_filename2")
+                                        .unwrap(),
+                                    range: Range {
+                                        start: Position {
+                                            line: 0,
+                                            character: 2,
+                                        },
+                                        end: Position {
+                                            line: 1,
+                                            character: 3,
+                                        },
+                                    },
+                                },
+                                message: "test_label".to_string(),
+                            },
+                            DiagnosticRelatedInformation {
+                                location: Location {
+                                    uri: Url::parse("file:///test_root_path/test_filename1")
+                                        .unwrap(),
+                                    range: Range {
+                                        start: Position {
+                                            line: 4,
+                                            character: 6,
+                                        },
+                                        end: Position {
+                                            line: 5,
+                                            character: 7,
+                                        },
+                                    },
+                                },
+                                message: "test_child_message".to_string(),
+                            },
+                        ]),
+                        tags: None,
+                        data: None,
+                    },
+                    LSPDiagnostic {
+                        range: Range {
+                            start: Position {
+                                line: 4,
+                                character: 6,
+                            },
+                            end: Position {
+                                line: 5,
+                                character: 7,
+                            },
+                        },
+                        severity: Some(DiagnosticSeverity::HINT),
+                        code: Some(NumberOrString::String("test_code".to_string())),
+                        code_description: None,
+                        source: Some("cargo".into()),
                         message: "test_child_message".to_string(),
-                    }]),
-                    tags: None,
-                    data: None,
-                }],
-                // TODO add children to list of diagnostics (?)
+                        related_information: Some(vec![DiagnosticRelatedInformation {
+                            location: Location {
+                                uri: Url::parse("file:///test_root_path/test_filename1").unwrap(),
+                                range: Range {
+                                    start: Position {
+                                        line: 0,
+                                        character: 2,
+                                    },
+                                    end: Position {
+                                        line: 1,
+                                        character: 3,
+                                    },
+                                },
+                            },
+                            message: "original diagnostic".to_string(),
+                        }]),
+                        tags: None,
+                        data: None,
+                    },
+                ],
                 reset: false,
             },
-        );
-        // assert_eq!(
-        //     recv_to_main.recv().unwrap(),
-        //     Message::Notification(proper_publish_diagnostic_first)
-        // );
+        ));
 
-        let proper_publish_diagnostic_second = Notification::new(
+        let proper_publish_diagnostic_second = Message::Notification(Notification::new(
             PublishDiagnostics::METHOD.to_string(),
             PublishDiagnosticsParams {
                 text_document: TextDocumentIdentifier {
@@ -880,39 +944,44 @@ pub mod compile_request_tests {
                             character: 3,
                         },
                     },
-                    severity: Some(DiagnosticSeverity::ERROR),
+                    severity: Some(DiagnosticSeverity::HINT),
                     code: Some(NumberOrString::String("test_code".to_string())),
                     code_description: None,
                     source: Some("cargo".into()),
-                    message: "test_message\ntest_label".to_string(),
+                    message: "test_label".to_string(),
                     related_information: Some(vec![DiagnosticRelatedInformation {
                         location: Location {
                             uri: Url::parse("file:///test_root_path/test_filename1").unwrap(),
                             range: Range {
                                 start: Position {
-                                    line: 4,
-                                    character: 6,
+                                    line: 0,
+                                    character: 2,
                                 },
                                 end: Position {
-                                    line: 5,
-                                    character: 7,
+                                    line: 1,
+                                    character: 3,
                                 },
                             },
                         },
-                        message: "test_child_message".to_string(),
+                        message: "original diagnostic".to_string(),
                     }]),
                     tags: None,
                     data: None,
                 }],
-                // TODO add children to list of diagnostics (?)
                 reset: false,
             },
-        );
-        println!("{:#?}", recv_to_main.recv().unwrap());
-        // assert_eq!(
-        //     recv_to_main.recv().unwrap(),
-        //     Message::Notification(proper_publish_diagnostic_second)
-        // );
+        ));
+
+        assert!(eq_unordered_vec(
+            &[
+                to_string(&proper_publish_diagnostic_first).unwrap(),
+                to_string(&proper_publish_diagnostic_second).unwrap(),
+            ],
+            &[
+                to_string(&recv_to_main.recv().unwrap()).unwrap(),
+                to_string(&recv_to_main.recv().unwrap()).unwrap()
+            ]
+        ));
     }
 
     #[test]
@@ -1567,7 +1636,7 @@ pub mod test_request_tests {
                 },
                 event_time: Some(1),
                 message: None,
-                status: Default::default(),
+                status: StatusCode::Ok,
                 data: Some(TestReport(TestReportData {
                     target: Default::default(),
                     passed: 1,
@@ -1608,7 +1677,7 @@ pub mod test_request_tests {
             TaskStartParams {
                 task_id: TaskId {
                     id: "random_task_id".into(),
-                    parents: vec!["random_task_id".into()],
+                    parents: vec!["".into()],
                 },
                 event_time: Some(1),
                 message: None,
