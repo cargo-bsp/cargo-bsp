@@ -4,7 +4,7 @@ pub mod client;
 
 pub fn spawn_server() -> Child {
     Command::new("cargo")
-        .args(["run", "--bin", "server"])
+        .args(["run", "--release", "--bin", "server"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
