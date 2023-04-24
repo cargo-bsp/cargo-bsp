@@ -147,87 +147,79 @@ impl GlobalState {
 mod tests {
     mod test_shutdown_order {
         use std::path::PathBuf;
-        use std::time::Duration;
 
-        use serde_json::to_value;
-
-        use crate::bsp_types::notifications::{ExitBuild, Notification};
-        use crate::bsp_types::requests::{BuildClientCapabilities, Request, ShutdownBuild};
-        use crate::communication;
-        use crate::communication::{Connection, Message, RequestId, Response};
+        use crate::bsp_types::requests::BuildClientCapabilities;
+        use crate::communication::Connection;
         use crate::server::config::Config;
         use crate::server::global_state::GlobalState;
+        use crate::server::Result;
+        use crate::test_utils::{test_exit_notif, test_shutdown_req, test_shutdown_resp, TestCase};
 
-        struct TestCase {
-            test_messages: Vec<Message>,
-            expected_send: Vec<Message>,
-            is_ok: bool,
+        struct ShutdownTestCase {
+            case: TestCase,
+            add_req: bool,
+            add_notif: bool,
         }
 
-        fn test_f(test_case: TestCase) {
-            let (client, server) = Connection::memory();
-            let global_state = GlobalState::new(
-                server.sender,
-                Config::new(PathBuf::from("test"), BuildClientCapabilities::default()),
-            );
+        fn shutdown_order_test(mut test_case: ShutdownTestCase) {
+            let test_id = 234;
+            let req = test_shutdown_req(test_id);
+            let resp = test_shutdown_resp(test_id);
+            let notif = test_exit_notif();
 
-            for msg in test_case.test_messages {
-                assert!(client.sender.send(msg).is_ok());
+            if test_case.add_req {
+                test_case.case.test_messages.push(req.into());
+                test_case.case.expected_send.push(resp.into());
             }
-            let notification = communication::Notification {
-                method: ExitBuild::METHOD.into(),
-                params: to_value(()).unwrap(),
+            if test_case.add_notif {
+                test_case.case.test_messages.push(notif.into());
+            }
+
+            test_case.case.expected_err = "client exited without proper shutdown sequence".into();
+            test_case.case.func_to_test = |server: Connection| -> Result<()> {
+                let global_state = GlobalState::new(
+                    server.sender,
+                    Config::new(PathBuf::from("test"), BuildClientCapabilities::default()),
+                );
+                global_state.run(server.receiver)
             };
-            assert!(client.sender.send(notification.into()).is_ok());
 
-            let result = global_state.run(server.receiver);
-            if test_case.is_ok {
-                assert!(result.is_ok());
-            } else {
-                assert!(result.is_err());
-                assert_eq!(
-                    "client exited without proper shutdown sequence".to_string(),
-                    result.unwrap_err().to_string()
-                );
-            }
-
-            for msg in test_case.expected_send {
-                assert_eq!(
-                    msg,
-                    client
-                        .receiver
-                        .recv_timeout(Duration::from_secs(1))
-                        .unwrap()
-                );
-            }
-            assert!(client
-                .receiver
-                .recv_timeout(Duration::from_secs(1))
-                .is_err());
-        }
-
-        #[test]
-        fn exit_notif_without_shutdown() {
-            test_f(TestCase {
-                test_messages: vec![],
-                expected_send: vec![],
-                is_ok: false,
-            });
+            test_case.case.test();
         }
 
         #[test]
         fn proper_shutdown_order() {
-            let req_id = RequestId::from(123);
-            let request = communication::Request {
-                id: req_id.clone(),
-                method: ShutdownBuild::METHOD.to_string(),
-                params: to_value(()).unwrap(),
-            };
+            shutdown_order_test(ShutdownTestCase {
+                case: TestCase::new(true, true),
+                add_req: true,
+                add_notif: true,
+            });
+        }
 
-            test_f(TestCase {
-                test_messages: vec![request.into()],
-                expected_send: vec![Response::new_ok(req_id, to_value(()).unwrap()).into()],
-                is_ok: true,
+        #[test]
+        fn exit_notif_without_shutdown() {
+            shutdown_order_test(ShutdownTestCase {
+                case: TestCase::new(true, false),
+                add_req: false,
+                add_notif: true,
+            });
+        }
+
+        #[test]
+        fn channel_err_before_shutdown_req() {
+            shutdown_order_test(ShutdownTestCase {
+                case: TestCase::new(false, false),
+                add_req: false,
+                add_notif: false,
+            });
+        }
+
+        #[test]
+        fn channel_err_before_exit_notif() {
+            shutdown_order_test(ShutdownTestCase {
+                case: TestCase::new(false, false),
+                add_req: true,
+                add_notif: false,
             });
         }
     }
