@@ -20,7 +20,7 @@ pub struct TestCase {
     pub expected_err: String,
     pub expected_send: Vec<Message>,
     pub channel_works_ok: bool,
-    pub is_ok: bool,
+    pub func_returns_ok: bool,
     pub func_to_test: fn(Connection) -> Result<()>,
 }
 
@@ -31,7 +31,7 @@ impl Default for TestCase {
             expected_err: "".to_string(),
             expected_send: vec![],
             channel_works_ok: true,
-            is_ok: true,
+            func_returns_ok: true,
             func_to_test: |_| Ok(()),
         }
     }
@@ -50,7 +50,7 @@ impl TestCase {
         }
 
         let resp = (self.func_to_test)(server);
-        if self.is_ok {
+        if self.func_returns_ok {
             assert!(resp.is_ok());
         } else {
             assert!(resp.is_err());
@@ -75,7 +75,7 @@ impl TestCase {
     pub fn new(channel_works_ok: bool, is_ok: bool) -> Self {
         Self {
             channel_works_ok,
-            is_ok,
+            func_returns_ok: is_ok,
             ..Self::default()
         }
     }
