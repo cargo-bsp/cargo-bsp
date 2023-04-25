@@ -175,7 +175,10 @@ mod tests {
                 test_case.case.test_messages.push(notif.into());
             }
 
-            test_case.case.expected_err = "client exited without proper shutdown sequence".into();
+            if !test_case.case.func_returns_ok {
+                test_case.case.expected_err =
+                    "client exited without proper shutdown sequence".into();
+            }
             test_case.case.func_to_test = |server: Connection| -> Result<()> {
                 let global_state = GlobalState::new(
                     server.sender,

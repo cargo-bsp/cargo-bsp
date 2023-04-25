@@ -63,7 +63,7 @@ mod tests {
 
         struct InitTestCase {
             case: TestCase,
-            msg_before_req: bool,
+            is_init_req_first: bool,
             add_req: bool,
             add_notif: bool,
         }
@@ -79,12 +79,10 @@ mod tests {
 
             if test_case.add_req {
                 test_case.case.expected_send.push(init_resp.into());
-                if test_case.msg_before_req {
-                    let mut temp = vec![init_req.into()];
-                    temp.append(&mut test_case.case.test_messages);
-                    test_case.case.test_messages = temp;
-                } else {
+                if test_case.is_init_req_first {
                     test_case.case.test_messages.push(init_req.into());
+                } else {
+                    test_case.case.test_messages.insert(0, init_req.into());
                 }
             }
 
@@ -102,7 +100,7 @@ mod tests {
         fn proper_initialize() {
             initialize_order_test(InitTestCase {
                 case: TestCase::default(),
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: true,
                 add_notif: true,
             });
@@ -124,7 +122,7 @@ mod tests {
                     .into()],
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: true,
                 add_notif: true,
             });
@@ -137,7 +135,7 @@ mod tests {
                     test_messages: vec![test_init_notif().into()],
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: true,
                 add_notif: true,
             });
@@ -154,10 +152,10 @@ mod tests {
                         "expected initialize request, got {:?}",
                         notification_msg
                     ),
-                    is_ok: false,
+                    func_returns_ok: false,
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: false,
                 add_notif: false,
             });
@@ -174,10 +172,10 @@ mod tests {
                         "expected initialize request, got {:?}",
                         Message::from(wrong_msg)
                     ),
-                    is_ok: false,
+                    func_returns_ok: false,
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: false,
                 add_notif: false,
             });
@@ -192,10 +190,10 @@ mod tests {
                         RecvError {}
                     ),
                     channel_works_ok: false,
-                    is_ok: false,
+                    func_returns_ok: false,
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: false,
                 add_notif: false,
             });
@@ -212,10 +210,10 @@ mod tests {
                         r#"expected initialized notification, got: {:?}"#,
                         Message::from(wrong_msg)
                     ),
-                    is_ok: false,
+                    func_returns_ok: false,
                     ..TestCase::default()
                 },
-                msg_before_req: true,
+                is_init_req_first: false,
                 add_req: true,
                 add_notif: false,
             });
@@ -230,10 +228,10 @@ mod tests {
                         RecvError {},
                     ),
                     channel_works_ok: false,
-                    is_ok: false,
+                    func_returns_ok: false,
                     ..TestCase::default()
                 },
-                msg_before_req: false,
+                is_init_req_first: true,
                 add_req: true,
                 add_notif: false,
             });
