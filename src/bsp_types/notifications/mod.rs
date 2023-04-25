@@ -1,9 +1,5 @@
-#[cfg(not(test))]
-use rand::distributions::{Alphanumeric, DistString};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-#[cfg(not(test))]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use did_change_build_target::*;
 pub use exit_build::*;
@@ -37,33 +33,6 @@ pub struct TaskId {
     execution. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parents: Vec<String>,
-}
-
-impl TaskId {
-    #[cfg(not(test))]
-    pub fn generate_random_id() -> String {
-        Alphanumeric.sample_string(&mut rand::thread_rng(), 36)
-    }
-
-    #[cfg(test)]
-    pub fn generate_random_id() -> String {
-        "random_task_id".to_string()
-    }
-}
-
-#[cfg(not(test))]
-pub fn get_event_time() -> Option<i64> {
-    Some(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64,
-    )
-}
-
-#[cfg(test)]
-pub fn get_event_time() -> Option<i64> {
-    Some(1)
 }
 
 #[cfg(test)]

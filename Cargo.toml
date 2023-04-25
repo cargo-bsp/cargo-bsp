@@ -24,10 +24,7 @@ toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = 
 itertools = "0.10.5"
 log = "0.4"
 simplelog = "0.12.1"
-mockall = "0.11.3"
 rand = "0.8.5"
-semver = "1.0.17"
-cargo-platform = "0.1.2"
 
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }

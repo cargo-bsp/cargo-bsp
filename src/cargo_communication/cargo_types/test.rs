@@ -1,3 +1,4 @@
+use crate::bsp_types::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 
 use crate::bsp_types::notifications::{
@@ -31,7 +32,7 @@ pub struct SuiteResults {
     pub(crate) passed: i32,
     pub(crate) failed: i32,
     pub(crate) ignored: i32,
-    /// Measured tests are run with cargo bench command that we do not support.
+    /// Measured tests (benchmarks) are not yet supported by BSP.
     pub(crate) measured: i32,
     pub(crate) filtered_out: i32,
     pub(crate) exec_time: f64,
@@ -41,7 +42,7 @@ impl SuiteResults {
     pub fn to_test_report(&self) -> TaskDataWithKind {
         TaskDataWithKind::TestReport(TestReportData {
             // TODO change target to actual BuildTargetIdentifier
-            target: Default::default(),
+            target: BuildTargetIdentifier::default(),
             passed: self.passed,
             failed: self.failed,
             ignored: self.ignored,

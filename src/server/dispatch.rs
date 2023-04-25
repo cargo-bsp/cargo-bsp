@@ -3,7 +3,8 @@ use std::{fmt, panic};
 use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::bsp_types::requests::{CreateCommand, CreateResult};
+use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::communication::ExtractError;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
@@ -68,8 +69,8 @@ impl<'a> RequestDispatcher<'a> {
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
-        R::Params: CreateCommand + CreateResult<R::Result> + Send + fmt::Debug,
-        R::Result: Serialize,
+        R::Params: CreateCommand + Send + fmt::Debug,
+        R::Result: Serialize + CargoResult,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,

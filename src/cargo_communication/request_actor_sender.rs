@@ -1,21 +1,22 @@
 use crate::bsp_types::notifications::{
-    get_event_time, LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait,
-    TaskDataWithKind, TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams,
-    TaskStart, TaskStartParams,
+    LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
+    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
+    TaskStartParams,
 };
-use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::StatusCode;
-use crate::cargo_communication::request_actor::{
-    CargoHandleTrait, CargoMessage, RequestActor, TaskState,
-};
-use crate::communication::{Message as RPCMessage, Notification};
+use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::request_actor::RequestActor;
+use crate::cargo_communication::utils::get_current_time;
+use crate::communication::{Message, Notification};
 use serde_json::to_value;
 
-impl<R, C> RequestActor<R, C>
+impl<R> RequestActor<R>
 where
     R: Request,
-    R::Params: CreateCommand + CreateResult<R::Result>,
-    C: CargoHandleTrait<CargoMessage>,
+    R::Params: CreateCommand,
+    R::Result: CargoResult,
 {
     pub(super) fn report_task_start(
         &self,
@@ -25,7 +26,7 @@ where
     ) {
         self.send_notification::<TaskStart>(TaskStartParams {
             task_id,
-            event_time: get_event_time(),
+            event_time: get_current_time(),
             message,
             data,
         });
@@ -41,7 +42,7 @@ where
     ) {
         self.send_notification::<TaskProgress>(TaskProgressParams {
             task_id,
-            event_time: get_event_time(),
+            event_time: get_current_time(),
             message,
             total,
             progress,
@@ -59,7 +60,7 @@ where
     ) {
         self.send_notification::<TaskFinish>(TaskFinishParams {
             task_id,
-            event_time: get_event_time(),
+            event_time: get_current_time(),
             message,
             status,
             data,
@@ -72,11 +73,7 @@ where
         message: String,
         task_id: Option<TaskId>,
     ) {
-        let task_id = task_id.unwrap_or(match &self.state.task_state {
-            TaskState::Compile => self.state.root_task_id.clone(),
-            TaskState::Run(run_state) => run_state.run_task_id.clone(),
-            TaskState::Test(test_state) => test_state.test_task_id.clone(),
-        });
+        let task_id = task_id.unwrap_or(self.state.get_task_id());
         self.send_notification::<LogMessage>(LogMessageParams {
             message_type,
             task: Some(task_id),
@@ -98,7 +95,7 @@ where
         );
     }
 
-    pub(super) fn send(&self, msg: RPCMessage) {
+    pub(super) fn send(&self, msg: Message) {
         (self.sender)(msg);
     }
 }

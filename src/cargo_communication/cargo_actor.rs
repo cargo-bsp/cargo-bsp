@@ -1,91 +1,32 @@
-use std::process::ExitStatus;
 use std::{
     io,
-    process::{ChildStderr, ChildStdout, Command, Stdio},
+    process::{ChildStderr, ChildStdout},
 };
 
-use command_group::{CommandGroup, GroupChild};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::Sender;
 use log::warn;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
-use crate::cargo_communication::request_actor::{CargoHandleTrait, CargoMessage};
+use crate::cargo_communication::cargo_types::event::CargoMessage;
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
 use cargo_metadata::Message;
 
-pub struct CargoHandle {
-    /// The handle to the actual cargo process. As we cannot cancel directly from with
-    /// a read syscall dropping and therefore terminating the process is our best option.
-    child: GroupChild,
-    thread: jod_thread::JoinHandle<io::Result<bool>>,
-    receiver: Receiver<CargoMessage>,
-}
-
-impl CargoHandleTrait<CargoMessage> for CargoHandle {
-    fn receiver(&self) -> &Receiver<CargoMessage> {
-        &self.receiver
-    }
-
-    fn cancel(mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-
-    fn join(mut self) -> io::Result<ExitStatus> {
-        let _ = self.child.kill();
-        let exit_status = self.child.wait()?;
-        let read_at_least_one_message = self.thread.join()?;
-        if read_at_least_one_message {
-            Ok(exit_status)
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "Cargo watcher failed, the command produced no valid metadata (exit code: {:?}):\n",
-                    exit_status
-                ),
-            ))
-        }
-    }
-}
-
-impl CargoHandle {
-    pub fn spawn(mut command: Command) -> io::Result<CargoHandle> {
-        command
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdin(Stdio::null());
-        let mut child = command.group_spawn()?;
-
-        let stdout = child.inner().stdout.take().unwrap();
-        let stderr = child.inner().stderr.take().unwrap();
-
-        let (sender, receiver) = unbounded();
-        let actor = CargoActor::new(sender, stdout, stderr);
-        let thread = jod_thread::Builder::new()
-            .name("CargoHandle".to_owned())
-            .spawn(move || actor.run())
-            .expect("failed to spawn thread");
-        Ok(CargoHandle {
-            child,
-            thread,
-            receiver,
-        })
-    }
-}
-
-struct CargoActor {
+pub struct CargoActor {
     sender: Sender<CargoMessage>,
     stdout: ChildStdout,
     stderr: ChildStderr,
 }
 
 impl CargoActor {
-    fn new(sender: Sender<CargoMessage>, stdout: ChildStdout, stderr: ChildStderr) -> CargoActor {
+    pub fn new(
+        sender: Sender<CargoMessage>,
+        stdout: ChildStdout,
+        stderr: ChildStderr,
+    ) -> CargoActor {
         CargoActor {
             sender,
             stdout,
@@ -93,7 +34,7 @@ impl CargoActor {
         }
     }
 
-    fn run(self) -> io::Result<bool> {
+    pub fn run(self) -> io::Result<bool> {
         // We manually read a line at a time, instead of using serde's
         // stream deserializers, because the deserializer cannot recover
         // from an error, resulting in it getting stuck, because we try to

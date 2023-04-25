@@ -1,10 +1,7 @@
-use std::path::PathBuf;
-use std::process::Command;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
@@ -14,34 +11,6 @@ impl Request for Run {
     type Params = RunParams;
     type Result = RunResult;
     const METHOD: &'static str = "buildTarget/run";
-}
-
-impl CreateCommand for RunParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_command(&self, root: PathBuf) -> Command {
-        // TODO add appropriate build target to arguments
-        let mut cmd = Command::new(toolchain::cargo());
-        cmd.current_dir(root)
-            .args([
-                "run",
-                "--message-format=json",
-                self.target.clone().uri.as_str(),
-            ])
-            .args(self.arguments.clone());
-        cmd
-    }
-}
-
-impl CreateResult<RunResult> for RunParams {
-    fn create_result(&self, status_code: StatusCode) -> RunResult {
-        RunResult {
-            origin_id: self.origin_id.clone(),
-            status_code,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

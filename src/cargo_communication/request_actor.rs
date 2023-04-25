@@ -1,161 +1,65 @@
-#![warn(unused_lifetimes, semicolon_in_expressions_from_macros)]
-#![allow(unused_variables)]
-
-use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use crossbeam_channel::{never, select, Receiver};
 use log::info;
-use mockall::*;
-use serde::Serialize;
 use serde_json::to_value;
 
-use crate::bsp_types::notifications::{
-    get_event_time, CompileTaskData, MessageType, TaskDataWithKind, TaskId,
-};
-use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::StatusCode;
-use crate::cargo_communication::cargo_actor::CargoHandle;
-use crate::communication::{ErrorCode, Message as RPCMessage, ResponseError};
+use crate::cargo_communication::cargo_handle::CargoHandle;
+use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
+use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
+use crate::cargo_communication::utils::{generate_task_id, get_current_time};
+use crate::communication::{ErrorCode, Message, ResponseError};
 use crate::communication::{RequestId, Response};
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use cargo_metadata::Message;
 
-pub enum Event {
-    Cancel,
-    CargoEvent(CargoMessage),
-    CargoFinish,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
-pub enum CargoMessage {
-    CargoStdout(Message),
-    CargoStderr(String),
-}
-
-pub struct RequestActor<R, C>
+pub struct RequestActor<R>
 where
     R: Request,
-    R::Params: CreateCommand + CreateResult<R::Result>,
-    C: CargoHandleTrait<CargoMessage>,
+    R::Params: CreateCommand,
+    R::Result: CargoResult,
 {
-    pub(super) sender: Box<dyn Fn(RPCMessage) + Send>,
+    pub(super) sender: Box<dyn Fn(Message) + Send>,
     /// CargoHandle exists to wrap around the communication needed to be able to
     /// run `cargo build/run/test` without blocking. Currently the Rust standard library
     /// doesn't provide a way to read sub-process output without blocking, so we
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
-    cargo_handle: Option<C>,
+    cargo_handle: Option<CargoHandle>,
     req_id: RequestId,
     pub(super) params: R::Params,
     pub(super) root_path: PathBuf,
     pub(super) state: RequestActorState,
 }
 
-pub struct RequestActorState {
-    pub(super) root_task_id: TaskId,
-    pub(super) compile_task_state: CompileTaskState,
-    pub(super) task_state: TaskState,
-}
-
-pub enum TaskState {
-    Compile,
-    Run(RunTaskState),
-    Test(TestTaskState),
-}
-
-pub struct CompileTaskState {
-    pub(super) compile_task_id: TaskId,
-    pub(super) compile_errors: i32,
-    pub(super) compile_warnings: i32,
-    pub(super) compile_start_time: i64,
-}
-
-pub struct RunTaskState {
-    pub(super) run_task_id: TaskId,
-}
-
-pub struct TestTaskState {
-    pub(super) test_task_id: TaskId,
-    pub(super) suite_test_task_id: TaskId,
-    pub(super) suite_task_progress: SuiteTaskProgress,
-    pub(super) single_test_task_ids: HashMap<String, TaskId>,
-}
-
-pub struct SuiteTaskProgress {
-    pub(super) progress: i64,
-    pub(super) total: i64,
-}
-
-impl RequestActorState {
-    fn new<R: Request>(origin_id: Option<String>) -> RequestActorState {
-        let root_task_id = TaskId {
-            id: origin_id.unwrap_or(TaskId::generate_random_id()),
-            parents: vec![],
-        };
-        RequestActorState {
-            root_task_id: root_task_id.clone(),
-            compile_task_state: CompileTaskState {
-                compile_task_id: TaskId {
-                    id: TaskId::generate_random_id(),
-                    parents: vec![root_task_id.id.clone()],
-                },
-                compile_errors: 0,
-                compile_warnings: 0,
-                compile_start_time: 0,
-            },
-            task_state: RequestActorState::set_task_state::<R>(root_task_id),
-        }
-    }
-
-    fn set_task_state<R: Request>(root_task_id: TaskId) -> TaskState {
-        match R::METHOD {
-            "buildTarget/run" => TaskState::Run(RunTaskState {
-                run_task_id: TaskId {
-                    id: TaskId::generate_random_id(),
-                    parents: vec![root_task_id.id],
-                },
-            }),
-            "buildTarget/test" => {
-                let test_task_id = TaskId {
-                    id: TaskId::generate_random_id(),
-                    parents: vec![root_task_id.id],
-                };
-                TaskState::Test(TestTaskState {
-                    suite_test_task_id: TaskId {
-                        id: Default::default(),
-                        parents: vec![test_task_id.id.clone()],
-                    },
-                    suite_task_progress: SuiteTaskProgress {
-                        progress: 0,
-                        total: 0,
-                    },
-                    test_task_id,
-                    single_test_task_ids: HashMap::new(),
-                })
-            }
-            _ => TaskState::Compile,
-        }
+fn get_request_status_code(result: &io::Result<ExitStatus>) -> StatusCode {
+    match result {
+        Ok(exit_status) if exit_status.success() => StatusCode::Ok,
+        _ => StatusCode::Error,
     }
 }
 
-impl<R, C> RequestActor<R, C>
+impl<R> RequestActor<R>
 where
     R: Request,
-    R::Params: CreateCommand + CreateResult<R::Result>,
-    C: CargoHandleTrait<CargoMessage>,
+    R::Params: CreateCommand,
+    R::Result: CargoResult,
 {
     pub fn new(
-        sender: Box<dyn Fn(RPCMessage) + Send>,
+        sender: Box<dyn Fn(Message) + Send>,
         req_id: RequestId,
         params: R::Params,
         root_path: &Path,
-    ) -> RequestActor<R, C> {
+    ) -> RequestActor<R> {
         RequestActor {
             sender,
             cargo_handle: None,
@@ -177,18 +81,18 @@ where
         }
     }
 
-    pub fn spawn_handle(&mut self) -> Result<CargoHandle, String> {
+    pub fn spawn_cargo_handle(&mut self) -> Result<CargoHandle, String> {
         let command = self.params.create_command(self.root_path.clone());
         info!("Created command: {:?}", command);
         match CargoHandle::spawn(command) {
             Ok(cargo_handle) => Ok(cargo_handle),
-            Err(err) => {
+            Err(_err) => {
                 todo!()
             }
         }
     }
 
-    pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: C) {
+    pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: CargoHandle) {
         self.cargo_handle = Some(cargo_handle);
 
         self.report_task_start(self.state.root_task_id.clone(), None, None);
@@ -207,9 +111,9 @@ where
                 Event::CargoEvent(message) => {
                     // handle information and create notification based on that
                     match message {
-                        CargoMessage::CargoStdout(stdout) => self.handle_cargo_information(stdout),
-                        CargoMessage::CargoStderr(stderr) => {
-                            self.log_message(MessageType::Error, stderr, None)
+                        CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
+                        CargoMessage::CargoStderr(msg) => {
+                            self.log_message(MessageType::Error, msg, None)
                         }
                     }
                 }
@@ -218,20 +122,18 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_task_state.compile_start_time = get_event_time().unwrap();
-        // TODO change to actual BuildTargetIdentifier
+        self.state.compile_state.start_time = get_current_time().unwrap();
         self.report_task_start(
-            self.state.compile_task_state.compile_task_id.clone(),
+            self.state.compile_state.task_id.clone(),
             None,
-            Some(TaskDataWithKind::CompileTask(CompileTaskData {
-                target: Default::default(),
-            })),
+            // TODO change to actual BuildTargetIdentifier
+            Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
         );
     }
 
     fn finish_request(&mut self) {
         let res = self.cargo_handle.take().unwrap().join();
-        let status_code = self.get_request_status_code(&res);
+        let status_code = get_request_status_code(&res);
 
         self.finish_execution_task(&status_code);
         self.report_task_finish(
@@ -240,39 +142,24 @@ where
             None,
             None,
         );
-        self.send(RPCMessage::Response(
-            self.create_response(res, &status_code),
-        ));
+        self.send(Message::Response(self.create_response(res, &status_code)));
     }
 
     fn finish_execution_task(&self, status_code: &StatusCode) {
         match &self.state.task_state {
             TaskState::Compile => (),
             TaskState::Run(run_state) => self.report_task_finish(
-                run_state.run_task_id.clone(),
+                run_state.task_id.clone(),
                 status_code.clone(),
                 Some("Finished target execution".to_string()),
                 None,
             ),
             TaskState::Test(test_state) => self.report_task_finish(
-                test_state.test_task_id.clone(),
+                test_state.task_id.clone(),
                 status_code.clone(),
                 Some("Finished target testing".to_string()),
                 None,
             ),
-        }
-    }
-
-    fn get_request_status_code(&self, result: &io::Result<ExitStatus>) -> StatusCode {
-        match result {
-            Ok(exit_status) => {
-                if exit_status.success() {
-                    StatusCode::Ok
-                } else {
-                    StatusCode::Error
-                }
-            }
-            Err(_) => StatusCode::Error,
         }
     }
 
@@ -283,9 +170,13 @@ where
     ) -> Response {
         Response {
             id: self.req_id.clone(),
-            result: result
-                .ok()
-                .map(|_| to_value(self.params.create_result(status_code.clone())).unwrap()),
+            result: result.ok().map(|_| {
+                to_value(R::Result::create_result(
+                    self.params.origin_id(),
+                    status_code.clone(),
+                ))
+                .unwrap()
+            }),
             // TODO create error for response
             error: None,
         }
@@ -300,21 +191,15 @@ where
         }
     }
 
-    fn cancel_process(&self, cargo_handle: C) {
+    fn cancel_process(&self, cargo_handle: CargoHandle) {
         self.report_task_start(
-            TaskId {
-                id: TaskId::generate_random_id(),
-                parents: vec![self.state.root_task_id.id.clone()],
-            },
+            generate_task_id(&self.state.root_task_id),
             Some(format!("Start canceling request {}", self.req_id.clone())),
             None,
         );
         cargo_handle.cancel();
         self.report_task_finish(
-            TaskId {
-                id: TaskId::generate_random_id(),
-                parents: vec![self.state.root_task_id.id.clone()],
-            },
+            generate_task_id(&self.state.root_task_id),
             StatusCode::Ok,
             Some(format!("Finish canceling request {}", self.req_id.clone())),
             None,
@@ -328,7 +213,7 @@ where
             None,
             None,
         );
-        self.send(RPCMessage::Response(Response {
+        self.send(Message::Response(Response {
             id: self.req_id.clone(),
             result: None,
             error: Some(ResponseError {
@@ -338,13 +223,4 @@ where
             }),
         }));
     }
-}
-
-#[automock]
-pub trait CargoHandleTrait<T> {
-    fn receiver(&self) -> &Receiver<T>;
-
-    fn cancel(self);
-
-    fn join(self) -> io::Result<ExitStatus>;
 }

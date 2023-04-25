@@ -1,10 +1,7 @@
-use std::path::PathBuf;
-use std::process::Command;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
@@ -14,40 +11,6 @@ impl Request for Test {
     type Params = TestParams;
     type Result = TestResult;
     const METHOD: &'static str = "buildTarget/test";
-}
-
-impl CreateCommand for TestParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_command(&self, root: PathBuf) -> Command {
-        // TODO add appropriate build target to arguments
-        let mut cmd = Command::new(toolchain::cargo());
-        cmd.current_dir(root)
-            .args([
-                "test",
-                "--message-format=json",
-                "--",
-                "--show-output",
-                "-Z",
-                "unstable-options",
-                "--format=json",
-            ])
-            .args(self.arguments.clone());
-        cmd
-    }
-}
-
-impl CreateResult<TestResult> for TestParams {
-    fn create_result(&self, status_code: StatusCode) -> TestResult {
-        TestResult {
-            origin_id: self.origin_id.clone(),
-            status_code,
-            data_kind: None,
-            data: None,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

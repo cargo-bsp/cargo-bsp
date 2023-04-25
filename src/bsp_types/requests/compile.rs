@@ -1,10 +1,7 @@
-use std::path::PathBuf;
-use std::process::Command;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::{CreateCommand, CreateResult, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 /*
@@ -20,36 +17,6 @@ impl Request for Compile {
     type Params = CompileParams;
     type Result = CompileResult;
     const METHOD: &'static str = "buildTarget/compile";
-}
-
-impl CreateCommand for CompileParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_command(&self, root: PathBuf) -> Command {
-        // TODO add appropriate build target to arguments
-        let mut cmd = Command::new(toolchain::cargo());
-        cmd.current_dir(root)
-            .args([
-                "build",
-                "--message-format=json",
-                self.targets[0].clone().uri.as_str(),
-            ])
-            .args(self.arguments.clone());
-        cmd
-    }
-}
-
-impl CreateResult<CompileResult> for CompileParams {
-    fn create_result(&self, status_code: StatusCode) -> CompileResult {
-        CompileResult {
-            origin_id: self.origin_id.clone(),
-            status_code,
-            data_kind: None,
-            data: None,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
