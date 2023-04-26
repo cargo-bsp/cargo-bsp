@@ -1,6 +1,6 @@
 use std::{fmt, panic};
 
-use bsp_server::ExtractError;
+use bsp_server::{ErrorCode, ExtractError, Notification, Request, RequestId, Response};
 use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -12,7 +12,7 @@ use crate::server::Result;
 use crate::server::{from_json, LspError};
 
 pub(crate) struct RequestDispatcher<'a> {
-    pub(crate) req: Option<bsp_server::Request>,
+    pub(crate) req: Option<Request>,
     pub(crate) global_state: &'a mut GlobalState,
 }
 
@@ -90,16 +90,16 @@ impl<'a> RequestDispatcher<'a> {
     pub(crate) fn finish(&mut self) {
         if let Some(req) = self.req.take() {
             warn!("unknown request: {:?}", req);
-            let response = bsp_server::Response::new_err(
+            let response = Response::new_err(
                 req.id,
-                bsp_server::ErrorCode::MethodNotFound as i32,
+                ErrorCode::MethodNotFound as i32,
                 "unknown request".to_string(),
             );
             self.global_state.respond(response);
         }
     }
 
-    fn parse<R>(&mut self) -> Option<(bsp_server::Request, R::Params, String)>
+    fn parse<R>(&mut self) -> Option<(Request, R::Params, String)>
     where
         R: bsp_types::requests::Request,
         R::Params: DeserializeOwned + fmt::Debug,
@@ -116,11 +116,8 @@ impl<'a> RequestDispatcher<'a> {
                 Some((req, params, panic_context))
             }
             Err(err) => {
-                let response = bsp_server::Response::new_err(
-                    req.id,
-                    bsp_server::ErrorCode::InvalidParams as i32,
-                    err.to_string(),
-                );
+                let response =
+                    Response::new_err(req.id, ErrorCode::InvalidParams as i32, err.to_string());
                 self.global_state.respond(response);
                 None
             }
@@ -128,31 +125,24 @@ impl<'a> RequestDispatcher<'a> {
     }
 }
 
-fn result_to_response<R>(
-    id: bsp_server::RequestId,
-    result: Result<R::Result>,
-) -> Result<bsp_server::Response>
+fn result_to_response<R>(id: RequestId, result: Result<R::Result>) -> Result<Response>
 where
     R: bsp_types::requests::Request,
     R::Params: DeserializeOwned,
     R::Result: Serialize,
 {
     let res = match result {
-        Ok(resp) => bsp_server::Response::new_ok(id, &resp),
+        Ok(resp) => Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
-            Ok(lsp_error) => bsp_server::Response::new_err(id, lsp_error.code, lsp_error.message),
-            Err(e) => bsp_server::Response::new_err(
-                id,
-                bsp_server::ErrorCode::InternalError as i32,
-                e.to_string(),
-            ),
+            Ok(lsp_error) => Response::new_err(id, lsp_error.code, lsp_error.message),
+            Err(e) => Response::new_err(id, ErrorCode::InternalError as i32, e.to_string()),
         },
     };
     Ok(res)
 }
 
 pub(crate) struct NotificationDispatcher<'a> {
-    pub(crate) not: Option<bsp_server::Notification>,
+    pub(crate) not: Option<Notification>,
     pub(crate) global_state: &'a mut GlobalState,
 }
 
