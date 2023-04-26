@@ -80,6 +80,12 @@ pub struct BuildTargetIdentifier {
     pub uri: Uri,
 }
 
+impl From<&str> for BuildTargetIdentifier {
+    fn from(uri: &str) -> Self {
+        BuildTargetIdentifier { uri: uri.into() }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub enum BuildTargetTag {
