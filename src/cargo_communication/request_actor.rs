@@ -352,8 +352,10 @@ pub trait CargoHandleTrait<T> {
 #[cfg(test)]
 pub mod compile_request_tests {
     use std::collections::HashSet;
+    use std::fmt::Debug;
     use std::hash::Hash;
     use std::os::unix::prelude::ExitStatusExt;
+    use std::time::Duration;
 
     use crate::bsp_types::notifications::{
         CompileReportData, CompileTaskData, Diagnostic as LSPDiagnostic,
@@ -412,6 +414,11 @@ pub mod compile_request_tests {
             .detach();
 
         (receiver_to_main, sender_from_cargo, sender_to_cancel)
+    }
+
+    fn assert_is_last_msg<T: PartialEq + Debug>(receiver: Receiver<T>, msg: T) {
+        assert_eq!(receiver.recv().unwrap(), msg);
+        assert!(receiver.recv_timeout(Duration::from_secs(1)).is_err());
     }
 
     #[test]
@@ -488,10 +495,7 @@ pub mod compile_request_tests {
             recv_to_main.recv().unwrap(),
             Message::Notification(proper_notif_finish_main_task)
         );
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Response(proper_response)
-        );
+        assert_is_last_msg(recv_to_main, Message::Response(proper_response));
     }
 
     #[test]
@@ -561,10 +565,7 @@ pub mod compile_request_tests {
             recv_to_main.recv().unwrap(),
             Message::Notification(proper_notif_finish_main_task)
         );
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Response(proper_response)
-        );
+        assert_is_last_msg(recv_to_main, Message::Response(proper_response));
     }
 
     #[test]
@@ -631,10 +632,9 @@ pub mod compile_request_tests {
                 data: None,
             },
         );
-
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Notification(proper_notif_task_progress)
+        assert_is_last_msg(
+            recv_to_main,
+            Message::Notification(proper_notif_task_progress),
         );
     }
 
@@ -680,10 +680,9 @@ pub mod compile_request_tests {
                 data: None,
             },
         );
-
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Notification(proper_notif_task_progress)
+        assert_is_last_msg(
+            recv_to_main,
+            Message::Notification(proper_notif_task_progress),
         );
     }
 
@@ -982,6 +981,9 @@ pub mod compile_request_tests {
                 to_string(&recv_to_main.recv().unwrap()).unwrap()
             ]
         ));
+        assert!(recv_to_main
+            .recv_timeout(Duration::from_millis(100))
+            .is_err());
     }
 
     #[test]
@@ -1021,10 +1023,7 @@ pub mod compile_request_tests {
                 })),
             },
         );
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Notification(proper_task_finished)
-        );
+        assert_is_last_msg(recv_to_main, Message::Notification(proper_task_finished));
     }
 
     #[test]
@@ -1180,9 +1179,6 @@ pub mod compile_request_tests {
                 })),
             },
         );
-        assert_eq!(
-            recv_to_main.recv().unwrap(),
-            Message::Notification(proper_task_finished)
-        );
+        assert_is_last_msg(recv_to_main, Message::Notification(proper_task_finished));
     }
 }
