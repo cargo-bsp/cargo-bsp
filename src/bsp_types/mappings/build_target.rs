@@ -66,7 +66,7 @@ fn tags_and_capabilities_from_cargo_kind(
     (tags, capabilities)
 }
 
-pub fn new_bsp_build_target(
+pub fn bsp_build_target_from_cargo_target(
     cargo_target: &cargo_metadata::Target,
     target_dependencies: &[BuildTargetIdentifier],
 ) -> BuildTarget {
