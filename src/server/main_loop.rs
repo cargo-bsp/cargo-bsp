@@ -2,7 +2,7 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
-use bsp_server::{Connection, Message, Notification, Request};
+use bsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use crossbeam_channel::{select, Receiver};
 
 use crate::bsp_types;
@@ -94,9 +94,9 @@ impl GlobalState {
         } = &mut dispatcher
         {
             if this.shutdown_requested {
-                this.respond(bsp_server::Response::new_err(
+                this.respond(Response::new_err(
                     req.id.clone(),
-                    bsp_server::ErrorCode::InvalidRequest as i32,
+                    ErrorCode::InvalidRequest as i32,
                     "Shutdown already requested.".to_owned(),
                 ));
                 return;
@@ -129,7 +129,7 @@ impl GlobalState {
             global_state: self,
         }
         .on::<lsp_types::notification::Cancel>(|this, params| {
-            let id: bsp_server::RequestId = match params.id {
+            let id: RequestId = match params.id {
                 lsp_types::NumberOrString::Number(id) => id.into(),
                 lsp_types::NumberOrString::String(id) => id.into(),
             };
