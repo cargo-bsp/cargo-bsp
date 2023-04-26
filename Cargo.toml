@@ -1,5 +1,3 @@
-[workspace]
-
 [package]
 name = "cargo-bsp"
 version = "0.1.0"
@@ -18,13 +16,15 @@ rustc-hash = "1.1.0"
 anyhow = { version = "1.0.69", default-features = false }
 url = "2.3.1"
 command-group = "2.1.0"
-cargo_metadata = "0.15.4"
+cargo_metadata = { version = "0.15.4", features = ["builder"] }
 jod-thread = "0.1.2"
 stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
+toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "toolchain", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 itertools = "0.10.5"
 log = "0.4"
 simplelog = "0.12.1"
+rand = "0.8.5"
 
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }

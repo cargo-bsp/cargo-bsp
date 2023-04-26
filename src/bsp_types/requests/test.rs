@@ -1,9 +1,7 @@
-use std::process::Command;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::{CreateCommand, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
@@ -13,16 +11,6 @@ impl Request for Test {
     type Params = TestParams;
     type Result = TestResult;
     const METHOD: &'static str = "buildTarget/test";
-}
-
-impl CreateCommand for TestParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_command(&self) -> Command {
-        todo!()
-    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

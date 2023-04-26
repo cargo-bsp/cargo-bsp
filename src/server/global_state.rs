@@ -5,11 +5,11 @@ use std::time::Instant;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::{error, info};
 
+use crate::cargo_communication::request_handle::RequestHandle;
 use crate::communication;
 use crate::communication::{Message, RequestId};
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
-use crate::server::request_actor::RequestHandle;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, communication::Response);
 pub(crate) type ReqQueue = communication::ReqQueue<(String, Instant), ReqHandler>;

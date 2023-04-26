@@ -21,7 +21,7 @@ pub trait Notification {
     const METHOD: &'static str;
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone, Eq, Hash)]
 pub struct TaskId {
     /** A unique identifier */
     pub id: String,
