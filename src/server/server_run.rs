@@ -13,9 +13,9 @@ use crate::server::{from_json, Result};
 pub fn run_server() -> Result<()> {
     info!("server will start");
 
-    let (connection, io_threads) = Connection::bsp_stdio();
+    let (connection, io_threads) = Connection::stdio();
 
-    let (initialize_id, initialize_params) = connection.bsp_initialize_start()?;
+    let (initialize_id, initialize_params) = connection.initialize_start()?;
     let initialize_params =
         from_json::<InitializeBuildParams>("InitializeParams", &initialize_params)?;
 
@@ -40,7 +40,7 @@ pub fn run_server() -> Result<()> {
 
     let initialize_result = serde_json::to_value(initialize_result).unwrap();
 
-    connection.bsp_initialize_finish(initialize_id, initialize_result)?;
+    connection.initialize_finish(initialize_id, initialize_result)?;
 
     server::main_loop(config, connection)?;
 
