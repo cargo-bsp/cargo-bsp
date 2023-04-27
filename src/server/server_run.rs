@@ -78,16 +78,16 @@ mod tests {
             let init_resp = test_init_resp(&create_initialize_result(&config), test_id);
 
             if test_case.add_req {
-                test_case.case.expected_send.push(init_resp.into());
+                test_case.case.expected_recv.push(init_resp.into());
                 if test_case.is_init_req_first {
-                    test_case.case.test_messages.push(init_req.into());
+                    test_case.case.to_send.push(init_req.into());
                 } else {
-                    test_case.case.test_messages.insert(0, init_req.into());
+                    test_case.case.to_send.insert(0, init_req.into());
                 }
             }
 
             if test_case.add_notif {
-                test_case.case.test_messages.push(test_init_notif().into());
+                test_case.case.to_send.push(test_init_notif().into());
             }
 
             test_case.case.func_to_test =
@@ -99,7 +99,7 @@ mod tests {
         #[test]
         fn proper_initialize() {
             initialize_order_test(InitTestCase {
-                case: TestCase::default(),
+                case: TestCase::new(true, true),
                 is_init_req_first: true,
                 add_req: true,
                 add_notif: true,
@@ -113,14 +113,14 @@ mod tests {
 
             initialize_order_test(InitTestCase {
                 case: TestCase {
-                    test_messages: vec![request.clone().into()],
-                    expected_send: vec![Response::new_err(
+                    to_send: vec![request.clone().into()],
+                    expected_recv: vec![Response::new_err(
                         test_id.into(),
                         ErrorCode::ServerNotInitialized as i32,
                         format!("expected initialize request, got {:?}", request),
                     )
                     .into()],
-                    ..TestCase::default()
+                    ..TestCase::new(true, true)
                 },
                 is_init_req_first: true,
                 add_req: true,
@@ -132,8 +132,8 @@ mod tests {
         fn some_notif_before_init_req() {
             initialize_order_test(InitTestCase {
                 case: TestCase {
-                    test_messages: vec![test_init_notif().into()],
-                    ..TestCase::default()
+                    to_send: vec![test_init_notif().into()],
+                    ..TestCase::new(true, true)
                 },
                 is_init_req_first: true,
                 add_req: true,
@@ -147,13 +147,12 @@ mod tests {
 
             initialize_order_test(InitTestCase {
                 case: TestCase {
-                    test_messages: vec![notification_msg.clone()],
+                    to_send: vec![notification_msg.clone()],
                     expected_err: format!(
                         "expected initialize request, got {:?}",
                         notification_msg
                     ),
-                    func_returns_ok: false,
-                    ..TestCase::default()
+                    ..TestCase::new(true, false)
                 },
                 is_init_req_first: true,
                 add_req: false,
@@ -167,13 +166,12 @@ mod tests {
 
             initialize_order_test(InitTestCase {
                 case: TestCase {
-                    test_messages: vec![wrong_msg.clone().into()],
+                    to_send: vec![wrong_msg.clone().into()],
                     expected_err: format!(
                         "expected initialize request, got {:?}",
                         Message::from(wrong_msg)
                     ),
-                    func_returns_ok: false,
-                    ..TestCase::default()
+                    ..TestCase::new(true, false)
                 },
                 is_init_req_first: true,
                 add_req: false,
@@ -189,9 +187,7 @@ mod tests {
                         "expected initialize request, got error: {}",
                         RecvError {}
                     ),
-                    channel_works_ok: false,
-                    func_returns_ok: false,
-                    ..TestCase::default()
+                    ..TestCase::new(false, false)
                 },
                 is_init_req_first: true,
                 add_req: false,
@@ -205,13 +201,12 @@ mod tests {
 
             initialize_order_test(InitTestCase {
                 case: TestCase {
-                    test_messages: vec![wrong_msg.clone().into()],
+                    to_send: vec![wrong_msg.clone().into()],
                     expected_err: format!(
                         r#"expected initialized notification, got: {:?}"#,
                         Message::from(wrong_msg)
                     ),
-                    func_returns_ok: false,
-                    ..TestCase::default()
+                    ..TestCase::new(true, false)
                 },
                 is_init_req_first: false,
                 add_req: true,
@@ -227,9 +222,7 @@ mod tests {
                         "expected initialized notification, got error: {}",
                         RecvError {},
                     ),
-                    channel_works_ok: false,
-                    func_returns_ok: false,
-                    ..TestCase::default()
+                    ..TestCase::new(false, false)
                 },
                 is_init_req_first: true,
                 add_req: true,
