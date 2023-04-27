@@ -1,6 +1,8 @@
-use crate::bsp_types::notifications::TaskId;
-use rand::distributions::{Alphanumeric, DistString};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use rand::distributions::{Alphanumeric, DistString};
+
+use crate::bsp_types::notifications::TaskId;
 
 pub(super) fn generate_random_id() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), 36)

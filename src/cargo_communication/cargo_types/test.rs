@@ -1,9 +1,9 @@
-use crate::bsp_types::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 
 use crate::bsp_types::notifications::{
     TaskDataWithKind, TestFinishData, TestReportData, TestStatus,
 };
+use crate::bsp_types::BuildTargetIdentifier;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

@@ -3,17 +3,17 @@ use std::{
     process::{ChildStderr, ChildStdout},
 };
 
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
+use cargo_metadata::Message;
 use crossbeam_channel::Sender;
 use log::warn;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-pub use cargo_metadata::diagnostic::{
-    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-    DiagnosticSpanMacroExpansion,
-};
-use cargo_metadata::Message;
 
 pub struct CargoActor {
     sender: Sender<CargoMessage>,

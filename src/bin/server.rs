@@ -11,14 +11,16 @@ fn log_file_location() -> PathBuf {
     let exe_path = env::current_exe().unwrap();
     let debug_dir = exe_path.parent().unwrap();
     let target_dir = debug_dir.parent().unwrap();
-    let project_dir = target_dir.parent().unwrap();
-    project_dir.join("logs.log")
+    target_dir.parent().unwrap().into()
 }
 
 #[cfg(not(debug_assertions))]
 fn log_file_location() -> PathBuf {
-    let project_dir = env::current_dir().unwrap();
-    project_dir.join("cargo-bsp.log")
+    env::current_dir().unwrap()
+}
+
+fn log_file_path() -> PathBuf {
+    log_file_location().join("cargo-bsp.log")
 }
 
 pub fn main() -> server::Result<()> {
@@ -27,8 +29,9 @@ pub fn main() -> server::Result<()> {
         WriteLogger::new(
             LevelFilter::Trace,
             Config::default(),
-            File::create(log_file_location().to_str().unwrap()).unwrap(),
+            File::create(log_file_path().to_str().unwrap()).unwrap(),
         ),
+        #[cfg(debug_assertions)]
         TermLogger::new(
             LevelFilter::Trace,
             Config::default(),
