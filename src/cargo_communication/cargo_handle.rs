@@ -4,15 +4,15 @@ use std::{
     process::{Command, Stdio},
 };
 
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{unbounded, Receiver};
 
 use crate::cargo_communication::cargo_actor::CargoActor;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-pub use cargo_metadata::diagnostic::{
-    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-    DiagnosticSpanMacroExpansion,
-};
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with

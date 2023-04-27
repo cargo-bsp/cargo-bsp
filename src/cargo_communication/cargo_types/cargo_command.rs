@@ -1,6 +1,7 @@
-use crate::bsp_types::requests::{CompileParams, RunParams, TestParams};
 use std::path::PathBuf;
 use std::process::Command;
+
+use crate::bsp_types::requests::{CompileParams, RunParams, TestParams};
 
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;

@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 use crate::bsp_types::notifications::TaskId;
 use crate::bsp_types::requests::{Request, Run, Test};
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id};
-use std::collections::HashMap;
 
 pub struct RequestActorState {
     pub(super) root_task_id: TaskId,

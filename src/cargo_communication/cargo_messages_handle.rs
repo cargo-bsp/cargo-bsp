@@ -1,3 +1,8 @@
+use cargo_metadata::diagnostic::DiagnosticLevel;
+use cargo_metadata::{BuildFinished, CompilerMessage, Message};
+use lsp_types::DiagnosticSeverity;
+use paths::AbsPath;
+
 use crate::bsp_types::mappings::to_publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
@@ -13,10 +18,6 @@ use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestR
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
-use cargo_metadata::diagnostic::DiagnosticLevel;
-use cargo_metadata::{BuildFinished, CompilerMessage, Message};
-use lsp_types::DiagnosticSeverity;
-use paths::AbsPath;
 
 impl<R> RequestActor<R>
 where
