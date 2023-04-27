@@ -1,9 +1,12 @@
+use std::env;
 use std::path::PathBuf;
 
 use log::error;
+use url::Url;
 
-use crate::bsp_types::requests::BuildClientCapabilities;
+use crate::bsp_types::requests::{BuildClientCapabilities, InitializeBuildParams};
 use crate::project_model::project_manifest::ProjectManifest;
+use crate::server::Result;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -38,5 +41,16 @@ impl Config {
                 todo!("Add Logging to client and change server state to waiting for reload");
             }
         }
+    }
+
+    pub(crate) fn from_initialize_params(
+        initialize_params: InitializeBuildParams,
+    ) -> Result<Config> {
+        let root_path = Url::try_from(initialize_params.root_uri.as_str())
+            .ok()
+            .and_then(|it| it.to_file_path().ok())
+            .unwrap_or(env::current_dir()?);
+
+        Ok(Config::new(root_path, initialize_params.capabilities))
     }
 }

@@ -4,7 +4,7 @@ use std::process::{Child, ChildStdin, ChildStdout};
 
 use serde_json::from_str;
 
-use crate::communication::Message;
+use cargo_bsp::communication::Message;
 
 pub struct Client<'a> {
     buf_reader: BufReader<&'a mut ChildStdout>,
