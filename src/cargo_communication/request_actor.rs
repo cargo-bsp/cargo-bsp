@@ -2,6 +2,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
+use bsp_server::{ErrorCode, Message, ResponseError};
+use bsp_server::{RequestId, Response};
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
 use crossbeam_channel::{never, select, Receiver};
 use log::info;
 use serde_json::to_value;
@@ -15,12 +21,6 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
 use crate::cargo_communication::utils::{generate_task_id, get_current_time};
-use crate::communication::{ErrorCode, Message, ResponseError};
-use crate::communication::{RequestId, Response};
-pub use cargo_metadata::diagnostic::{
-    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-    DiagnosticSpanMacroExpansion,
-};
 
 pub struct RequestActor<R>
 where

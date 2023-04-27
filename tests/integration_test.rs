@@ -1,9 +1,9 @@
 use std::process::{Child, Command, Stdio};
 
+use bsp_server::Message;
 use serde::Serialize;
 use serde_json::to_string;
 
-use cargo_bsp::communication::Message;
 use cargo_bsp::test_utils::{
     test_exit_notif, test_init_notif, test_init_params, test_init_req, test_init_resp,
     test_init_result, test_shutdown_req, test_shutdown_resp,

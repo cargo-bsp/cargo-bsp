@@ -1,7 +1,7 @@
+use bsp_server::Connection;
 use log::info;
 
 use crate::bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
-use crate::communication::Connection;
 use crate::server;
 use crate::server::caps::server_capabilities;
 use crate::server::config::Config;
@@ -10,7 +10,7 @@ use crate::server::{from_json, Result};
 pub fn run_server() -> Result<()> {
     info!("server will start");
 
-    let (connection, io_threads) = Connection::stdio();
+    let (connection, io_threads) = Connection::bsp_stdio();
 
     let config = initialize(&connection)?;
 
@@ -22,14 +22,14 @@ pub fn run_server() -> Result<()> {
 }
 
 fn initialize(connection: &Connection) -> Result<Config> {
-    let (initialize_id, initialize_params) = connection.initialize_start()?;
+    let (initialize_id, initialize_params) = connection.bsp_initialize_start()?;
     let initialize_params =
         from_json::<InitializeBuildParams>("InitializeParams", &initialize_params)?;
 
     let config = Config::from_initialize_params(initialize_params)?;
     let initialize_result = create_initialize_result(&config);
 
-    connection.initialize_finish(
+    connection.bsp_initialize_finish(
         initialize_id,
         serde_json::to_value(initialize_result).unwrap(),
     )?;
@@ -50,9 +50,9 @@ fn create_initialize_result(config: &Config) -> InitializeBuildResult {
 #[cfg(test)]
 mod tests {
     mod test_initialize {
+        use bsp_server::{Connection, ErrorCode, Message, Response};
         use crossbeam_channel::RecvError;
 
-        use crate::communication::{Connection, ErrorCode, Message, Response};
         use crate::server::config::Config;
         use crate::server::server_run::{create_initialize_result, initialize};
         use crate::server::Result;

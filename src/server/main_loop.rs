@@ -2,17 +2,15 @@
 //! requests/replies and notifications back to the client.
 use std::time::Instant;
 
+use bsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use crossbeam_channel::{select, Receiver};
 
-use communication::{Connection, Notification, Request};
-
+use crate::bsp_types;
 use crate::bsp_types::notifications::Notification as _;
-use crate::communication::Message;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::{handlers, Result};
-use crate::{bsp_types, communication};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -95,9 +93,9 @@ impl GlobalState {
         } = &mut dispatcher
         {
             if this.shutdown_requested {
-                this.respond(communication::Response::new_err(
+                this.respond(Response::new_err(
                     req.id.clone(),
-                    communication::ErrorCode::InvalidRequest as i32,
+                    ErrorCode::InvalidRequest as i32,
                     "Shutdown already requested.".to_owned(),
                 ));
                 return;
@@ -130,7 +128,7 @@ impl GlobalState {
             global_state: self,
         }
         .on::<lsp_types::notification::Cancel>(|this, params| {
-            let id: communication::RequestId = match params.id {
+            let id: RequestId = match params.id {
                 lsp_types::NumberOrString::Number(id) => id.into(),
                 lsp_types::NumberOrString::String(id) => id.into(),
             };
@@ -147,8 +145,9 @@ mod tests {
     mod test_shutdown_order {
         use std::path::PathBuf;
 
+        use bsp_server::Connection;
+
         use crate::bsp_types::requests::BuildClientCapabilities;
-        use crate::communication::Connection;
         use crate::server::config::Config;
         use crate::server::global_state::GlobalState;
         use crate::server::Result;
