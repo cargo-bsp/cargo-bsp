@@ -16,32 +16,30 @@ use crate::server::config::Config;
 use crate::server::Result;
 
 pub struct TestCase {
-    pub test_messages: Vec<Message>,
+    pub to_send: Vec<Message>,
     pub expected_err: String,
-    pub expected_send: Vec<Message>,
+    pub expected_recv: Vec<Message>,
     pub channel_works_ok: bool,
     pub func_returns_ok: bool,
     pub func_to_test: fn(Connection) -> Result<()>,
 }
 
-impl Default for TestCase {
-    fn default() -> Self {
-        TestCase {
-            test_messages: vec![],
-            expected_err: "".to_string(),
-            expected_send: vec![],
-            channel_works_ok: true,
-            func_returns_ok: true,
+impl TestCase {
+    pub fn new(channel_works_ok: bool, func_returns_ok: bool) -> Self {
+        Self {
+            to_send: vec![],
+            expected_err: String::default(),
+            expected_recv: vec![],
+            channel_works_ok,
+            func_returns_ok,
             func_to_test: |_| Ok(()),
         }
     }
-}
 
-impl TestCase {
     pub fn test(self) {
         let (client, server) = Connection::memory();
 
-        for msg in self.test_messages {
+        for msg in self.to_send {
             client.sender.send(msg).unwrap();
         }
 
@@ -57,7 +55,7 @@ impl TestCase {
             assert_eq!(self.expected_err, resp.unwrap_err().to_string());
         }
 
-        for msg in self.expected_send {
+        for msg in self.expected_recv {
             assert_eq!(
                 msg,
                 client
@@ -70,14 +68,6 @@ impl TestCase {
             .receiver
             .recv_timeout(Duration::from_secs(1))
             .is_err());
-    }
-
-    pub fn new(channel_works_ok: bool, is_ok: bool) -> Self {
-        Self {
-            channel_works_ok,
-            func_returns_ok: is_ok,
-            ..Self::default()
-        }
     }
 }
 

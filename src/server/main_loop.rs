@@ -11,7 +11,6 @@ use crate::communication::Message;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::main_loop::Event::{Bsp, FromThread};
 use crate::server::{handlers, Result};
 use crate::{bsp_types, communication};
 
@@ -28,7 +27,7 @@ enum Event {
 impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
-            if let Bsp(Message::Notification(not)) = &event {
+            if let Event::Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     if !self.shutdown_requested {
                         break;
@@ -56,12 +55,12 @@ impl GlobalState {
         let loop_start = Instant::now();
 
         match event {
-            Bsp(msg) => match msg {
+            Event::Bsp(msg) => match msg {
                 Message::Request(req) => self.on_new_request(loop_start, req),
                 Message::Notification(not) => self.on_notification(not)?,
                 Message::Response(_) => {}
             },
-            FromThread(msg) => match &msg {
+            Event::FromThread(msg) => match &msg {
                 Message::Request(_) => {}
                 Message::Notification(not) => self.send_notification(not.to_owned()),
                 Message::Response(resp) => {
@@ -168,11 +167,11 @@ mod tests {
             let notif = test_exit_notif();
 
             if test_case.add_req {
-                test_case.case.test_messages.push(req.into());
-                test_case.case.expected_send.push(resp.into());
+                test_case.case.to_send.push(req.into());
+                test_case.case.expected_recv.push(resp.into());
             }
             if test_case.add_notif {
-                test_case.case.test_messages.push(notif.into());
+                test_case.case.to_send.push(notif.into());
             }
 
             if !test_case.case.func_returns_ok {
