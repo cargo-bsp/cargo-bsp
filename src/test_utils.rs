@@ -15,7 +15,7 @@ use crate::server::caps::server_capabilities;
 use crate::server::config::Config;
 use crate::server::Result;
 
-pub struct TestCase {
+pub struct ConnectionTestCase {
     pub to_send: Vec<Message>,
     pub expected_err: String,
     pub expected_recv: Vec<Message>,
@@ -24,7 +24,7 @@ pub struct TestCase {
     pub func_to_test: fn(Connection) -> Result<()>,
 }
 
-impl TestCase {
+impl ConnectionTestCase {
     pub fn new(channel_works_ok: bool, func_returns_ok: bool) -> Self {
         Self {
             to_send: vec![],
@@ -60,14 +60,11 @@ impl TestCase {
                 msg,
                 client
                     .receiver
-                    .recv_timeout(Duration::from_secs(1))
+                    .recv_timeout(Duration::from_millis(100))
                     .unwrap()
             );
         }
-        assert!(client
-            .receiver
-            .recv_timeout(Duration::from_secs(1))
-            .is_err());
+        assert!(client.receiver.is_empty());
     }
 }
 

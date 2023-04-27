@@ -29,3 +29,4 @@ rand = "0.8.5"
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }
 tempfile = "3.5.0"
+assert_cmd = "2.0.11"

@@ -1,5 +1,6 @@
 use std::process::{Child, Command, Stdio};
 
+use assert_cmd::prelude::*;
 use serde::Serialize;
 use serde_json::to_string;
 
@@ -29,10 +30,11 @@ fn make_rpc_string(msg: Message) -> String {
 }
 
 pub fn spawn_server() -> Child {
-    Command::new("cargo")
-        .args(["run", "--release", "--bin", "server"])
+    Command::cargo_bin("server")
+        .unwrap()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped()) // we don't want to see logs in tests
         .spawn()
         .unwrap()
 }

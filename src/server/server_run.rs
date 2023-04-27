@@ -58,17 +58,25 @@ mod tests {
         use crate::server::Result;
         use crate::test_utils::{
             test_exit_notif, test_init_notif, test_init_params, test_init_req, test_init_resp,
-            test_sources_req, test_sources_resp, TestCase,
+            test_sources_req, test_sources_resp, ConnectionTestCase,
         };
 
-        struct InitTestCase {
-            case: TestCase,
-            is_init_req_first: bool,
-            add_req: bool,
-            add_notif: bool,
+        enum InitReq {
+            SendLater,
+            SendAsFirst,
+            Omit,
         }
 
-        fn initialize_order_test(mut test_case: InitTestCase) {
+        enum InitNotif {
+            Send,
+            Omit,
+        }
+
+        fn initialize_order_test(
+            mut case: ConnectionTestCase,
+            req_action: InitReq,
+            notif_action: InitNotif,
+        ) {
             let test_id = 234;
 
             let init_params = test_init_params();
@@ -77,33 +85,35 @@ mod tests {
             let init_req = test_init_req(&init_params, test_id);
             let init_resp = test_init_resp(&create_initialize_result(&config), test_id);
 
-            if test_case.add_req {
-                test_case.case.expected_recv.push(init_resp.into());
-                if test_case.is_init_req_first {
-                    test_case.case.to_send.push(init_req.into());
-                } else {
-                    test_case.case.to_send.insert(0, init_req.into());
+            match req_action {
+                InitReq::SendLater => {
+                    case.to_send.push(init_req.into());
+                    case.expected_recv.push(init_resp.into());
                 }
+                InitReq::SendAsFirst => {
+                    case.to_send.insert(0, init_req.into());
+                    case.expected_recv.push(init_resp.into());
+                }
+                InitReq::Omit => {}
             }
 
-            if test_case.add_notif {
-                test_case.case.to_send.push(test_init_notif().into());
+            if let InitNotif::Send = notif_action {
+                case.to_send.push(test_init_notif().into());
             }
 
-            test_case.case.func_to_test =
+            case.func_to_test =
                 |server: Connection| -> Result<()> { initialize(&server).map(|_| ()) };
 
-            test_case.case.test();
+            case.test();
         }
 
         #[test]
         fn proper_initialize() {
-            initialize_order_test(InitTestCase {
-                case: TestCase::new(true, true),
-                is_init_req_first: true,
-                add_req: true,
-                add_notif: true,
-            });
+            initialize_order_test(
+                ConnectionTestCase::new(true, true),
+                InitReq::SendAsFirst,
+                InitNotif::Send,
+            );
         }
 
         #[test]
@@ -111,8 +121,8 @@ mod tests {
             let test_id = 123;
             let request = test_sources_req(test_id);
 
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     to_send: vec![request.clone().into()],
                     expected_recv: vec![Response::new_err(
                         test_id.into(),
@@ -120,114 +130,107 @@ mod tests {
                         format!("expected initialize request, got {:?}", request),
                     )
                     .into()],
-                    ..TestCase::new(true, true)
+                    ..ConnectionTestCase::new(true, true)
                 },
-                is_init_req_first: true,
-                add_req: true,
-                add_notif: true,
-            });
+                InitReq::SendLater,
+                InitNotif::Send,
+            );
         }
 
         #[test]
         fn some_notif_before_init_req() {
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     to_send: vec![test_init_notif().into()],
-                    ..TestCase::new(true, true)
+                    ..ConnectionTestCase::new(true, true)
                 },
-                is_init_req_first: true,
-                add_req: true,
-                add_notif: true,
-            });
+                InitReq::SendLater,
+                InitNotif::Send,
+            );
         }
 
         #[test]
         fn exit_notif_before_init_req() {
             let notification_msg = Message::from(test_exit_notif());
 
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     to_send: vec![notification_msg.clone()],
                     expected_err: format!(
                         "expected initialize request, got {:?}",
                         notification_msg
                     ),
-                    ..TestCase::new(true, false)
+                    ..ConnectionTestCase::new(true, false)
                 },
-                is_init_req_first: true,
-                add_req: false,
-                add_notif: false,
-            });
+                InitReq::Omit,
+                InitNotif::Omit,
+            );
         }
 
         #[test]
         fn wrong_msg_before_init_req() {
             let wrong_msg = test_sources_resp(123);
 
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     to_send: vec![wrong_msg.clone().into()],
                     expected_err: format!(
                         "expected initialize request, got {:?}",
                         Message::from(wrong_msg)
                     ),
-                    ..TestCase::new(true, false)
+                    ..ConnectionTestCase::new(true, false)
                 },
-                is_init_req_first: true,
-                add_req: false,
-                add_notif: false,
-            });
+                InitReq::Omit,
+                InitNotif::Omit,
+            );
         }
 
         #[test]
         fn channel_err_before_init_req() {
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     expected_err: format!(
                         "expected initialize request, got error: {}",
                         RecvError {}
                     ),
-                    ..TestCase::new(false, false)
+                    ..ConnectionTestCase::new(false, false)
                 },
-                is_init_req_first: true,
-                add_req: false,
-                add_notif: false,
-            });
+                InitReq::Omit,
+                InitNotif::Omit,
+            );
         }
 
         #[test]
         fn wrong_msg_before_init_notif() {
             let wrong_msg = test_sources_resp(123);
 
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     to_send: vec![wrong_msg.clone().into()],
                     expected_err: format!(
                         r#"expected initialized notification, got: {:?}"#,
                         Message::from(wrong_msg)
                     ),
-                    ..TestCase::new(true, false)
+                    ..ConnectionTestCase::new(true, false)
                 },
-                is_init_req_first: false,
-                add_req: true,
-                add_notif: false,
-            });
+                InitReq::SendAsFirst,
+                InitNotif::Omit,
+            );
         }
 
         #[test]
         fn channel_err_before_init_notif() {
-            initialize_order_test(InitTestCase {
-                case: TestCase {
+            initialize_order_test(
+                ConnectionTestCase {
                     expected_err: format!(
                         "expected initialized notification, got error: {}",
                         RecvError {},
                     ),
-                    ..TestCase::new(false, false)
+                    ..ConnectionTestCase::new(false, false)
                 },
-                is_init_req_first: true,
-                add_req: true,
-                add_notif: false,
-            });
+                InitReq::SendAsFirst,
+                InitNotif::Omit,
+            );
         }
     }
 }
