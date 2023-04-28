@@ -14,16 +14,18 @@ use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestResult, TestType};
-use crate::cargo_communication::request_actor::RequestActor;
+use crate::cargo_communication::request_actor::{CargoHandleTrait, RequestActor};
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
 
-impl<R> RequestActor<R>
+impl<R, C> RequestActor<R, C>
 where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
+    C: CargoHandleTrait<CargoMessage>,
 {
     pub(super) fn handle_cargo_information(&mut self, message: Message) {
         match message {

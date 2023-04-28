@@ -4,6 +4,7 @@ use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Sender};
 
 use crate::bsp_types::requests::Request;
+use crate::cargo_communication::cargo_handle::CargoHandle;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
@@ -27,7 +28,7 @@ impl RequestHandle {
         R::Params: CreateCommand + Send,
         R::Result: CargoResult,
     {
-        let mut actor: RequestActor<R> =
+        let mut actor: RequestActor<R, CargoHandle> =
             RequestActor::new(sender_to_main, req_id, params, root_path);
         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
         let thread = jod_thread::Builder::new()

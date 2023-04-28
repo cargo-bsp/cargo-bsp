@@ -10,14 +10,16 @@ use crate::bsp_types::requests::Request;
 use crate::bsp_types::StatusCode;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
-use crate::cargo_communication::request_actor::RequestActor;
+use crate::cargo_communication::cargo_types::event::CargoMessage;
+use crate::cargo_communication::request_actor::{CargoHandleTrait, RequestActor};
 use crate::cargo_communication::utils::get_current_time;
 
-impl<R> RequestActor<R>
+impl<R, C> RequestActor<R, C>
 where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
+    C: CargoHandleTrait<CargoMessage>,
 {
     pub(super) fn report_task_start(
         &self,
