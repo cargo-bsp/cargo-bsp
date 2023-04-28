@@ -122,7 +122,7 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_state.start_time = get_current_time().unwrap();
+        self.state.compile_state.start_time = get_current_time();
         self.report_task_start(
             self.state.compile_state.task_id.clone(),
             None,

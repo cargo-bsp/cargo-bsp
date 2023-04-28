@@ -44,8 +44,7 @@ impl CargoActor {
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
         //
-        // We return bool that indicates whether we read at least one message and a string that
-        // contains the error output.
+        // We return bool that indicates whether we read at least one message.
 
         let mut read_at_least_one_message = false;
         let output = streaming_output(

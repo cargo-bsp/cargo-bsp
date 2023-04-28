@@ -122,7 +122,7 @@ where
             origin_id: self.params.origin_id(),
             errors: self.state.compile_state.errors,
             warnings: self.state.compile_state.warnings,
-            time: Some((get_current_time().unwrap() - self.state.compile_state.start_time) as i32),
+            time: Some((get_current_time() - self.state.compile_state.start_time) as i32),
             no_op: None,
         });
         self.report_task_finish(

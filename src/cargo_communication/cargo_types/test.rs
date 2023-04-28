@@ -79,7 +79,7 @@ impl TestResult {
     /// Split test output into stdout and stderr (to delete, if cargo starts
     /// sending stderr for tests).
     pub fn handle_test_stdout(&mut self) -> Option<String> {
-        let mut true_stdout = Default::default();
+        let mut true_stdout = String::default();
         self.stdout = self.stdout.as_ref().and_then(|stdout| {
             if let Some((out, err)) = stdout.rsplit_once("thread '") {
                 true_stdout = out.to_string();
