@@ -7,8 +7,13 @@ use crate::project_model::package_dependencies::{PackageDependency, PackageWithD
 use cargo_metadata::camino::Utf8PathBuf;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand, Target};
 use std::collections::HashMap;
+
+use log::error;
 use std::path::PathBuf;
 use std::rc::Rc;
+
+pub type BuildIdToPackageMap = HashMap<BuildTargetIdentifier, String>;
+pub type BuildIdToTargetMap = HashMap<BuildTargetIdentifier, Rc<cargo_metadata::Target>>;
 
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {
@@ -17,16 +22,17 @@ pub struct ProjectWorkspace {
 
     pub packages: Vec<BspPackage>,
 
-    pub target_id_target_details_map: HashMap<BuildTargetIdentifier, Rc<cargo_metadata::Target>>,
+    pub target_id_target_details_map: BuildIdToTargetMap,
 
-    pub target_id_package_map: HashMap<BuildTargetIdentifier, String>,
+    pub target_id_package_map: BuildIdToPackageMap,
 }
 
-pub struct CommandCallTargetDetails {
+#[derive(Debug, Default, Clone)]
+pub struct CommandCallTargetDetails<'a> {
     pub name: String,
     pub kind: String,
     pub package_abs_path: Utf8PathBuf,
-    pub enabled_features: Vec<String>,
+    pub enabled_features: &'a [String],
 }
 
 impl ProjectWorkspace {
@@ -88,34 +94,16 @@ impl ProjectWorkspace {
             .map(|p| BspPackage::new(p, &metadata.packages))
             .collect();
 
-        let (target_id_to_package, target_id_to_target_details) = ProjectWorkspace::create_hashmaps(&bsp_packages);
-
-        // let target_map: HashMap<BuildTargetIdentifier, Rc<BspPackage>> = bsp_packages
-        //     .iter()
-        //     .flat_map(|p| -> Vec<(BuildTargetIdentifier, Rc<BspPackage>)> {
-        //         let package = p.as_ref();
-        //         package
-        //             .targets
-        //             .iter()
-        //             .map(|t| {
-        //                 (
-        //                     //todo get easily acces to kind and name from target
-        //                     // resign from RC, can't be mutated
-        //                     build_target_id_from_name_and_path(&t.name, &t.src_path),
-        //                     Rc::clone(p),
-        //                 )
-        //             })
-        //             .collect()
-        //     })
-        //     .collect();
+        // let (target_id_to_package, target_id_to_target_details) = ProjectWorkspace::create_hashmaps(&bsp_packages);
+        let (bid_to_package, bid_to_target) = ProjectWorkspace::create_hashmaps(&bsp_packages);
 
         // todo get target_info from bsp_packages while parsing to bsp_build_target
 
         Ok(ProjectWorkspace {
             build_targets: vec![],
             packages: bsp_packages,
-            target_id_target_details_map: Default::default(),
-            target_id_package_map: Default::default(),
+            target_id_target_details_map: bid_to_target,
+            target_id_package_map: bid_to_package,
         })
     }
 
@@ -133,18 +121,23 @@ impl ProjectWorkspace {
             .collect()
     }
 
-    pub fn create_hashmaps(bsp_packages: &[BspPackage]) {
-        let x: Vec<((BuildTargetIdentifier, String), (BuildTargetIdentifier, Rc<Target>))> = bsp_packages.iter().flat_map(|p|
-            p.targets.iter().map(
-                |tr|
+    pub fn create_hashmaps(
+        bsp_packages: &[BspPackage],
+    ) -> (BuildIdToPackageMap, BuildIdToTargetMap) {
+        bsp_packages
+            .iter()
+            .flat_map(|p| {
+                p.targets.iter().map(|tr| {
+                    let bid = build_target_id_from_name_and_path(&tr.name, &tr.src_path);
                     (
-                        //bid to package name map
-                        (build_target_id_from_name_and_path(&tr.name, &tr.src_path), p.name.clone()),
-                        //bid to target rc reference
-                        (build_target_id_from_name_and_path(&tr.name, &tr.src_path), Rc::clone(tr))
+                        // BuildTargetIdentifier to package name map (key, value)
+                        (bid.clone(), p.name.clone()),
+                        // BuildTargetIdentifier to target_details map (key, value)
+                        (bid, Rc::clone(tr)),
                     )
-            )
-        ).collect();
+                })
+            })
+            .unzip()
     }
 
     pub fn get_build_targets(&self) -> Vec<BuildTarget> {
@@ -158,18 +151,57 @@ impl ProjectWorkspace {
             .collect()
     }
 
+    pub fn find_build_target_package(
+        &self,
+        target_id: &BuildTargetIdentifier,
+    ) -> Option<&BspPackage> {
+        let package_name = self.target_id_package_map.get(target_id).or_else(|| {
+            error!("Package not found for target: {:?}", target_id);
+            None
+        })?;
+
+        self.packages
+            .iter()
+            .find(|p| p.name == *package_name)
+            .or_else(|| {
+                error!("Package not found for target: {:?}", target_id);
+                None
+            })
+    }
+
+    pub fn find_build_target_details(
+        &self,
+        target_id: &BuildTargetIdentifier,
+    ) -> Option<&Rc<Target>> {
+        self.target_id_target_details_map
+            .get(target_id)
+            .or_else(|| {
+                error!("Target details not found for id: {:?}", target_id);
+                None
+            })
+    }
+
     pub fn get_target_details_for_command_call(
         &self,
         id: &BuildTargetIdentifier,
     ) -> Option<CommandCallTargetDetails> {
-        if let Some(rc_package) = self.target_id_package_map.get(id) {
-            return Some(CommandCallTargetDetails {
-                name: "raczej trzebacoś poprawić".to_string(),
-                kind: "tuteż".to_string(),
-                package_abs_path: Default::default(),
-                enabled_features: Default::default(),
-            });
-        }
-        None
+        let mut target_data = CommandCallTargetDetails::default();
+
+        let package = self.find_build_target_package(id)?;
+        target_data.package_abs_path = package.manifest_path.clone();
+        target_data.enabled_features = package.enabled_features.as_slice();
+
+        let target_details = self.find_build_target_details(id)?;
+        target_data.name = target_details.name.clone();
+        target_data.kind = target_details
+            .kind
+            .get(0)
+            .or_else(|| {
+                error!("Invalid `kind vector` for target: {:?}", id);
+                None
+            })?
+            .clone();
+
+        Some(target_data)
     }
 }
