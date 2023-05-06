@@ -58,7 +58,7 @@ mod tests {
         use crate::server::Result;
         use crate::test_utils::{
             test_exit_notif, test_init_notif, test_init_params, test_init_req, test_init_resp,
-            test_sources_req, test_sources_resp, ConnectionTestCase,
+            test_sources_req, test_sources_resp, Channel, ConnectionTestCase, FuncReturns,
         };
 
         enum InitReq {
@@ -110,7 +110,7 @@ mod tests {
         #[test]
         fn proper_initialize() {
             initialize_order_test(
-                ConnectionTestCase::new(true, true),
+                ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Ok),
                 InitReq::SendAsFirst,
                 InitNotif::Send,
             );
@@ -130,7 +130,7 @@ mod tests {
                         format!("expected initialize request, got {:?}", request),
                     )
                     .into()],
-                    ..ConnectionTestCase::new(true, true)
+                    ..ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Ok)
                 },
                 InitReq::SendLater,
                 InitNotif::Send,
@@ -142,7 +142,7 @@ mod tests {
             initialize_order_test(
                 ConnectionTestCase {
                     to_send: vec![test_init_notif().into()],
-                    ..ConnectionTestCase::new(true, true)
+                    ..ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Ok)
                 },
                 InitReq::SendLater,
                 InitNotif::Send,
@@ -160,7 +160,7 @@ mod tests {
                         "expected initialize request, got {:?}",
                         notification_msg
                     ),
-                    ..ConnectionTestCase::new(true, false)
+                    ..ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Error)
                 },
                 InitReq::Omit,
                 InitNotif::Omit,
@@ -178,7 +178,7 @@ mod tests {
                         "expected initialize request, got {:?}",
                         Message::from(wrong_msg)
                     ),
-                    ..ConnectionTestCase::new(true, false)
+                    ..ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Error)
                 },
                 InitReq::Omit,
                 InitNotif::Omit,
@@ -193,7 +193,7 @@ mod tests {
                         "expected initialize request, got error: {}",
                         RecvError {}
                     ),
-                    ..ConnectionTestCase::new(false, false)
+                    ..ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error)
                 },
                 InitReq::Omit,
                 InitNotif::Omit,
@@ -211,7 +211,7 @@ mod tests {
                         r#"expected initialized notification, got: {:?}"#,
                         Message::from(wrong_msg)
                     ),
-                    ..ConnectionTestCase::new(true, false)
+                    ..ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Error)
                 },
                 InitReq::SendAsFirst,
                 InitNotif::Omit,
@@ -226,7 +226,7 @@ mod tests {
                         "expected initialized notification, got error: {}",
                         RecvError {},
                     ),
-                    ..ConnectionTestCase::new(false, false)
+                    ..ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error)
                 },
                 InitReq::SendAsFirst,
                 InitNotif::Omit,

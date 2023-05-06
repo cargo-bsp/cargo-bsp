@@ -153,7 +153,8 @@ mod tests {
         use crate::server::global_state::GlobalState;
         use crate::server::Result;
         use crate::test_utils::{
-            test_exit_notif, test_shutdown_req, test_shutdown_resp, ConnectionTestCase,
+            test_exit_notif, test_shutdown_req, test_shutdown_resp, Channel, ConnectionTestCase,
+            FuncReturns,
         };
 
         enum ShutdownReq {
@@ -184,7 +185,7 @@ mod tests {
                 case.to_send.push(notif.into());
             }
 
-            if !case.func_returns_ok {
+            if let FuncReturns::Error = case.func_returns {
                 case.expected_err = "client exited without proper shutdown sequence".into();
             }
             case.func_to_test = |server: Connection| -> Result<()> {
@@ -201,7 +202,7 @@ mod tests {
         #[test]
         fn proper_shutdown_order() {
             shutdown_order_test(
-                ConnectionTestCase::new(true, true),
+                ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Ok),
                 ShutdownReq::Send,
                 ShutdownNotif::Send,
             );
@@ -210,7 +211,7 @@ mod tests {
         #[test]
         fn exit_notif_without_shutdown() {
             shutdown_order_test(
-                ConnectionTestCase::new(true, false),
+                ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Error),
                 ShutdownReq::Omit,
                 ShutdownNotif::Send,
             );
@@ -219,7 +220,7 @@ mod tests {
         #[test]
         fn channel_err_before_shutdown_req() {
             shutdown_order_test(
-                ConnectionTestCase::new(false, false),
+                ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error),
                 ShutdownReq::Omit,
                 ShutdownNotif::Omit,
             );
@@ -228,7 +229,7 @@ mod tests {
         #[test]
         fn channel_err_before_exit_notif() {
             shutdown_order_test(
-                ConnectionTestCase::new(false, false),
+                ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error),
                 ShutdownReq::Send,
                 ShutdownNotif::Omit,
             );

@@ -15,23 +15,33 @@ use crate::server::caps::server_capabilities;
 use crate::server::config::Config;
 use crate::server::Result;
 
+pub enum Channel {
+    WorksOk,
+    Disconnects,
+}
+
+pub enum FuncReturns {
+    Ok,
+    Error,
+}
+
 pub struct ConnectionTestCase {
     pub to_send: Vec<Message>,
     pub expected_err: String,
     pub expected_recv: Vec<Message>,
-    pub channel_works_ok: bool,
-    pub func_returns_ok: bool,
+    pub channel_state: Channel,
+    pub func_returns: FuncReturns,
     pub func_to_test: fn(Connection) -> Result<()>,
 }
 
 impl ConnectionTestCase {
-    pub fn new(channel_works_ok: bool, func_returns_ok: bool) -> Self {
+    pub fn new(channel_state: Channel, func_returns: FuncReturns) -> Self {
         Self {
             to_send: vec![],
             expected_err: String::default(),
             expected_recv: vec![],
-            channel_works_ok,
-            func_returns_ok,
+            channel_state,
+            func_returns,
             func_to_test: |_| Ok(()),
         }
     }
@@ -43,12 +53,12 @@ impl ConnectionTestCase {
             client.sender.send(msg).unwrap();
         }
 
-        if !self.channel_works_ok {
+        if let Channel::Disconnects = self.channel_state {
             drop(client.sender)
         }
 
         let resp = (self.func_to_test)(server);
-        if self.func_returns_ok {
+        if let FuncReturns::Ok = self.func_returns {
             assert!(resp.is_ok());
         } else {
             assert!(resp.is_err());
