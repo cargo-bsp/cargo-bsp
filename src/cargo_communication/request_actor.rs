@@ -151,7 +151,7 @@ where
             None,
             None,
         );
-        self.send(Message::Response(self.create_response(res, &status_code)));
+        self.send_response(res, &status_code);
     }
 
     fn finish_execution_task(&self, status_code: &StatusCode) {

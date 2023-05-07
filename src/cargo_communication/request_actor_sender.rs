@@ -24,12 +24,8 @@ where
     C: CargoHandleTrait<CargoMessage>,
 {
     #[cfg(not(test))]
-    pub(super) fn create_response(
-        &self,
-        result: io::Result<ExitStatus>,
-        status_code: &StatusCode,
-    ) -> Response {
-        Response {
+    pub(super) fn send_response(&self, result: io::Result<ExitStatus>, status_code: &StatusCode) {
+        self.send(Message::Response(Response {
             id: self.req_id.clone(),
             result: result.ok().map(|_| {
                 to_value(R::Result::create_result(
@@ -40,16 +36,12 @@ where
             }),
             // TODO create error for response
             error: None,
-        }
+        }));
     }
 
     #[cfg(test)]
-    pub(super) fn create_response(
-        &self,
-        _: io::Result<ExitStatus>,
-        status_code: &StatusCode,
-    ) -> Response {
-        Response {
+    pub(super) fn send_response(&self, _: io::Result<ExitStatus>, status_code: &StatusCode) {
+        self.send(Message::Response(Response {
             id: self.req_id.clone(),
             result: to_value(R::Result::create_result(
                 self.params.origin_id(),
@@ -58,7 +50,7 @@ where
             .ok(),
             // TODO create error for response
             error: None,
-        }
+        }));
     }
 
     pub(super) fn report_task_start(
