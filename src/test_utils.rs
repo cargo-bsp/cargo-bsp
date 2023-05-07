@@ -11,8 +11,6 @@ use crate::bsp_types::requests::{
 };
 use crate::communication;
 use crate::communication::{Connection, Message};
-use crate::server::caps::server_capabilities;
-use crate::server::config::Config;
 use crate::server::Result;
 
 pub enum Channel {
@@ -90,17 +88,6 @@ pub fn test_init_req(params: &InitializeBuildParams, id: i32) -> communication::
         id: id.into(),
         method: InitializeBuild::METHOD.to_string(),
         params: to_value(params).unwrap(),
-    }
-}
-
-pub fn test_init_result(init_params: &InitializeBuildParams) -> InitializeBuildResult {
-    let config = Config::from_initialize_params(init_params.clone()).unwrap();
-    InitializeBuildResult {
-        display_name: "test".to_string(),
-        version: "0.0.1".to_string(),
-        bsp_version: "2.0.0".to_string(),
-        capabilities: server_capabilities(&config),
-        data: None,
     }
 }
 
