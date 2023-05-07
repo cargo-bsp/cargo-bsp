@@ -272,7 +272,6 @@ pub mod compile_request_tests {
 
     #[test]
     fn simple_compile() {
-        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         // There is no robust way to return ExitStatus hence we return Error. In consequence there
         // are specific implementations of create_response() and get_request_status_code() for tests.
@@ -352,7 +351,6 @@ pub mod compile_request_tests {
 
     #[test]
     fn simple_cancel() {
-        #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         mock_cargo_handle.expect_cancel().return_const(());
         // There is no robust way to return ExitStatus hence we return Error. In consequence there
@@ -973,7 +971,6 @@ pub mod compile_request_tests {
             .send(CargoStdout(CompilerMessage(compiler_message_error)))
             .unwrap();
 
-        // TODO: sprawdzic czy powinno byc tak ze dostajemy publish diagnostic i dodajemy warningi tylko gdy jest cos w spanie
         let _ = recv_from_actor.recv(); // publish diagnostic
         let _ = recv_from_actor.recv(); // publish diagnostic
 
