@@ -13,11 +13,16 @@ pub fn build_target_id_from_name_and_path<T: Display, R: Display>(
     }
 }
 
-/// Assumes calling only with valid path which additionally has a parent
-pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+/// Assumes being called only with valid path which additionally has a parent
+pub fn parent_path(path: &Utf8PathBuf) -> Utf8PathBuf {
     let mut parent_directory = path.clone();
     parent_directory.pop();
-    file_uri(parent_directory)
+    parent_directory
+}
+
+/// Calls parent_path() so expects a valid path with parent
+pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+    file_uri(parent_path(path))
 }
 
 fn tags_and_capabilities_from_cargo_kind(

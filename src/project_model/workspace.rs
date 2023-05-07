@@ -1,4 +1,4 @@
-use crate::bsp_types::mappings::build_target::build_target_id_from_name_and_path;
+use crate::bsp_types::mappings::build_target::{build_target_id_from_name_and_path, parent_path};
 use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
 use crate::project_model::package::BspPackage;
 use cargo_metadata::camino::Utf8PathBuf;
@@ -29,6 +29,7 @@ pub struct TargetDetails<'a> {
     pub name: String,
     pub kind: String,
     pub package_abs_path: Utf8PathBuf,
+    pub default_features_disabled: bool,
     pub enabled_features: &'a [String],
 }
 
@@ -124,8 +125,9 @@ impl ProjectWorkspace {
         let mut target_data = TargetDetails::default();
 
         let package = self.find_build_target_package_in_map(id)?;
-        target_data.package_abs_path = package.manifest_path.clone();
+        target_data.package_abs_path = parent_path(&package.manifest_path);
         target_data.enabled_features = package.enabled_features.as_slice();
+        target_data.default_features_disabled = package.default_features_disabled;
 
         let target_details = self.find_build_target_details_in_map(id)?;
         target_data.name = target_details.name.clone();
