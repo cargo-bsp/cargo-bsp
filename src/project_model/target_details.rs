@@ -1,3 +1,4 @@
+use crate::project_model::package::Feature;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 
@@ -7,7 +8,7 @@ pub struct TargetDetails<'a> {
     pub kind: TargetCargoKind,
     pub package_abs_path: Utf8PathBuf,
     pub default_features_disabled: bool,
-    pub enabled_features: &'a [String],
+    pub enabled_features: &'a [Feature],
 }
 
 impl TargetDetails<'_> {

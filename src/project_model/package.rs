@@ -6,6 +6,8 @@ use log::{error, warn};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
+pub type Feature = String;
+
 #[derive(Default, Debug)]
 pub struct CargoPackage {
     /// Name of the package
@@ -30,7 +32,7 @@ pub struct CargoPackage {
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
     /// Includes pair for default if defined
-    pub package_features: HashMap<String, Vec<String>>,
+    pub package_features: HashMap<Feature, Vec<Feature>>,
 }
 
 impl CargoPackage {
@@ -67,7 +69,7 @@ impl CargoPackage {
     /// Checks if a feature was defined in the Cargo.toml Used to skip features that have the form:
     /// "dep:package_name" or "package_name/feature_name" or "package_name?/feature_name" as they
     /// are not included in the cargo metadata features Hashmap
-    fn is_defined_feature(&self, feature: &String) -> bool {
+    fn is_defined_feature(&self, feature: &Feature) -> bool {
         self.package_features.contains_key(feature)
     }
 
@@ -79,12 +81,12 @@ impl CargoPackage {
             return true;
         }
 
-        let mut next_features = VecDeque::from(self.enabled_features.clone());
+        let mut next_features: VecDeque<Feature> = VecDeque::from(self.enabled_features.clone());
         if !self.default_features_disabled && self.package_features.contains_key("default") {
-            next_features.push_back(String::from("default"));
+            next_features.push_back(Feature::from("default"));
         }
 
-        let mut checked_features: HashSet<String> =
+        let mut checked_features: HashSet<Feature> =
             HashSet::from_iter(next_features.iter().cloned());
 
         while let Some(f) = next_features.pop_front() {
@@ -133,7 +135,7 @@ impl CargoPackage {
     }
 
     /// Enables a list of features if they exist and are not already enabled
-    pub fn enable_features(&mut self, features: &[String]) {
+    pub fn enable_features(&mut self, features: &[Feature]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || self.enabled_features.contains(f) {
                 warn!(
@@ -147,7 +149,7 @@ impl CargoPackage {
     }
 
     /// Disables a list of features if they exist and are enabled
-    pub fn disable_features(&mut self, features: &[String]) {
+    pub fn disable_features(&mut self, features: &[Feature]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || !self.enabled_features.contains(f) {
                 warn!(
@@ -171,7 +173,7 @@ impl CargoPackage {
 
 #[cfg(test)]
 mod tests {
-    use crate::project_model::package::CargoPackage;
+    use crate::project_model::package::{CargoPackage, Feature};
     use std::collections::HashMap;
 
     const DEP_NAME: &str = "dependency-name";
@@ -180,28 +182,28 @@ mod tests {
     const F3: &str = "feature3";
     const F4: &str = "feature4";
 
-    fn create_package_features(slice_map: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
-        let mut string_map: HashMap<String, Vec<String>> = HashMap::new();
+    fn create_package_features(slice_map: &[(&str, &[&str])]) -> HashMap<Feature, Vec<Feature>> {
+        let mut feature_map: HashMap<Feature, Vec<Feature>> = HashMap::new();
         slice_map.iter().for_each(|(k, v)| {
-            string_map.insert(k.to_string(), v.iter().map(|s| s.to_string()).collect());
+            feature_map.insert(k.to_string(), v.iter().map(|s| s.to_string()).collect());
         });
-        string_map
+        feature_map
     }
 
-    fn create_string_vector_from_slices_vector(slices: &[&str]) -> Vec<String> {
+    fn create_string_vector_from_slices_vector(slices: &[&str]) -> Vec<Feature> {
         slices.iter().map(|f| f.to_string()).collect()
     }
 
     #[test]
     fn test_check_if_enabling_feature() {
         struct TestCase {
-            feature: String,
+            feature: Feature,
             expected_with_dep_name_in_feature: bool,
             expected_without_dep_name_in_feature: bool,
         }
 
         impl TestCase {
-            fn new(feature_name: String, expected_with_dep_name_in_feature: bool) -> Self {
+            fn new(feature_name: Feature, expected_with_dep_name_in_feature: bool) -> Self {
                 Self {
                     feature: feature_name,
                     expected_with_dep_name_in_feature,
@@ -236,7 +238,7 @@ mod tests {
     fn test_is_defined_feature() {
         struct TestCase {
             test_package: CargoPackage,
-            feature: String,
+            feature: Feature,
             expected: bool,
         }
         impl TestCase {
@@ -503,12 +505,12 @@ mod tests {
     mod test_enabling_and_disabling_features {
         use super::{create_string_vector_from_slices_vector, F1, F2, F3};
         use crate::project_model::package::tests::create_package_features;
-        use crate::project_model::package::CargoPackage;
+        use crate::project_model::package::{CargoPackage, Feature};
 
         struct TestCase {
-            features_to_toggle: Vec<String>,
+            features_to_toggle: Vec<Feature>,
             test_package: CargoPackage,
-            expected: Vec<String>,
+            expected: Vec<Feature>,
         }
 
         impl TestCase {
