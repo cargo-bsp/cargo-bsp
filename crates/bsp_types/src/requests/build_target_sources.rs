@@ -28,12 +28,12 @@ pub struct SourcesItem {
     pub target: BuildTargetIdentifier,
 
     /** The text documents or and directories that belong to this build target. */
-    sources: Vec<SourceItem>,
+    pub sources: Vec<SourceItem>,
 
     /** The root directories from where source files should be relativized.
     Example: ["file://Users/name/dev/metals/src/main/scala"] */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    roots: Vec<Uri>,
+    pub roots: Vec<Uri>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

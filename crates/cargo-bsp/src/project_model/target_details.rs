@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
-use serde::{Deserialize, Serialize};
+use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 use crate::project_model::build_target_mappings::parent_path;
 use crate::project_model::cargo_package::{CargoPackage, Feature};
@@ -28,15 +28,20 @@ impl<'a> TargetDetails<'a> {
     }
 
     fn get_kind(target_data: &cargo_metadata::Target) -> Option<CargoTargetKind> {
-        serde_json::from_str::<CargoTargetKind>(target_data.kind.get(0).or_else(|| {
-            error!("Invalid `kind vector` for target: {:?}", target_data.name);
-            None
-        })?)
-        .ok()
+        target_data
+            .kind
+            .get(0)
+            .or_else(|| {
+                error!("Invalid `kind vector` for target: {:?}", target_data.name);
+                None
+            })?
+            .parse()
+            .ok()
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum CargoTargetKind {
     #[default]
     Lib,
@@ -44,10 +49,4 @@ pub enum CargoTargetKind {
     Example,
     Test,
     Bench,
-}
-
-impl ToString for CargoTargetKind {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
 }
