@@ -278,8 +278,7 @@ pub mod compile_request_tests {
         mock_cargo_handle
             .expect_join()
             .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
-        let (recv_from_actor, send_to_actor, _cancel_sendercancel_sender) =
-            init_test(mock_cargo_handle);
+        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
 
         let proper_notif_start_main_task = Notification::new(
             TaskStart::METHOD.to_string(),
