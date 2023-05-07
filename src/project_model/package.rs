@@ -1,6 +1,6 @@
 use crate::bsp_types::mappings::build_target::bsp_build_target_from_cargo_target;
 use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
-use crate::project_model::package_dependencies::PackageDependency;
+use crate::project_model::package_dependency::PackageDependency;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -21,15 +21,15 @@ pub struct BspPackage {
     pub targets: Vec<Rc<cargo_metadata::Target>>,
 
     /// List of enabled (by BSP client) features.
-    /// Does not include default features.
+    /// Does not include default features
     pub enabled_features: Vec<String>,
 
     /// If true, default features are disabled. Does not apply when default features
-    /// are not defined in package's manifest.
+    /// are not defined in package's manifest
     pub default_features_disabled: bool,
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
-    /// Includes pair for default if defined.
+    /// Includes pair for default if defined
     pub package_features: HashMap<String, Vec<String>>,
 }
 
@@ -72,6 +72,8 @@ impl BspPackage {
     }
 
     /// Checks whether a dependency is enabled by the current set of enabled features.
+    /// Runs BFS on the features graph starting from default (if defined and not disabled)
+    /// and the enabled features
     fn is_dependency_enabled(&self, dependency: &PackageDependency) -> bool {
         if !dependency.optional {
             return true;
@@ -107,6 +109,8 @@ impl BspPackage {
         false
     }
 
+    /// Returns a vector of BuildTargetIdentifiers for all dependencies that
+    /// are enabled and BuildTargetId could be created.
     fn feature_based_dependencies_as_build_target_ids(&self) -> Vec<BuildTargetIdentifier> {
         self.dependencies
             .iter()
@@ -119,6 +123,7 @@ impl BspPackage {
             .collect()
     }
 
+    /// Returns a vector of BuildTargets for all targets in the package
     pub fn get_bsp_build_targets(&self) -> Vec<BuildTarget> {
         let dependencies = self.feature_based_dependencies_as_build_target_ids();
         self.targets
@@ -127,6 +132,7 @@ impl BspPackage {
             .collect()
     }
 
+    /// Enables a list of features if they exist and are not already enabled
     pub fn enable_features(&mut self, features: &[String]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || self.enabled_features.contains(f) {
@@ -137,6 +143,7 @@ impl BspPackage {
         });
     }
 
+    /// Disables a list of features if they exist and are enabled
     pub fn disable_features(&mut self, features: &[String]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || !self.enabled_features.contains(f) {
@@ -148,7 +155,7 @@ impl BspPackage {
     }
 
     /// Returns list of dependencies taking into account optional ones and enabled features
-    pub fn get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
+    pub fn _get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
         self.dependencies
             .iter()
             .filter(|&d| self.is_dependency_enabled(d))

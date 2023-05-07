@@ -4,8 +4,6 @@ use cargo_metadata::{Dependency, Package};
 use log::error;
 use std::path::PathBuf;
 
-pub struct PackageWithDependenciesIds<'a>(pub &'a Package, pub Vec<BuildTargetIdentifier>);
-
 #[derive(Default, Debug)]
 pub struct PackageDependency {
     /// Dependency name
