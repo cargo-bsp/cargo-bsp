@@ -1027,7 +1027,7 @@ pub mod compile_request_tests {
     }
 
     #[test]
-    fn build_finished_with_complexed_compile_report() {
+    fn build_finished_with_complex_compile_report() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
