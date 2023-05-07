@@ -2,7 +2,7 @@ use crate::bsp_types::mappings::build_target::bsp_build_target_from_cargo_target
 use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
 use crate::project_model::package_dependency::PackageDependency;
 use cargo_metadata::camino::Utf8PathBuf;
-use log::error;
+use log::{error, warn};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
@@ -99,7 +99,7 @@ impl BspPackage {
                     // Feature is enabling and so dependency is enabled
                     return true;
                 }
-                if checked_features.contains(df) || self.is_defined_feature(df) {
+                if checked_features.contains(df) || !self.is_defined_feature(df) {
                     continue;
                 }
                 checked_features.insert(df.clone());
@@ -136,7 +136,10 @@ impl BspPackage {
     pub fn enable_features(&mut self, features: &[String]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || self.enabled_features.contains(f) {
-                error!("Feature {} doesn't exist or is already enabled.", f);
+                warn!(
+                    "Can't enable feature {}. It doesn't exist or is already enabled.",
+                    f
+                );
                 return;
             }
             self.enabled_features.push(f.clone())
@@ -147,7 +150,10 @@ impl BspPackage {
     pub fn disable_features(&mut self, features: &[String]) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() || !self.enabled_features.contains(f) {
-                error!("Feature {} doesn't exist or isn't enabled.", f);
+                warn!(
+                    "Can't disable feature {}. It doesn't exist or isn't enabled.",
+                    f
+                );
                 return;
             }
             self.enabled_features.retain(|x| x != f);
@@ -160,5 +166,413 @@ impl BspPackage {
             .iter()
             .filter(|&d| self.is_dependency_enabled(d))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::project_model::package::BspPackage;
+    use std::collections::HashMap;
+
+    const DEP_NAME: &str = "dependency-name";
+    const F1: &str = "feature1";
+    const F2: &str = "feature2";
+    const F3: &str = "feature3";
+    const F4: &str = "feature4";
+
+    fn create_package_features(slice_map: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        let mut string_map: HashMap<String, Vec<String>> = HashMap::new();
+        slice_map.iter().for_each(|(k, v)| {
+            string_map.insert(k.to_string(), v.iter().map(|s| s.to_string()).collect());
+        });
+        string_map
+    }
+
+    fn create_string_vector_from_slices_vector(slices: &[&str]) -> Vec<String> {
+        slices.iter().map(|f| f.to_string()).collect()
+    }
+
+    #[test]
+    fn test_check_if_enabling_feature() {
+        struct TestCase {
+            feature: String,
+            expected_with_dep_name_in_feature: bool,
+            expected_without_dep_name_in_feature: bool,
+        }
+
+        impl TestCase {
+            fn new(feature_name: String, expected_with_dep_name_in_feature: bool) -> Self {
+                Self {
+                    feature: feature_name,
+                    expected_with_dep_name_in_feature,
+                    expected_without_dep_name_in_feature: false,
+                }
+            }
+        }
+
+        let test_cases = vec![
+            TestCase::new("feature-name".into(), false),
+            TestCase::new(DEP_NAME.into(), false),
+            TestCase::new(format!("dep:{}", DEP_NAME), true),
+            TestCase::new(format!("{}/feature", DEP_NAME), true),
+            TestCase::new(format!("{}?/feature", DEP_NAME), false),
+        ];
+        test_cases.iter().for_each(|tc| {
+            assert_eq!(
+                tc.expected_with_dep_name_in_feature,
+                BspPackage::check_if_enabling_feature(&tc.feature, &String::from(DEP_NAME))
+            );
+            assert_eq!(
+                tc.expected_without_dep_name_in_feature,
+                BspPackage::check_if_enabling_feature(
+                    &tc.feature,
+                    &String::from("other-dependency-name")
+                )
+            );
+        });
+    }
+
+    #[test]
+    fn test_is_defined_feature() {
+        struct TestCase {
+            test_package: BspPackage,
+            feature: String,
+            expected: bool,
+        }
+        impl TestCase {
+            fn new(
+                package_features_slice: &[(&str, &[&str])],
+                feature: &str,
+                expected: bool,
+            ) -> Self {
+                let test_package = BspPackage {
+                    package_features: create_package_features(package_features_slice),
+                    ..BspPackage::default()
+                };
+                Self {
+                    test_package,
+                    feature: feature.into(),
+                    expected,
+                }
+            }
+        }
+        let test_cases = vec![
+            TestCase::new(&[(F1, &[])], F1, true),
+            TestCase::new(&[(F1, &[])], F2, false),
+            TestCase::new(&[(F1, &[F2])], F2, false),
+            TestCase::new(&[(F1, &["dep:name"])], "dep:name", false),
+            TestCase::new(
+                &[(F1, &[F2]), (F2, &[F3]), (F3, &["dep:name"])],
+                "dep:name",
+                false,
+            ),
+            TestCase::new(&[(F1, &[]), (F2, &[]), (F3, &[])], F3, true),
+        ];
+
+        test_cases.iter().for_each(|tc| {
+            assert_eq!(tc.expected, tc.test_package.is_defined_feature(&tc.feature));
+        });
+    }
+
+    mod test_is_dependency_enabled {
+        use super::{
+            create_package_features, create_string_vector_from_slices_vector, DEP_NAME, F1, F2, F3,
+            F4,
+        };
+        use crate::project_model::package::BspPackage;
+        use crate::project_model::package_dependency::PackageDependency;
+        use ntest::timeout;
+
+        const DEFAULT: &str = "default";
+
+        struct TestCase {
+            test_package: BspPackage,
+            dependency: PackageDependency,
+            expected: bool,
+        }
+
+        impl TestCase {
+            fn new(
+                package_features_slice: &[(&str, &[&str])],
+                enabled_features_slice: &[&str],
+                default_features: DefaultFeatures,
+                dependency: PackageDependency,
+                expected: DependencyState,
+            ) -> Self {
+                let test_package = BspPackage {
+                    package_features: create_package_features(package_features_slice),
+                    enabled_features: create_string_vector_from_slices_vector(
+                        enabled_features_slice,
+                    ),
+                    default_features_disabled: !bool::from(default_features),
+                    ..BspPackage::default()
+                };
+                Self {
+                    test_package,
+                    dependency,
+                    expected: bool::from(expected),
+                }
+            }
+        }
+
+        enum DefaultFeatures {
+            Enabled,
+            Disabled,
+        }
+
+        impl From<DefaultFeatures> for bool {
+            fn from(value: DefaultFeatures) -> bool {
+                match value {
+                    DefaultFeatures::Enabled => true,
+                    DefaultFeatures::Disabled => false,
+                }
+            }
+        }
+
+        enum DependencyState {
+            Enabled,
+            Disabled,
+        }
+
+        impl From<DependencyState> for bool {
+            fn from(value: DependencyState) -> bool {
+                match value {
+                    DependencyState::Enabled => true,
+                    DependencyState::Disabled => false,
+                }
+            }
+        }
+
+        fn optional_dependency() -> PackageDependency {
+            PackageDependency {
+                name: DEP_NAME.into(),
+                optional: true,
+                ..PackageDependency::default()
+            }
+        }
+
+        fn run_tests(test_cases: &[TestCase]) {
+            test_cases.iter().for_each(|tc| {
+                assert_eq!(
+                    tc.expected,
+                    tc.test_package.is_dependency_enabled(&tc.dependency)
+                );
+            });
+        }
+
+        #[test]
+        fn test_not_optional_dependency() {
+            run_tests(&[TestCase::new(
+                &[(F1, &[])],
+                &[],
+                DefaultFeatures::Enabled,
+                PackageDependency {
+                    optional: false,
+                    ..PackageDependency::default()
+                },
+                DependencyState::Enabled,
+            )]);
+        }
+
+        #[test]
+        fn test_only_default_dependencies() {
+            let test_cases = vec![
+                TestCase::new(
+                    &[(DEFAULT, &[])],
+                    &[],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+                TestCase::new(
+                    &[(DEFAULT, &[&format!("dep:{}", DEP_NAME)])],
+                    &[],
+                    DefaultFeatures::Disabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+                TestCase::new(
+                    &[(DEFAULT, &["for-sure-not-enabling"])],
+                    &[],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+                TestCase::new(
+                    &[(DEFAULT, &[&format!("dep:{}", DEP_NAME)])],
+                    &[],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Enabled,
+                ),
+            ];
+
+            run_tests(&test_cases);
+        }
+
+        #[test]
+        fn enabled_by_currently_enabled_features() {
+            let test_cases = [
+                TestCase::new(
+                    &[(F1, &[&format!("dep:{}", DEP_NAME)])],
+                    &[F1],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Enabled,
+                ),
+                TestCase::new(
+                    &[(F1, &["for-sure-not-enabling"])],
+                    &[F1],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+                TestCase::new(
+                    &[
+                        (F1, &[&format!("dep:{}", DEP_NAME)]),
+                        (F2, &[F1]),
+                        (F3, &[F2]),
+                    ],
+                    &[F3],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Enabled,
+                ),
+                TestCase::new(
+                    &[
+                        (DEFAULT, &[F1]),
+                        (F1, &[F2]),
+                        (F2, &[F3]),
+                        (F3, &[&format!("dep:{}", DEP_NAME)]),
+                    ],
+                    &[],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Enabled,
+                ),
+                TestCase::new(
+                    &[
+                        (DEFAULT, &[F1]),
+                        (F1, &[F2]),
+                        (F2, &[&format!("dep:{}", DEP_NAME)]),
+                    ],
+                    &[],
+                    DefaultFeatures::Disabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+            ];
+
+            run_tests(&test_cases);
+        }
+
+        #[test]
+        #[timeout(10000)]
+        fn cycled_features() {
+            let test_cases = [
+                TestCase::new(
+                    &[
+                        (F1, &[&format!("dep:{}", DEP_NAME)]),
+                        (F2, &[F4]),
+                        (F3, &[F4]),
+                        (F4, &[F2, F3]),
+                    ],
+                    &[F3, F4],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Disabled,
+                ),
+                TestCase::new(
+                    &[
+                        (F1, &[&format!("dep:{}", DEP_NAME)]),
+                        (F2, &[F3]),
+                        (F3, &[F2]),
+                        (F4, &[F1]),
+                    ],
+                    &[F2, F3, F4],
+                    DefaultFeatures::Enabled,
+                    optional_dependency(),
+                    DependencyState::Enabled,
+                ),
+            ];
+
+            run_tests(&test_cases);
+        }
+    }
+
+    mod test_enabling_and_disabling_features {
+        use super::{create_string_vector_from_slices_vector, F1, F2, F3};
+        use crate::project_model::package::tests::create_package_features;
+        use crate::project_model::package::BspPackage;
+
+        struct TestCase {
+            features_to_toggle: Vec<String>,
+            test_package: BspPackage,
+            expected: Vec<String>,
+        }
+
+        impl TestCase {
+            fn new(
+                defined_features: &[&str],
+                features_to_toggle: &[&str],
+                enabled_features_slice: &[&str],
+                expected: &[&str],
+            ) -> Self {
+                let package_features = create_package_features(
+                    &defined_features
+                        .iter()
+                        .map(|&f| (f, &[] as &[&str]))
+                        .collect::<Vec<(&str, &[&str])>>(),
+                );
+                Self {
+                    features_to_toggle: create_string_vector_from_slices_vector(features_to_toggle),
+                    test_package: BspPackage {
+                        enabled_features: create_string_vector_from_slices_vector(
+                            enabled_features_slice,
+                        ),
+                        package_features,
+                        ..BspPackage::default()
+                    },
+                    expected: create_string_vector_from_slices_vector(expected),
+                }
+            }
+        }
+
+        #[test]
+        fn test_enabling_features() {
+            let test_cases = vec![
+                TestCase::new(&[], &[], &[], &[]),
+                TestCase::new(&[], &[], &[F1], &[F1]),
+                TestCase::new(&[], &[F2], &[], &[]),
+                TestCase::new(&[F1], &[F2], &[F1], &[F1]),
+                TestCase::new(&[F1], &[F1], &[], &[F1]),
+                TestCase::new(&[F1], &[F1], &[F1], &[F1]),
+                TestCase::new(&[F1, F2], &[F2], &[F1], &[F1, F2]),
+                TestCase::new(&[F1, F2], &[F1, F2], &[F1], &[F1, F2]),
+            ];
+
+            test_cases.into_iter().for_each(|mut tc| {
+                tc.test_package.enable_features(&tc.features_to_toggle);
+                assert_eq!(tc.expected, tc.test_package.enabled_features);
+            });
+        }
+
+        #[test]
+        fn test_disabling_features() {
+            let test_cases = vec![
+                TestCase::new(&[], &[], &[], &[]),
+                TestCase::new(&[F1], &[F1], &[F1], &[]),
+                TestCase::new(&[F1], &[F2], &[F1], &[F1]),
+                TestCase::new(&[F1, F2], &[F2], &[F1], &[F1]),
+                TestCase::new(&[F1, F2], &[F2, F3], &[F1], &[F1]),
+                TestCase::new(&[F1, F2, F3], &[F2, F3], &[F1, F2, F3], &[F1]),
+                TestCase::new(&[F1, F2, F3], &[F1, F2, F3], &[F1, F2, F3], &[]),
+            ];
+
+            test_cases.into_iter().for_each(|mut tc| {
+                tc.test_package.disable_features(&tc.features_to_toggle);
+                assert_eq!(tc.expected, tc.test_package.enabled_features);
+            });
+        }
     }
 }

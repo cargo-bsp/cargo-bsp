@@ -30,3 +30,4 @@ bsp-server = { git = "https://github.com/KatKlo/rust-analyzer.git", package = "l
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }
 tempfile = "3.5.0"
+ntest = "0.9.0"
