@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use bsp_types;
 
+use crate::project_model::sources::get_sources_item;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
 
@@ -13,10 +16,18 @@ pub(crate) fn handle_workspace_build_targets(
 }
 
 pub(crate) fn handle_sources(
-    _: GlobalStateSnapshot,
-    _: bsp_types::requests::SourcesParams,
+    state: GlobalStateSnapshot,
+    params: bsp_types::requests::SourcesParams,
 ) -> Result<bsp_types::requests::SourcesResult> {
-    Ok(bsp_types::requests::SourcesResult::default())
+    let workspace = Arc::clone(&state.workspace);
+
+    Ok(bsp_types::requests::SourcesResult {
+        items: params
+            .targets
+            .into_iter()
+            .filter_map(|id| get_sources_item(&workspace, id))
+            .collect(),
+    })
 }
 
 pub(crate) fn handle_resources(
