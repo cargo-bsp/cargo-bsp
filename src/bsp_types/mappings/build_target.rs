@@ -49,7 +49,7 @@ fn tags_and_capabilities_from_cargo_kind(
                 capabilities.can_test = false;
             }
             "test" => {
-                tags.push(BuildTargetTag::Test);
+                tags.push(BuildTargetTag::IntegrationTest);
                 capabilities.can_run = false;
             }
             "bench" => {

@@ -8,9 +8,11 @@ pub struct PackageWithDependenciesIds<'a>(pub &'a Package, pub Vec<BuildTargetId
 
 #[derive(Default, Debug)]
 pub struct PackageDependency {
+    /// Dependency name
+    pub name: String,
     /// Path to the dependency's manifest
     pub manifest_path: PathBuf,
-    // Whether this dependency is optional and need to be enabled by feature
+    /// Whether this dependency is optional and need to be enabled by feature
     pub optional: bool,
     /// Features which are enabled for this dependency
     pub _features: Vec<String>,
@@ -24,6 +26,7 @@ impl PackageDependency {
             .iter()
             .find(|p| p.name == dependency.name)
             .map(|p| Self {
+                name: dependency.name.clone(),
                 manifest_path: p.manifest_path.clone().into(),
                 optional: dependency.optional,
                 _features: dependency.features.clone(),
@@ -59,23 +62,3 @@ impl PackageDependency {
         }
     }
 }
-
-/* Optional dependencies
-
--check if Metadata.Package.Dependecies.optional == True?
-  -check if feature is enabled*
-    -if yes, add to dependencies
-    -if no, skip
-
-* how to do it?
-- store features in a struct vector
-    - store in feature: enabled, to which is mapped, is_default?
-    - store in package default features?
-- retrieve them from cargo metadata and set defaults
-- implement methods for no-default
-
-** how to check if feature is enabled?
- - check if feature is package_name/feature_name
- - cjeck if feature is package_name
- - check if feature is dep:package_name
-*/

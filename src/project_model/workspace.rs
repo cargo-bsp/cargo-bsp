@@ -36,13 +36,7 @@ pub struct CommandCallTargetDetails<'a> {
 }
 
 impl ProjectWorkspace {
-    /// Creates new ProjectWorkspace instance by retrieving following data from *'cargo metadata'*:
-    /// * cargo_metadata crate targets, which are later mapped to BSP build targets,
-    /// * features
-    ///
-    /// Skips unit_tests discovery, see:
-    /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
-    pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
+    pub fn new2(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
         // We call it with --all-features, so we can get all features because we want
         // the output to contain all the packages - even those feature-dependent
         let metadata = MetadataCommand::new()
@@ -80,7 +74,14 @@ impl ProjectWorkspace {
         })
     }
 
-    pub fn new2(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
+    //TODO
+    /// Creates new ProjectWorkspace instance by retrieving following data from *'cargo metadata'*:
+    /// * cargo_metadata crate targets, which are later mapped to BSP build targets,
+    /// * features
+    ///
+    /// Skips unit_tests discovery, see:
+    /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
+    pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
         // We call it with --all-features, so we can get all features because we want
         // the output to contain all the packages - even those feature-dependent
         let metadata = MetadataCommand::new()
@@ -97,10 +98,8 @@ impl ProjectWorkspace {
         // let (target_id_to_package, target_id_to_target_details) = ProjectWorkspace::create_hashmaps(&bsp_packages);
         let (bid_to_package, bid_to_target) = ProjectWorkspace::create_hashmaps(&bsp_packages);
 
-        // todo get target_info from bsp_packages while parsing to bsp_build_target
-
         Ok(ProjectWorkspace {
-            build_targets: vec![],
+            build_targets: vec![], //unnecessary in newer implementation
             packages: bsp_packages,
             target_id_target_details_map: bid_to_target,
             target_id_package_map: bid_to_package,
@@ -151,7 +150,7 @@ impl ProjectWorkspace {
             .collect()
     }
 
-    pub fn find_build_target_package(
+    fn find_build_target_package_in_map(
         &self,
         target_id: &BuildTargetIdentifier,
     ) -> Option<&BspPackage> {
@@ -169,7 +168,7 @@ impl ProjectWorkspace {
             })
     }
 
-    pub fn find_build_target_details(
+    fn find_build_target_details_in_map(
         &self,
         target_id: &BuildTargetIdentifier,
     ) -> Option<&Rc<Target>> {
@@ -187,11 +186,11 @@ impl ProjectWorkspace {
     ) -> Option<CommandCallTargetDetails> {
         let mut target_data = CommandCallTargetDetails::default();
 
-        let package = self.find_build_target_package(id)?;
+        let package = self.find_build_target_package_in_map(id)?;
         target_data.package_abs_path = package.manifest_path.clone();
         target_data.enabled_features = package.enabled_features.as_slice();
 
-        let target_details = self.find_build_target_details(id)?;
+        let target_details = self.find_build_target_details_in_map(id)?;
         target_data.name = target_details.name.clone();
         target_data.kind = target_details
             .kind
