@@ -1,5 +1,7 @@
-use bsp_server::{Message, Notification};
+use bsp_server::{Message, Notification, Response};
 use serde_json::to_value;
+use std::io;
+use std::process::ExitStatus;
 
 use crate::bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
@@ -21,6 +23,44 @@ where
     R::Result: CargoResult,
     C: CargoHandleTrait<CargoMessage>,
 {
+    #[cfg(not(test))]
+    pub(super) fn create_response(
+        &self,
+        result: io::Result<ExitStatus>,
+        status_code: &StatusCode,
+    ) -> Response {
+        Response {
+            id: self.req_id.clone(),
+            result: result.ok().map(|_| {
+                to_value(R::Result::create_result(
+                    self.params.origin_id(),
+                    status_code.clone(),
+                ))
+                .unwrap()
+            }),
+            // TODO create error for response
+            error: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn create_response(
+        &self,
+        _: io::Result<ExitStatus>,
+        status_code: &StatusCode,
+    ) -> Response {
+        Response {
+            id: self.req_id.clone(),
+            result: to_value(R::Result::create_result(
+                self.params.origin_id(),
+                status_code.clone(),
+            ))
+            .ok(),
+            // TODO create error for response
+            error: None,
+        }
+    }
+
     pub(super) fn report_task_start(
         &self,
         task_id: TaskId,
