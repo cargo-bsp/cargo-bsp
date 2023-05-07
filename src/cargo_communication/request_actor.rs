@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use crossbeam_channel::{never, select, Receiver};
-use log::info;
+use log::{info, warn};
 use serde_json::to_value;
 
 use crate::bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
@@ -14,8 +14,8 @@ use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
-use crate::cargo_communication::utils::{generate_task_id, get_current_time};
-use crate::communication::{ErrorCode, Message, ResponseError};
+use crate::cargo_communication::utils::get_current_time;
+use crate::communication::Message;
 use crate::communication::{RequestId, Response};
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
@@ -184,43 +184,18 @@ where
 
     fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
-            self.cancel_process(cargo_handle);
-            self.cancel_task_and_request();
+            cargo_handle.cancel();
+            self.report_task_finish(
+                self.state.root_task_id.clone(),
+                StatusCode::Cancelled,
+                None,
+                None,
+            );
         } else {
-            todo!("trzeba wyslac ze Task sie nie powiodl")
+            warn!(
+                "Tried to cancel request {} that was already finished",
+                self.req_id.clone()
+            );
         }
-    }
-
-    fn cancel_process(&self, cargo_handle: CargoHandle) {
-        self.report_task_start(
-            generate_task_id(&self.state.root_task_id),
-            Some(format!("Start canceling request {}", self.req_id.clone())),
-            None,
-        );
-        cargo_handle.cancel();
-        self.report_task_finish(
-            generate_task_id(&self.state.root_task_id),
-            StatusCode::Ok,
-            Some(format!("Finish canceling request {}", self.req_id.clone())),
-            None,
-        );
-    }
-
-    fn cancel_task_and_request(&self) {
-        self.report_task_finish(
-            self.state.root_task_id.clone(),
-            StatusCode::Cancelled,
-            None,
-            None,
-        );
-        self.send(Message::Response(Response {
-            id: self.req_id.clone(),
-            result: None,
-            error: Some(ResponseError {
-                code: ErrorCode::RequestCanceled as i32,
-                message: format!("Request {} canceled", self.req_id.clone()),
-                data: None,
-            }),
-        }));
     }
 }
