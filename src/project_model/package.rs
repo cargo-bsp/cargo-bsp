@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 #[derive(Default, Debug)]
-pub struct BspPackage {
+pub struct CargoPackage {
     /// Name of the package
     pub name: String,
 
@@ -33,7 +33,7 @@ pub struct BspPackage {
     pub package_features: HashMap<String, Vec<String>>,
 }
 
-impl BspPackage {
+impl CargoPackage {
     pub fn new(
         metadata_package: &cargo_metadata::Package,
         all_packages: &[cargo_metadata::Package],
@@ -95,7 +95,7 @@ impl BspPackage {
             }
 
             for df in dependent_features.unwrap() {
-                if BspPackage::check_if_enabling_feature(df, &dependency.name) {
+                if CargoPackage::check_if_enabling_feature(df, &dependency.name) {
                     // Feature is enabling and so dependency is enabled
                     return true;
                 }
@@ -171,7 +171,7 @@ impl BspPackage {
 
 #[cfg(test)]
 mod tests {
-    use crate::project_model::package::BspPackage;
+    use crate::project_model::package::CargoPackage;
     use std::collections::HashMap;
 
     const DEP_NAME: &str = "dependency-name";
@@ -220,11 +220,11 @@ mod tests {
         test_cases.iter().for_each(|tc| {
             assert_eq!(
                 tc.expected_with_dep_name_in_feature,
-                BspPackage::check_if_enabling_feature(&tc.feature, &String::from(DEP_NAME))
+                CargoPackage::check_if_enabling_feature(&tc.feature, &String::from(DEP_NAME))
             );
             assert_eq!(
                 tc.expected_without_dep_name_in_feature,
-                BspPackage::check_if_enabling_feature(
+                CargoPackage::check_if_enabling_feature(
                     &tc.feature,
                     &String::from("other-dependency-name")
                 )
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn test_is_defined_feature() {
         struct TestCase {
-            test_package: BspPackage,
+            test_package: CargoPackage,
             feature: String,
             expected: bool,
         }
@@ -245,9 +245,9 @@ mod tests {
                 feature: &str,
                 expected: bool,
             ) -> Self {
-                let test_package = BspPackage {
+                let test_package = CargoPackage {
                     package_features: create_package_features(package_features_slice),
-                    ..BspPackage::default()
+                    ..CargoPackage::default()
                 };
                 Self {
                     test_package,
@@ -279,14 +279,14 @@ mod tests {
             create_package_features, create_string_vector_from_slices_vector, DEP_NAME, F1, F2, F3,
             F4,
         };
-        use crate::project_model::package::BspPackage;
+        use crate::project_model::package::CargoPackage;
         use crate::project_model::package_dependency::PackageDependency;
         use ntest::timeout;
 
         const DEFAULT: &str = "default";
 
         struct TestCase {
-            test_package: BspPackage,
+            test_package: CargoPackage,
             dependency: PackageDependency,
             expected: bool,
         }
@@ -299,13 +299,13 @@ mod tests {
                 dependency: PackageDependency,
                 expected: DependencyState,
             ) -> Self {
-                let test_package = BspPackage {
+                let test_package = CargoPackage {
                     package_features: create_package_features(package_features_slice),
                     enabled_features: create_string_vector_from_slices_vector(
                         enabled_features_slice,
                     ),
                     default_features_disabled: !bool::from(default_features),
-                    ..BspPackage::default()
+                    ..CargoPackage::default()
                 };
                 Self {
                     test_package,
@@ -503,11 +503,11 @@ mod tests {
     mod test_enabling_and_disabling_features {
         use super::{create_string_vector_from_slices_vector, F1, F2, F3};
         use crate::project_model::package::tests::create_package_features;
-        use crate::project_model::package::BspPackage;
+        use crate::project_model::package::CargoPackage;
 
         struct TestCase {
             features_to_toggle: Vec<String>,
-            test_package: BspPackage,
+            test_package: CargoPackage,
             expected: Vec<String>,
         }
 
@@ -526,12 +526,12 @@ mod tests {
                 );
                 Self {
                     features_to_toggle: create_string_vector_from_slices_vector(features_to_toggle),
-                    test_package: BspPackage {
+                    test_package: CargoPackage {
                         enabled_features: create_string_vector_from_slices_vector(
                             enabled_features_slice,
                         ),
                         package_features,
-                        ..BspPackage::default()
+                        ..CargoPackage::default()
                     },
                     expected: create_string_vector_from_slices_vector(expected),
                 }
