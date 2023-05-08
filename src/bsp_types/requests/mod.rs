@@ -1,53 +1,39 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-mod initialize;
-pub use initialize::*;
-
-mod build_target_sources;
 pub use build_target_sources::*;
-
-mod reload;
-pub use reload::*;
-
-mod shutdown_build;
-pub use shutdown_build::*;
-
-mod inverse_sources;
-pub use inverse_sources::*;
-
-mod dependency_sources;
-pub use dependency_sources::*;
-
-mod dependency_modules;
-pub use dependency_modules::*;
-
-mod resources;
-pub use resources::*;
-
-mod output_paths;
-pub use output_paths::*;
-
-mod compile;
-pub use compile::*;
-
-mod test;
-pub use test::*;
-
-mod run;
-pub use run::*;
-
-mod debug;
-pub use debug::*;
-
-mod clean_cache;
 pub use clean_cache::*;
-
-mod workspace_build_targets;
+pub use compile::*;
+pub use debug::*;
+pub use dependency_modules::*;
+pub use dependency_sources::*;
+pub use initialize::*;
+pub use inverse_sources::*;
+pub use java_extension::*;
+pub use output_paths::*;
+pub use reload::*;
+pub use resources::*;
+pub use run::*;
+pub use shutdown_build::*;
+pub use test::*;
 pub use workspace_build_targets::*;
 
+mod build_target_sources;
+mod clean_cache;
+mod compile;
+mod debug;
+mod dependency_modules;
+mod dependency_sources;
+mod initialize;
+mod inverse_sources;
 mod java_extension;
-pub use java_extension::*;
+mod output_paths;
+mod reload;
+mod resources;
+mod run;
+mod shutdown_build;
+mod test;
+mod workspace_build_targets;
 
 pub trait Request {
     type Params: DeserializeOwned + Serialize;

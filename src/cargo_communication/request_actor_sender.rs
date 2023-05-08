@@ -1,3 +1,6 @@
+use bsp_server::{Message, Notification};
+use serde_json::to_value;
+
 use crate::bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
     TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
@@ -9,8 +12,6 @@ use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::utils::get_current_time;
-use crate::communication::{Message, Notification};
-use serde_json::to_value;
 
 impl<R> RequestActor<R>
 where

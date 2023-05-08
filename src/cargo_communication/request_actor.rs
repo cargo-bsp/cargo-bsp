@@ -2,6 +2,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
+use bsp_server::Message;
+use bsp_server::{RequestId, Response};
 use crossbeam_channel::{never, select, Receiver};
 use log::{info, warn};
 use serde_json::to_value;
@@ -15,8 +17,6 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
 use crate::cargo_communication::utils::get_current_time;
-use crate::communication::Message;
-use crate::communication::{RequestId, Response};
 pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,

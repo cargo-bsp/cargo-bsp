@@ -24,6 +24,7 @@ toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = 
 itertools = "0.10.5"
 log = "0.4"
 simplelog = "0.12.1"
+bsp-server = { git = "https://github.com/KatKlo/rust-analyzer.git", package = "lsp-server", rev = "1ca0d234e1a80eee2b2487374cac8fa93228b14a", features = ["bsp"] }
 rand = "0.8.5"
 
 [dev-dependencies]

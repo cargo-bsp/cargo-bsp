@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use bsp_server;
+use bsp_server::{Connection, Message};
 use serde_json::to_value;
 
 use crate::bsp_types::notifications::{
@@ -9,8 +11,6 @@ use crate::bsp_types::requests::{
     InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request, ShutdownBuild, Sources,
     SourcesParams, SourcesResult,
 };
-use crate::communication;
-use crate::communication::{Connection, Message};
 use crate::server::Result;
 
 pub enum Channel {
@@ -83,63 +83,63 @@ pub fn test_init_params() -> InitializeBuildParams {
     }
 }
 
-pub fn test_init_req(params: &InitializeBuildParams, id: i32) -> communication::Request {
-    communication::Request {
+pub fn test_init_req(params: &InitializeBuildParams, id: i32) -> bsp_server::Request {
+    bsp_server::Request {
         id: id.into(),
         method: InitializeBuild::METHOD.to_string(),
         params: to_value(params).unwrap(),
     }
 }
 
-pub fn test_init_resp(params: &InitializeBuildResult, id: i32) -> communication::Response {
-    communication::Response {
+pub fn test_init_resp(params: &InitializeBuildResult, id: i32) -> bsp_server::Response {
+    bsp_server::Response {
         id: id.into(),
         result: Some(to_value(params).unwrap()),
         error: None,
     }
 }
 
-pub fn test_init_notif() -> communication::Notification {
-    communication::Notification {
+pub fn test_init_notif() -> bsp_server::Notification {
+    bsp_server::Notification {
         method: InitializedBuild::METHOD.to_string(),
         params: to_value(InitializedBuildParams::default()).unwrap(),
     }
 }
 
-pub fn test_sources_req(id: i32) -> communication::Request {
-    communication::Request {
+pub fn test_sources_req(id: i32) -> bsp_server::Request {
+    bsp_server::Request {
         id: id.into(),
         method: Sources::METHOD.to_string(),
         params: to_value(SourcesParams::default()).unwrap(),
     }
 }
 
-pub fn test_sources_resp(id: i32) -> communication::Response {
-    communication::Response {
+pub fn test_sources_resp(id: i32) -> bsp_server::Response {
+    bsp_server::Response {
         id: id.into(),
         result: Some(to_value(SourcesResult::default()).unwrap()),
         error: None,
     }
 }
 
-pub fn test_shutdown_req(id: i32) -> communication::Request {
-    communication::Request {
+pub fn test_shutdown_req(id: i32) -> bsp_server::Request {
+    bsp_server::Request {
         id: id.into(),
         method: ShutdownBuild::METHOD.to_string(),
         params: Default::default(),
     }
 }
 
-pub fn test_shutdown_resp(id: i32) -> communication::Response {
-    communication::Response {
+pub fn test_shutdown_resp(id: i32) -> bsp_server::Response {
+    bsp_server::Response {
         id: id.into(),
         result: Some(to_value(()).unwrap()),
         error: None,
     }
 }
 
-pub fn test_exit_notif() -> communication::Notification {
-    communication::Notification {
+pub fn test_exit_notif() -> bsp_server::Notification {
+    bsp_server::Notification {
         method: ExitBuild::METHOD.to_string(),
         params: Default::default(),
     }
