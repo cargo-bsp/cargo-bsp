@@ -1,5 +1,5 @@
-use crate::bsp_types::mappings::build_target::bsp_build_target_from_cargo_target;
 use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
+use crate::project_model::build_target_mappings::bsp_build_target_from_cargo_target;
 use crate::project_model::package_dependency::PackageDependency;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
@@ -24,7 +24,7 @@ pub struct CargoPackage {
 
     /// List of enabled (by BSP client) features.
     /// Does not include default features
-    pub enabled_features: Vec<Feature>,
+    pub enabled_features: HashSet<Feature>,
 
     /// If true, default features are disabled. Does not apply when default features
     /// are not defined in package's manifest
@@ -43,7 +43,7 @@ impl CargoPackage {
         Self {
             name: metadata_package.name.clone(),
             manifest_path: metadata_package.manifest_path.clone(),
-            dependencies: PackageDependency::map_from_metadata_dependencies(
+            dependencies: PackageDependency::create_package_dependencies_from_metadata(
                 &metadata_package.dependencies,
                 all_packages,
             ),
@@ -53,7 +53,7 @@ impl CargoPackage {
                 .cloned()
                 .map(Rc::new)
                 .collect(),
-            enabled_features: vec![],
+            enabled_features: HashSet::new(),
             default_features_disabled: false,
             package_features: metadata_package.features.clone(),
         }
@@ -81,7 +81,8 @@ impl CargoPackage {
             return true;
         }
 
-        let mut next_features: VecDeque<Feature> = VecDeque::from(self.enabled_features.clone());
+        let mut next_features: VecDeque<Feature> =
+            VecDeque::from_iter(self.enabled_features.clone());
         if !self.default_features_disabled && self.is_defined_feature("default") {
             next_features.push_back(Feature::from("default"));
         }
@@ -137,28 +138,22 @@ impl CargoPackage {
     /// Enables a list of features if they exist and are not already enabled
     pub fn enable_features(&mut self, features: &[Feature]) {
         features.iter().for_each(|f| {
-            if self.package_features.get(f).is_none() || self.enabled_features.contains(f) {
-                warn!(
-                    "Can't enable feature {}. It doesn't exist or is already enabled.",
-                    f
-                );
+            if self.package_features.get(f).is_none() {
+                warn!("Can't enable feature {}. It doesn't exist.", f);
                 return;
             }
-            self.enabled_features.push(f.clone())
+            self.enabled_features.insert(f.clone());
         });
     }
 
     /// Disables a list of features if they exist and are enabled
     pub fn disable_features(&mut self, features: &[Feature]) {
         features.iter().for_each(|f| {
-            if self.package_features.get(f).is_none() || !self.enabled_features.contains(f) {
-                warn!(
-                    "Can't disable feature {}. It doesn't exist or isn't enabled.",
-                    f
-                );
+            if self.package_features.get(f).is_none() {
+                warn!("Can't disable feature {}. It doesn't exist.", f);
                 return;
             }
-            self.enabled_features.retain(|x| x != f);
+            self.enabled_features.remove(f);
         });
     }
 
@@ -173,8 +168,8 @@ impl CargoPackage {
 
 #[cfg(test)]
 mod tests {
-    use crate::project_model::package::{CargoPackage, Feature};
-    use std::collections::HashMap;
+    use crate::project_model::cargo_package::{CargoPackage, Feature};
+    use std::collections::{HashMap, HashSet};
 
     const DEP_NAME: &str = "dependency-name";
     const F1: &str = "feature1";
@@ -190,7 +185,7 @@ mod tests {
         feature_map
     }
 
-    fn create_feature_vector_from_slices(slices: &[&str]) -> Vec<Feature> {
+    fn create_feature_set_from_slices(slices: &[&str]) -> HashSet<Feature> {
         slices.iter().map(|f| f.to_string()).collect()
     }
 
@@ -280,9 +275,9 @@ mod tests {
 
     mod test_is_dependency_enabled {
         use super::{
-            create_feature_vector_from_slices, create_package_features, DEP_NAME, F1, F2, F3, F4,
+            create_feature_set_from_slices, create_package_features, DEP_NAME, F1, F2, F3, F4,
         };
-        use crate::project_model::package::CargoPackage;
+        use crate::project_model::cargo_package::CargoPackage;
         use crate::project_model::package_dependency::PackageDependency;
         use ntest::timeout;
 
@@ -304,7 +299,7 @@ mod tests {
             ) -> Self {
                 let test_package = CargoPackage {
                     package_features: create_package_features(package_features_slice),
-                    enabled_features: create_feature_vector_from_slices(enabled_features_slice),
+                    enabled_features: create_feature_set_from_slices(enabled_features_slice),
                     default_features_disabled: default_features == DefaultFeatures::Disabled,
                     ..CargoPackage::default()
                 };
@@ -486,14 +481,15 @@ mod tests {
     }
 
     mod test_enabling_and_disabling_features {
-        use super::{create_feature_vector_from_slices, F1, F2, F3};
-        use crate::project_model::package::tests::create_package_features;
-        use crate::project_model::package::{CargoPackage, Feature};
+        use super::{create_feature_set_from_slices, F1, F2, F3};
+        use crate::project_model::cargo_package::tests::create_package_features;
+        use crate::project_model::cargo_package::{CargoPackage, Feature};
+        use std::collections::HashSet;
 
         struct TestCase {
             features_to_toggle: Vec<Feature>,
             test_package: CargoPackage,
-            expected: Vec<Feature>,
+            expected: HashSet<Feature>,
         }
 
         impl TestCase {
@@ -510,13 +506,13 @@ mod tests {
                         .collect::<Vec<(&str, &[&str])>>(),
                 );
                 Self {
-                    features_to_toggle: create_feature_vector_from_slices(features_to_toggle),
+                    features_to_toggle: features_to_toggle.iter().map(|f| f.to_string()).collect(),
                     test_package: CargoPackage {
-                        enabled_features: create_feature_vector_from_slices(enabled_features_slice),
+                        enabled_features: create_feature_set_from_slices(enabled_features_slice),
                         package_features,
                         ..CargoPackage::default()
                     },
-                    expected: create_feature_vector_from_slices(expected),
+                    expected: create_feature_set_from_slices(expected),
                 }
             }
         }

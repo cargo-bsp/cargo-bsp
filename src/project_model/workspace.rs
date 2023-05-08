@@ -1,9 +1,9 @@
-use crate::bsp_types::mappings::build_target::{build_target_id_from_name_and_path, parent_path};
 use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
-use crate::project_model::package::CargoPackage;
+use crate::project_model::cargo_package::CargoPackage;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use std::collections::HashMap;
 
+use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
 use crate::project_model::target_details::TargetDetails;
 use log::error;
 use std::path::PathBuf;
@@ -112,20 +112,8 @@ impl ProjectWorkspace {
 
     /// Returns target details for a given build target identifier
     pub fn _get_target_details(&self, id: &BuildTargetIdentifier) -> Option<TargetDetails> {
-        let mut target_details = TargetDetails::default();
-
         let package = self.get_package_related_to_target(id)?;
-        target_details.package_abs_path = parent_path(&package.manifest_path);
-        target_details.enabled_features = package.enabled_features.as_slice();
-        target_details.default_features_disabled = package.default_features_disabled;
-
         let target_data = self.get_target_data(id)?;
-        target_details.name = target_data.name.clone();
-        target_details.set_kind(target_data.kind.get(0).or_else(|| {
-            error!("Invalid `kind vector` for target: {:?}", id);
-            None
-        })?);
-
-        Some(target_details)
+        TargetDetails::new(package, target_data)
     }
 }

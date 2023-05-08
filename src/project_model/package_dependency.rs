@@ -36,7 +36,7 @@ impl PackageDependency {
             })
     }
 
-    pub fn map_from_metadata_dependencies(
+    pub fn create_package_dependencies_from_metadata(
         metadata_dependencies: &[Dependency],
         all_packages: &[Package],
     ) -> Vec<PackageDependency> {

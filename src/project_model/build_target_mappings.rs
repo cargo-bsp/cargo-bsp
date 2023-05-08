@@ -1,5 +1,8 @@
-use crate::bsp_types::basic_bsp_structures::*;
 use crate::bsp_types::mappings::file_uri;
+use crate::bsp_types::{
+    BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, BuildTargetTag, RustBuildTarget,
+    RustBuildTargetData, Uri, RUST_ID,
+};
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
 use std::fmt::Display;
