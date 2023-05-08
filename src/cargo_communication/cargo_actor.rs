@@ -3,17 +3,17 @@ use std::{
     process::{ChildStderr, ChildStdout},
 };
 
-pub use cargo_metadata::diagnostic::{
-    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-    DiagnosticSpanMacroExpansion,
-};
-use cargo_metadata::Message;
 use crossbeam_channel::Sender;
 use log::warn;
 use serde::Deserialize;
 use stdx::process::streaming_output;
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
+use cargo_metadata::Message;
 
 pub struct CargoActor {
     sender: Sender<CargoMessage>,
@@ -44,8 +44,7 @@ impl CargoActor {
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
         //
-        // We return bool that indicates whether we read at least one message and a string that
-        // contains the error output.
+        // We return bool that indicates whether we read at least one message.
 
         let mut read_at_least_one_message = false;
         let output = streaming_output(

@@ -1,38 +1,23 @@
 use std::process::{Child, Command, Stdio};
 
-use bsp_server::Message;
-use serde::Serialize;
+use assert_cmd::prelude::*;
+use insta::{allow_duplicates, assert_snapshot};
 use serde_json::to_string;
 
 use cargo_bsp::test_utils::{
-    test_exit_notif, test_init_notif, test_init_params, test_init_req, test_init_resp,
-    test_init_result, test_shutdown_req, test_shutdown_resp,
+    test_exit_notif, test_init_notif, test_init_params, test_init_req, test_shutdown_req,
 };
 
 use crate::common::client::Client;
 
 mod common;
 
-#[derive(Serialize)]
-struct JsonRpc {
-    jsonrpc: &'static str,
-    #[serde(flatten)]
-    msg: Message,
-}
-
-fn make_rpc_string(msg: Message) -> String {
-    to_string(&JsonRpc {
-        jsonrpc: "2.0",
-        msg,
-    })
-    .unwrap()
-}
-
 pub fn spawn_server() -> Child {
-    Command::new("cargo")
-        .args(["run", "--release", "--bin", "server"])
+    Command::cargo_bin("server")
+        .unwrap()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped()) // we don't want to see logs in tests
         .spawn()
         .unwrap()
 }
@@ -43,8 +28,9 @@ fn init_connection(cl: &mut Client) {
 
     cl.send(&to_string(&test_init_req(&init_params, test_id)).unwrap());
 
-    let init_resp = test_init_resp(&test_init_result(&init_params), test_id);
-    assert_eq!(cl.recv_resp(), make_rpc_string(init_resp.into()));
+    allow_duplicates! {
+        assert_snapshot!(cl.recv_resp(), @r###"{"jsonrpc":"2.0","id":123,"result":{"bspVersion":"2.0.0","capabilities":{"buildTargetChangedProvider":false,"canReload":true,"compileProvider":{"languageIds":[]},"dependencyModulesProvider":false,"dependencySourcesProvider":false,"inverseSourcesProvider":false,"jvmRunEnvironmentProvider":false,"jvmTestEnvironmentProvider":false,"outputPathsProvider":false,"resourcesProvider":false,"runProvider":{"languageIds":[]},"testProvider":{"languageIds":[]}},"displayName":"test","version":"0.0.1"}}"###);
+    }
 
     cl.send(&to_string(&test_init_notif()).unwrap());
 }
@@ -54,10 +40,9 @@ fn shutdown_connection(cl: &mut Client) {
 
     cl.send(&to_string(&test_shutdown_req(test_id)).unwrap());
 
-    assert_eq!(
-        cl.recv_resp(),
-        make_rpc_string(test_shutdown_resp(test_id).into())
-    );
+    allow_duplicates! {
+        assert_snapshot!(cl.recv_resp(), @r###"{"jsonrpc":"2.0","id":234,"result":null}"###);
+    }
 
     cl.send(&to_string(&test_exit_notif()).unwrap());
 }

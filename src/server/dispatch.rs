@@ -9,7 +9,8 @@ use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
-use crate::server::{from_json, LspError, Result};
+use crate::server::Result;
+use crate::server::{from_json, LspError};
 
 pub(crate) struct RequestDispatcher<'a> {
     pub(crate) req: Option<Request>,
@@ -132,7 +133,7 @@ where
     R::Result: Serialize,
 {
     let res = match result {
-        Ok(resp) => Response::new_ok(id, &resp),
+        Ok(resp) => bsp_server::Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
             Ok(lsp_error) => Response::new_err(id, lsp_error.code, lsp_error.message),
             Err(e) => Response::new_err(id, ErrorCode::InternalError as i32, e.to_string()),

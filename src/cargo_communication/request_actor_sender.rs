@@ -27,7 +27,7 @@ where
     ) {
         self.send_notification::<TaskStart>(TaskStartParams {
             task_id,
-            event_time: get_current_time(),
+            event_time: Some(get_current_time()),
             message,
             data,
         });
@@ -43,7 +43,7 @@ where
     ) {
         self.send_notification::<TaskProgress>(TaskProgressParams {
             task_id,
-            event_time: get_current_time(),
+            event_time: Some(get_current_time()),
             message,
             total,
             progress,
@@ -61,7 +61,7 @@ where
     ) {
         self.send_notification::<TaskFinish>(TaskFinishParams {
             task_id,
-            event_time: get_current_time(),
+            event_time: Some(get_current_time()),
             message,
             status,
             data,
