@@ -24,14 +24,14 @@ pub struct CargoPackage {
 
     /// List of enabled (by BSP client) features.
     /// Does not include default features
-    pub enabled_features: Vec<String>,
+    pub enabled_features: Vec<Feature>,
 
     /// If true, default features are disabled. Does not apply when default features
     /// are not defined in package's manifest
     pub default_features_disabled: bool,
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
-    /// Includes pair for default if defined
+    /// Includes pair for default features if default is defined
     pub package_features: HashMap<Feature, Vec<Feature>>,
 }
 
@@ -61,15 +61,15 @@ impl CargoPackage {
 
     /// We assume that optional dependency can only be turned on by a feature that has the form:
     /// "dep:package_name" or "package_name/feature_name"
-    fn check_if_enabling_feature(feature: &str, dependency_name: &String) -> bool {
+    fn check_if_feature_enables_dependency(feature: &str, dependency_name: &String) -> bool {
         feature == format!("dep:{}", dependency_name)
             || feature.starts_with(&format!("{}/", dependency_name))
     }
 
-    /// Checks if a feature was defined in the Cargo.toml Used to skip features that have the form:
+    /// Checks if a feature was defined in the `Cargo.toml`. Used to skip features that have the form:
     /// "dep:package_name" or "package_name/feature_name" or "package_name?/feature_name" as they
     /// are not included in the cargo metadata features Hashmap
-    fn is_defined_feature(&self, feature: &Feature) -> bool {
+    fn is_defined_feature(&self, feature: &str) -> bool {
         self.package_features.contains_key(feature)
     }
 
@@ -82,7 +82,7 @@ impl CargoPackage {
         }
 
         let mut next_features: VecDeque<Feature> = VecDeque::from(self.enabled_features.clone());
-        if !self.default_features_disabled && self.package_features.contains_key("default") {
+        if !self.default_features_disabled && self.is_defined_feature("default") {
             next_features.push_back(Feature::from("default"));
         }
 
@@ -97,8 +97,7 @@ impl CargoPackage {
             }
 
             for df in dependent_features.unwrap() {
-                if CargoPackage::check_if_enabling_feature(df, &dependency.name) {
-                    // Feature is enabling and so dependency is enabled
+                if CargoPackage::check_if_feature_enables_dependency(df, &dependency.name) {
                     return true;
                 }
                 if checked_features.contains(df) || !self.is_defined_feature(df) {
@@ -112,7 +111,8 @@ impl CargoPackage {
     }
 
     /// Returns a vector of BuildTargetIdentifiers for all dependencies that
-    /// are enabled and BuildTargetId could be created.
+    /// * are enabled
+    /// * their BuildTargetId could be created
     fn feature_based_dependencies_as_build_target_ids(&self) -> Vec<BuildTargetIdentifier> {
         self.dependencies
             .iter()
@@ -190,7 +190,7 @@ mod tests {
         feature_map
     }
 
-    fn create_string_vector_from_slices_vector(slices: &[&str]) -> Vec<Feature> {
+    fn create_feature_vector_from_slices(slices: &[&str]) -> Vec<Feature> {
         slices.iter().map(|f| f.to_string()).collect()
     }
 
@@ -203,9 +203,9 @@ mod tests {
         }
 
         impl TestCase {
-            fn new(feature_name: Feature, expected_with_dep_name_in_feature: bool) -> Self {
+            fn new(feature: Feature, expected_with_dep_name_in_feature: bool) -> Self {
                 Self {
-                    feature: feature_name,
+                    feature,
                     expected_with_dep_name_in_feature,
                     expected_without_dep_name_in_feature: false,
                 }
@@ -222,11 +222,14 @@ mod tests {
         test_cases.iter().for_each(|tc| {
             assert_eq!(
                 tc.expected_with_dep_name_in_feature,
-                CargoPackage::check_if_enabling_feature(&tc.feature, &String::from(DEP_NAME))
+                CargoPackage::check_if_feature_enables_dependency(
+                    &tc.feature,
+                    &String::from(DEP_NAME)
+                )
             );
             assert_eq!(
                 tc.expected_without_dep_name_in_feature,
-                CargoPackage::check_if_enabling_feature(
+                CargoPackage::check_if_feature_enables_dependency(
                     &tc.feature,
                     &String::from("other-dependency-name")
                 )
@@ -262,7 +265,6 @@ mod tests {
             TestCase::new(&[(F1, &[])], F1, true),
             TestCase::new(&[(F1, &[])], F2, false),
             TestCase::new(&[(F1, &[F2])], F2, false),
-            TestCase::new(&[(F1, &["dep:name"])], "dep:name", false),
             TestCase::new(
                 &[(F1, &[F2]), (F2, &[F3]), (F3, &["dep:name"])],
                 "dep:name",
@@ -278,8 +280,7 @@ mod tests {
 
     mod test_is_dependency_enabled {
         use super::{
-            create_package_features, create_string_vector_from_slices_vector, DEP_NAME, F1, F2, F3,
-            F4,
+            create_feature_vector_from_slices, create_package_features, DEP_NAME, F1, F2, F3, F4,
         };
         use crate::project_model::package::CargoPackage;
         use crate::project_model::package_dependency::PackageDependency;
@@ -299,50 +300,32 @@ mod tests {
                 enabled_features_slice: &[&str],
                 default_features: DefaultFeatures,
                 dependency: PackageDependency,
-                expected: DependencyState,
+                dependency_state: DependencyState,
             ) -> Self {
                 let test_package = CargoPackage {
                     package_features: create_package_features(package_features_slice),
-                    enabled_features: create_string_vector_from_slices_vector(
-                        enabled_features_slice,
-                    ),
-                    default_features_disabled: !bool::from(default_features),
+                    enabled_features: create_feature_vector_from_slices(enabled_features_slice),
+                    default_features_disabled: default_features == DefaultFeatures::Disabled,
                     ..CargoPackage::default()
                 };
                 Self {
                     test_package,
                     dependency,
-                    expected: bool::from(expected),
+                    expected: dependency_state == DependencyState::Enabled,
                 }
             }
         }
 
+        #[derive(PartialEq)]
         enum DefaultFeatures {
             Enabled,
             Disabled,
         }
 
-        impl From<DefaultFeatures> for bool {
-            fn from(value: DefaultFeatures) -> bool {
-                match value {
-                    DefaultFeatures::Enabled => true,
-                    DefaultFeatures::Disabled => false,
-                }
-            }
-        }
-
+        #[derive(PartialEq)]
         enum DependencyState {
             Enabled,
             Disabled,
-        }
-
-        impl From<DependencyState> for bool {
-            fn from(value: DependencyState) -> bool {
-                match value {
-                    DependencyState::Enabled => true,
-                    DependencyState::Disabled => false,
-                }
-            }
         }
 
         fn optional_dependency() -> PackageDependency {
@@ -503,7 +486,7 @@ mod tests {
     }
 
     mod test_enabling_and_disabling_features {
-        use super::{create_string_vector_from_slices_vector, F1, F2, F3};
+        use super::{create_feature_vector_from_slices, F1, F2, F3};
         use crate::project_model::package::tests::create_package_features;
         use crate::project_model::package::{CargoPackage, Feature};
 
@@ -527,15 +510,13 @@ mod tests {
                         .collect::<Vec<(&str, &[&str])>>(),
                 );
                 Self {
-                    features_to_toggle: create_string_vector_from_slices_vector(features_to_toggle),
+                    features_to_toggle: create_feature_vector_from_slices(features_to_toggle),
                     test_package: CargoPackage {
-                        enabled_features: create_string_vector_from_slices_vector(
-                            enabled_features_slice,
-                        ),
+                        enabled_features: create_feature_vector_from_slices(enabled_features_slice),
                         package_features,
                         ..CargoPackage::default()
                     },
-                    expected: create_string_vector_from_slices_vector(expected),
+                    expected: create_feature_vector_from_slices(expected),
                 }
             }
         }
@@ -563,9 +544,9 @@ mod tests {
         fn test_disabling_features() {
             let test_cases = vec![
                 TestCase::new(&[], &[], &[], &[]),
+                TestCase::new(&[], &[F1], &[], &[]),
                 TestCase::new(&[F1], &[F1], &[F1], &[]),
                 TestCase::new(&[F1], &[F2], &[F1], &[F1]),
-                TestCase::new(&[F1, F2], &[F2], &[F1], &[F1]),
                 TestCase::new(&[F1, F2], &[F2, F3], &[F1], &[F1]),
                 TestCase::new(&[F1, F2, F3], &[F2, F3], &[F1, F2, F3], &[F1]),
                 TestCase::new(&[F1, F2, F3], &[F1, F2, F3], &[F1, F2, F3], &[]),

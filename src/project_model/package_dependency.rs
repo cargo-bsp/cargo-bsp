@@ -10,11 +10,11 @@ pub struct PackageDependency {
     pub name: String,
     /// Path to the dependency's manifest
     pub manifest_path: PathBuf,
-    /// Whether this dependency is optional and need to be enabled by feature
+    /// Whether this dependency is optional and needs to be enabled by feature
     pub optional: bool,
     /// Features which are enabled for this dependency
     pub _features: Vec<String>,
-    /// whether this dependency uses the default features
+    /// Whether this dependency uses the default features
     pub _uses_default_features: bool,
 }
 

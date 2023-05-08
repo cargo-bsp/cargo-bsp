@@ -1,11 +1,12 @@
 use crate::project_model::package::Feature;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone)]
 pub struct TargetDetails<'a> {
     pub name: String,
-    pub kind: TargetCargoKind,
+    pub kind: CargoTargetKind,
     pub package_abs_path: Utf8PathBuf,
     pub default_features_disabled: bool,
     pub enabled_features: &'a [Feature],
@@ -13,22 +14,15 @@ pub struct TargetDetails<'a> {
 
 impl TargetDetails<'_> {
     pub fn set_kind(&mut self, kind: &str) {
-        self.kind = match kind {
-            "lib" => TargetCargoKind::Lib,
-            "bin" => TargetCargoKind::Bin,
-            "example" => TargetCargoKind::Example,
-            "test" => TargetCargoKind::Test,
-            "bench" => TargetCargoKind::Bench,
-            _ => {
-                error!("Invalid target kind: {}", kind);
-                TargetCargoKind::Lib
-            }
-        };
+        self.kind = serde_json::from_str::<CargoTargetKind>(kind).unwrap_or_else(|_| {
+            error!("Invalid target kind: {}", kind);
+            CargoTargetKind::default()
+        });
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub enum TargetCargoKind {
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub enum CargoTargetKind {
     #[default]
     Lib,
     Bin,
@@ -37,14 +31,8 @@ pub enum TargetCargoKind {
     Bench,
 }
 
-impl ToString for TargetCargoKind {
+impl ToString for CargoTargetKind {
     fn to_string(&self) -> String {
-        match self {
-            TargetCargoKind::Lib => "lib".to_string(),
-            TargetCargoKind::Bin => "bin".to_string(),
-            TargetCargoKind::Example => "example".to_string(),
-            TargetCargoKind::Test => "test".to_string(),
-            TargetCargoKind::Bench => "bench".to_string(),
-        }
+        serde_json::to_string(self).unwrap()
     }
 }

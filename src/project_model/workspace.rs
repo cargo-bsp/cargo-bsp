@@ -17,11 +17,11 @@ pub struct ProjectWorkspace {
     /// List of all packages in a workspace
     pub packages: Vec<CargoPackage>,
 
-    /// Map creating an easy access to package from BuildTargetIdentifier of a target
+    /// Map creating an easy access from BuildTargetIdentifier of a target to package name
     pub target_id_to_package_name: TargetIdToPackageName,
 
     /// Map creating an easy access from BuildTargetIdentifier of a target to its details
-    pub target_id_to_target_details: TargetIdToTargetData,
+    pub target_id_to_target_data: TargetIdToTargetData,
 }
 
 impl ProjectWorkspace {
@@ -29,10 +29,11 @@ impl ProjectWorkspace {
     /// * dependencies
     /// * targets
     /// * features
-    /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
+    ///
+    /// Skips unit_tests discovery, see: [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
-        // We call it with --all-features, so we can get all features because we want
-        // the output to contain all the packages - even those feature-dependent
+        // Cargo metadata is called with `--all-features`, so we can get all features because
+        // we want the output to contain all the packages - even those feature-dependent
         let metadata = MetadataCommand::new()
             .manifest_path(project_manifest_path)
             .features(CargoOpt::AllFeatures)
@@ -44,13 +45,13 @@ impl ProjectWorkspace {
             .map(|p| CargoPackage::new(p, &metadata.packages))
             .collect();
 
-        let (bid_to_package_map, bid_to_target_map) =
+        let (target_id_to_package_name, target_id_to_target_data) =
             ProjectWorkspace::create_hashmaps(&bsp_packages);
 
         Ok(ProjectWorkspace {
             packages: bsp_packages,
-            target_id_to_package_name: bid_to_package_map,
-            target_id_to_target_details: bid_to_target_map,
+            target_id_to_package_name,
+            target_id_to_target_data,
         })
     }
 
@@ -73,7 +74,7 @@ impl ProjectWorkspace {
             .unzip()
     }
 
-    fn get_package_related_to_target_by_its_id(
+    fn get_package_related_to_target(
         &self,
         target_id: &BuildTargetIdentifier,
     ) -> Option<&CargoPackage> {
@@ -91,11 +92,11 @@ impl ProjectWorkspace {
             })
     }
 
-    fn get_target_details_by_target_id(
+    fn get_target_data(
         &self,
         target_id: &BuildTargetIdentifier,
     ) -> Option<&Rc<cargo_metadata::Target>> {
-        self.target_id_to_target_details.get(target_id).or_else(|| {
+        self.target_id_to_target_data.get(target_id).or_else(|| {
             error!("Target details not found for id: {:?}", target_id);
             None
         })
@@ -111,20 +112,20 @@ impl ProjectWorkspace {
 
     /// Returns target details for a given build target identifier
     pub fn _get_target_details(&self, id: &BuildTargetIdentifier) -> Option<TargetDetails> {
-        let mut target_data = TargetDetails::default();
+        let mut target_details = TargetDetails::default();
 
-        let package = self.get_package_related_to_target_by_its_id(id)?;
-        target_data.package_abs_path = parent_path(&package.manifest_path);
-        target_data.enabled_features = package.enabled_features.as_slice();
-        target_data.default_features_disabled = package.default_features_disabled;
+        let package = self.get_package_related_to_target(id)?;
+        target_details.package_abs_path = parent_path(&package.manifest_path);
+        target_details.enabled_features = package.enabled_features.as_slice();
+        target_details.default_features_disabled = package.default_features_disabled;
 
-        let target_details = self.get_target_details_by_target_id(id)?;
-        target_data.name = target_details.name.clone();
-        target_data.set_kind(target_details.kind.get(0).or_else(|| {
+        let target_data = self.get_target_data(id)?;
+        target_details.name = target_data.name.clone();
+        target_details.set_kind(target_data.kind.get(0).or_else(|| {
             error!("Invalid `kind vector` for target: {:?}", id);
             None
         })?);
 
-        Some(target_data)
+        Some(target_details)
     }
 }
