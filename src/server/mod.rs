@@ -5,13 +5,12 @@ use serde::de::DeserializeOwned;
 pub use main_loop::main_loop;
 pub use server_run::run_server;
 
-mod caps;
+pub(crate) mod caps;
 pub(crate) mod config;
 mod dispatch;
 mod global_state;
 mod handlers;
 mod main_loop;
-mod request_actor;
 mod server_run;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;

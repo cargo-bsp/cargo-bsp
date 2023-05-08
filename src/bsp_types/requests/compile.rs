@@ -1,9 +1,7 @@
-use std::process::Command;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::bsp_types::requests::{CreateCommand, Request};
+use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 
 /*
@@ -19,16 +17,6 @@ impl Request for Compile {
     type Params = CompileParams;
     type Result = CompileResult;
     const METHOD: &'static str = "buildTarget/compile";
-}
-
-impl CreateCommand for CompileParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_command(&self) -> Command {
-        todo!()
-    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

@@ -1,4 +1,5 @@
 pub mod bsp_types;
-pub mod client;
+pub mod cargo_communication;
 pub mod project_model;
 pub mod server;
+pub mod test_utils;

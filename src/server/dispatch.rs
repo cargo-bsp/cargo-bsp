@@ -5,9 +5,10 @@ use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::bsp_types;
-use crate::bsp_types::requests::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::request_handle::RequestHandle;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
-use crate::server::request_actor::RequestHandle;
 use crate::server::Result;
 use crate::server::{from_json, LspError};
 
@@ -69,7 +70,7 @@ impl<'a> RequestDispatcher<'a> {
     where
         R: bsp_types::requests::Request + 'static,
         R::Params: CreateCommand + Send + fmt::Debug,
-        R::Result: Serialize,
+        R::Result: Serialize + CargoResult,
     {
         let (req, params, _) = match self.parse::<R>() {
             Some(it) => it,
@@ -132,7 +133,7 @@ where
     R::Result: Serialize,
 {
     let res = match result {
-        Ok(resp) => Response::new_ok(id, &resp),
+        Ok(resp) => bsp_server::Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
             Ok(lsp_error) => Response::new_err(id, lsp_error.code, lsp_error.message),
             Err(e) => Response::new_err(id, ErrorCode::InternalError as i32, e.to_string()),

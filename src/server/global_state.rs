@@ -7,9 +7,9 @@ use bsp_server::{Message, Notification, Request, RequestId, Response};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::{error, info};
 
+use crate::cargo_communication::request_handle::RequestHandle;
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::config::Config;
-use crate::server::request_actor::RequestHandle;
 
 pub(crate) type ReqHandler = fn(&mut GlobalState, Response);
 pub(crate) type ReqQueue = bsp_server::ReqQueue<(String, Instant), ReqHandler>;

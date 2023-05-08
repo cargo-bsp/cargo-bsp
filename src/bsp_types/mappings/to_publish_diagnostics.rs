@@ -2,34 +2,23 @@
 
 use std::collections::HashMap;
 
-use cargo_metadata::diagnostic::{
-    Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-};
 use itertools::Itertools;
 use paths::AbsPath;
 
 use crate::bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
 use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+use cargo_metadata::diagnostic::{
+    Diagnostic as MetadataDiagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+};
 
-pub fn create_diagnostics(
-    msg: &MetadataDiagnostic,
-    origin_id: Option<String>,
-    build_target: &BuildTargetIdentifier,
-    workspace_root: &AbsPath,
-) -> Vec<PublishDiagnosticsParams> {
-    let diagnostics = map_cargo_diagnostic_to_bsp(msg, workspace_root);
-    diagnostics
-        .into_iter()
-        .map(|(url, diagnostic)| PublishDiagnosticsParams {
-            text_document: TextDocumentIdentifier {
-                uri: url.to_string(),
-            },
-            build_target: build_target.clone(),
-            origin_id: origin_id.clone(),
-            diagnostics: diagnostic,
-            reset: false,
-        })
-        .collect()
+pub enum DiagnosticMessage {
+    Diagnostics(Vec<PublishDiagnosticsParams>),
+    GlobalMessage(GlobalMessage),
+}
+
+pub struct GlobalMessage {
+    pub(crate) level: DiagnosticLevel,
+    pub(crate) message: String,
 }
 
 enum MappedRustChildDiagnostic {
@@ -47,14 +36,21 @@ enum MappedRustChildDiagnostic {
 ///    `relatedInformation` or additional message lines.
 ///
 /// If the diagnostic has no primary span this will return `None`
-fn map_cargo_diagnostic_to_bsp(
+pub fn map_cargo_diagnostic_to_bsp(
     diagnostic: &MetadataDiagnostic,
+    origin_id: Option<String>,
+    build_target: &BuildTargetIdentifier,
     workspace_root: &AbsPath,
-) -> HashMap<lsp_types::Url, Vec<Diagnostic>> {
+) -> DiagnosticMessage {
     let primary_spans: Vec<&DiagnosticSpan> =
         diagnostic.spans.iter().filter(|s| s.is_primary).collect();
+
+    // Diagnostic without primary span is a global message from cargo.
     if primary_spans.is_empty() {
-        return HashMap::new();
+        return DiagnosticMessage::GlobalMessage(GlobalMessage {
+            level: diagnostic.level,
+            message: diagnostic.message.clone(),
+        });
     }
 
     let severity = diagnostic_severity(diagnostic.level);
@@ -163,7 +159,7 @@ fn map_cargo_diagnostic_to_bsp(
                 message: message.clone(),
                 related_information: Some(information_for_additional_diagnostic),
                 tags: tags.as_ref().cloned(),
-                data: Some(serde_json::json!({ "rendered": diagnostic.rendered })),
+                data: None,
             };
             add_diagnostic(secondary_location.uri, diagnostic, &mut diagnostics);
         }
@@ -189,7 +185,7 @@ fn map_cargo_diagnostic_to_bsp(
                 }
             },
             tags: tags.as_ref().cloned(),
-            data: Some(serde_json::json!({ "rendered": diagnostic.rendered })),
+            data: None,
         };
         add_diagnostic(primary_location.uri.clone(), diagnostic, &mut diagnostics);
 
@@ -213,7 +209,26 @@ fn map_cargo_diagnostic_to_bsp(
             add_diagnostic(sub.location.uri.clone(), diagnostic, &mut diagnostics);
         }
     }
+    DiagnosticMessage::Diagnostics(create_diagnostics(diagnostics, origin_id, build_target))
+}
+
+fn create_diagnostics(
+    diagnostics: HashMap<lsp_types::Url, Vec<Diagnostic>>,
+    origin_id: Option<String>,
+    build_target: &BuildTargetIdentifier,
+) -> Vec<PublishDiagnosticsParams> {
     diagnostics
+        .into_iter()
+        .map(|(url, diagnostic)| PublishDiagnosticsParams {
+            text_document: TextDocumentIdentifier {
+                uri: url.to_string(),
+            },
+            build_target: build_target.clone(),
+            origin_id: origin_id.clone(),
+            diagnostics: diagnostic,
+            reset: false,
+        })
+        .collect()
 }
 
 fn add_diagnostic(
