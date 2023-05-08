@@ -23,23 +23,6 @@ where
     R::Result: CargoResult,
     C: CargoHandleTrait<CargoMessage>,
 {
-    #[cfg(not(test))]
-    pub(super) fn send_response(&self, result: io::Result<ExitStatus>, status_code: &StatusCode) {
-        self.send(Message::Response(Response {
-            id: self.req_id.clone(),
-            result: result.ok().map(|_| {
-                to_value(R::Result::create_result(
-                    self.params.origin_id(),
-                    status_code.clone(),
-                ))
-                .unwrap()
-            }),
-            // TODO create error for response
-            error: None,
-        }));
-    }
-
-    #[cfg(test)]
     pub(super) fn send_response(&self, _: io::Result<ExitStatus>, status_code: &StatusCode) {
         self.send(Message::Response(Response {
             id: self.req_id.clone(),

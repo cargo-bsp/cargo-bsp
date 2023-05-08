@@ -3,11 +3,14 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use bsp_server::Message;
-use bsp_server::{RequestId, Response};
+use bsp_server::RequestId;
+pub use cargo_metadata::diagnostic::{
+    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
+    DiagnosticSpanMacroExpansion,
+};
 use crossbeam_channel::{never, select, Receiver};
 use log::{info, warn};
 use mockall::*;
-use serde_json::to_value;
 
 use crate::bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
 use crate::bsp_types::requests::Request;
@@ -18,10 +21,6 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
 use crate::cargo_communication::utils::get_current_time;
-pub use cargo_metadata::diagnostic::{
-    Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
-    DiagnosticSpanMacroExpansion,
-};
 
 pub struct RequestActor<R, C>
 where
@@ -43,17 +42,11 @@ where
     pub(super) state: RequestActorState,
 }
 
-#[cfg(not(test))]
 fn get_request_status_code(result: &io::Result<ExitStatus>) -> StatusCode {
     match result {
         Ok(exit_status) if exit_status.success() => StatusCode::Ok,
         _ => StatusCode::Error,
     }
-}
-
-#[cfg(test)]
-fn get_request_status_code(_: &io::Result<ExitStatus>) -> StatusCode {
-    StatusCode::Ok
 }
 
 impl<R, C> RequestActor<R, C>
@@ -131,7 +124,7 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_state.start_time = get_current_time();
+        self.state.compile_state.start_time = get_current_time().unwrap();
         self.report_task_start(
             self.state.compile_state.task_id.clone(),
             None,
@@ -201,43 +194,56 @@ pub trait CargoHandleTrait<T> {
 
 #[cfg(test)]
 pub mod compile_request_tests {
-    use std::collections::HashSet;
-    use std::fmt::Debug;
-    use std::hash::Hash;
     use std::time::Duration;
 
-    use crate::bsp_types::notifications::{
-        CompileReportData, CompileTaskData, Diagnostic as LspDiagnostic,
-        Notification as NotificationTrait, PublishDiagnostics, PublishDiagnosticsParams,
-        TaskDataWithKind, TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams,
-        TaskStart, TaskStartParams,
-    };
-    use crate::bsp_types::requests::{Compile, CompileParams, CompileResult};
-    use crate::bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+    use crate::bsp_types::requests::{Compile, CompileParams};
     use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
-    use bsp_server::{ErrorCode, Message, Notification, Response};
-    use cargo_metadata::diagnostic::{
-        DiagnosticBuilder, DiagnosticCodeBuilder, DiagnosticSpanBuilder, DiagnosticSpanLineBuilder,
-    };
+    use bsp_server::Message;
+    use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
     use cargo_metadata::Message::{
-        BuildFinished, BuildScriptExecuted, CompilerArtifact, CompilerMessage,
+        BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
+        CompilerMessage as CompilerMessageEnum,
     };
     use cargo_metadata::{
-        ArtifactBuilder, ArtifactProfileBuilder, BuildFinishedBuilder, BuildScriptBuilder,
-        CompilerMessageBuilder, Edition, PackageId, TargetBuilder,
+        Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildFinished,
+        BuildFinishedBuilder, BuildScript, BuildScriptBuilder, CompilerMessage,
+        CompilerMessageBuilder, PackageId, Target, TargetBuilder,
     };
     use crossbeam_channel::{unbounded, Sender};
-    use lsp_types::{
-        DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString, Position, Range,
-    };
-    use serde_json::to_string;
-    use url::Url;
+    use insta::{assert_json_snapshot, Settings};
 
     use super::*;
 
-    fn init_test(
-        mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>,
-    ) -> (Receiver<Message>, Sender<CargoMessage>, Sender<Event>) {
+    const TEST_ORIGIN_ID: &str = "test_origin_id";
+    const TEST_TARGET: &str = "test_target";
+    const TEST_REQ_ID: &str = "test_req_id";
+    const TEST_KIND: &str = "test_kind";
+    const TEST_MESSAGE: &str = "test_message";
+    const RANDOM_TASK_ID: &str = "random_task_id";
+    const TIMESTAMP: &str = "timestamp";
+    const TEST_CRATE_TYPE: &str = "test_crate_type";
+    const TEST_SRC_PATH: &str = "test_src_path";
+    const TEST_OPT_LEVEL: &str = "test_opt_level";
+    const TEST_PKG_ID: &str = "test_pkg_id";
+    const TEST_MANIFEST_PATH: &str = "test_manifest_path";
+    const TEST_FEATURE: &str = "test_feature";
+    const TEST_EXECUTABLE: &str = "test_executable";
+    const TEST_FILENAME: &str = "test_filename";
+    const TEST_LINKED_LIB: &str = "test_linked_lib";
+    const TEST_LINKED_PATH: &str = "test_linked_path";
+    const TEST_CFG: &str = "test_cfg";
+    const TEST_ENV: &str = "test_env";
+    const TEST_OUT_DIR: &str = "test_out_dir";
+    const TEST_ARGUMENTS: &str = "test_arguments";
+    const TEST_ROOT_PATH: &str = "/test_root_path";
+
+    struct ActorChannels {
+        sender_to_actor: Sender<CargoMessage>,
+        receiver_from_actor: Receiver<Message>,
+        cancel_sender: Sender<Event>,
+    }
+
+    fn init_test(mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>) -> ActorChannels {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
@@ -249,759 +255,477 @@ pub mod compile_request_tests {
         let req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
             RequestActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-                "test_req_id".to_string().into(),
+                TEST_REQ_ID.to_string().into(),
                 CompileParams {
-                    targets: vec!["test_target".into()],
-                    origin_id: Some("test_origin_id".into()),
-                    arguments: vec!["test_arguments".into()],
+                    targets: vec![TEST_TARGET.into()],
+                    origin_id: Some(TEST_ORIGIN_ID.into()),
+                    arguments: vec![TEST_ARGUMENTS.into()],
                 },
-                Path::new("/test_root_path"),
+                Path::new(TEST_ROOT_PATH),
             );
         let _ = jod_thread::Builder::new()
             .spawn(move || req_actor.run(cancel_receiver, mock_cargo_handle))
             .expect("failed to spawn thread")
             .detach();
 
-        (receiver_from_actor, sender_to_actor, cancel_sender)
+        ActorChannels {
+            receiver_from_actor,
+            sender_to_actor,
+            cancel_sender,
+        }
     }
 
-    fn assert_is_last_msg<T: PartialEq + Debug>(receiver: Receiver<T>, msg: T) {
-        assert_eq!(receiver.recv().unwrap(), msg);
-        assert!(receiver.recv_timeout(Duration::from_secs(1)).is_err());
+    fn no_more_msg(receiver: Receiver<Message>) {
+        assert!(receiver.recv_timeout(Duration::from_millis(200)).is_err());
     }
 
     #[test]
     fn simple_compile() {
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        // There is no robust way to return ExitStatus hence we return Error. In consequence there
-        // are specific implementations of create_response() and get_request_status_code() for tests.
+        // There is no robust way to return ExitStatus hence we return Error. In consequence the
+        // status code of response is 2(Error).
         mock_cargo_handle
             .expect_join()
             .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let proper_notif_start_main_task = Notification::new(
-            TaskStart::METHOD.to_string(),
-            TaskStartParams {
-                task_id: TaskId {
-                    id: "test_origin_id".to_string(),
-                    parents: vec![],
+        drop(channels.sender_to_actor);
+
+        let mut settings = Settings::clone_current();
+        settings.add_redaction(".params.eventTime", TIMESTAMP);
+
+        settings.bind(|| {
+            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            {
+              "method": "build/taskStart",
+              "params": {
+                "eventTime": "timestamp",
+                "taskId": {
+                  "id": "test_origin_id"
+                }
+              }
+            }
+            "###);
+        });
+
+        settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
+        settings.bind(|| {
+            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            {
+              "method": "build/taskStart",
+              "params": {
+                "data": {
+                  "target": {
+                    "uri": ""
+                  }
                 },
-                event_time: Some(1),
-                message: None,
-                data: None,
-            },
-        );
-        let proper_notif_start_compile_task = Notification::new(
-            TaskStart::METHOD.to_string(),
-            TaskStartParams {
-                task_id: TaskId {
-                    id: "random_task_id".to_string(),
-                    parents: vec!["test_origin_id".to_string()],
-                },
-                event_time: Some(1),
-                message: None,
-                data: Some(TaskDataWithKind::CompileTask(CompileTaskData {
-                    //TODO change to "test_target" later
-                    target: Default::default(),
-                })),
-            },
-        );
-        assert_eq!(
-            recv_from_actor.recv().unwrap(),
-            Message::Notification(proper_notif_start_main_task)
-        );
-        assert_eq!(
-            recv_from_actor.recv().unwrap(),
-            Message::Notification(proper_notif_start_compile_task)
-        );
-
-        let proper_notif_finish_main_task = Notification::new(
-            TaskFinish::METHOD.to_string(),
-            TaskFinishParams {
-                task_id: TaskId {
-                    id: "test_origin_id".to_string(),
-                    parents: vec![],
-                },
-                event_time: Some(1),
-                message: None,
-                data: None,
-                status: StatusCode::Ok,
-            },
-        );
-        let proper_response = Response::new_ok(
-            "test_req_id".to_string().into(),
-            CompileResult {
-                origin_id: "test_origin_id".to_string().into(),
-                status_code: StatusCode::Ok,
-                data_kind: None,
-                data: None,
-            },
-        );
-
-        drop(send_to_actor);
-
-        assert_eq!(
-            recv_from_actor.recv().unwrap(),
-            Message::Notification(proper_notif_finish_main_task)
-        );
-        assert_is_last_msg(recv_from_actor, Message::Response(proper_response));
+                "dataKind": "compile-task",
+                "eventTime": "timestamp",
+                "taskId": {
+                  "id": "random_task_id",
+                  "parents": [
+                    "test_origin_id"
+                  ]
+                }
+              }
+            }
+            "###);
+            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            {
+              "method": "build/taskFinish",
+              "params": {
+                "eventTime": "timestamp",
+                "status": 2,
+                "taskId": {
+                  "id": "random_task_id"
+                }
+              }
+            }
+            "###);
+            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            {
+              "id": "test_req_id",
+              "result": {
+                "originId": "test_origin_id",
+                "statusCode": 2
+              }
+            }
+            "###);
+        });
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn simple_cancel() {
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         mock_cargo_handle.expect_cancel().return_const(());
-        // There is no robust way to return ExitStatus hence we return Error. In consequence there
-        // are specific implementations of create_response() and get_request_status_code() for tests.
-        mock_cargo_handle
-            .expect_join()
-            .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
-        let (recv_from_actor, _send_to_actor, cancel_sender) = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let channels = init_test(mock_cargo_handle);
 
-        cancel_sender.send(Event::Cancel).unwrap_or_else(|e| {
-            panic!("failed to send cancel event: {}", e);
-        });
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let proper_notif_finish_main_task = Notification::new(
-            TaskFinish::METHOD.to_string(),
-            TaskFinishParams {
-                task_id: TaskId {
-                    id: "test_origin_id".to_string(),
-                    parents: vec![],
-                },
-                event_time: Some(1),
-                message: None,
-                data: None,
-                status: StatusCode::Cancelled,
-            },
-        );
-        let proper_response = Response::new_err(
-            "test_req_id".to_string().into(),
-            ErrorCode::RequestCanceled as i32,
-            "Request \"test_req_id\" canceled".into(),
-        );
+        channels.cancel_sender.send(Event::Cancel).unwrap();
 
-        assert_eq!(
-            recv_from_actor.recv().unwrap(),
-            Message::Notification(proper_notif_finish_main_task)
-        );
-        assert_is_last_msg(recv_from_actor, Message::Response(proper_response));
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),
+        {
+            ".params.eventTime" => TIMESTAMP,
+        }, @r###"
+        {
+          "method": "build/taskFinish",
+          "params": {
+            "eventTime": "timestamp",
+            "status": 3,
+            "taskId": {
+              "id": "test_origin_id"
+            }
+          }
+        }
+        "###);
+
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn compiler_artifact() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let compiler_artifact = ArtifactBuilder::default()
-            .package_id(PackageId {
-                repr: "test_package_id".into(),
-            })
-            .manifest_path("test_manifest_path".to_string())
-            .target(
-                TargetBuilder::default()
-                    .name("test_target_name".to_string())
-                    .kind(vec!["test_kind".into()])
-                    .crate_types(vec!["test_crate_type".into()])
-                    .required_features(vec!["test_required_feature".into()])
-                    .src_path("test_src_path".to_string())
-                    .edition(Edition::E2021)
-                    .doctest(false)
-                    .test(false)
-                    .doc(false)
-                    .build()
-                    .unwrap(),
-            )
-            .profile(
-                ArtifactProfileBuilder::default()
-                    .opt_level("test_opt_level".to_string())
-                    .debuginfo(Some(0))
-                    .debug_assertions(false)
-                    .overflow_checks(false)
-                    .test(false)
-                    .build()
-                    .unwrap(),
-            )
-            .features(vec!["test_feature".into()])
-            .filenames(vec!["test_filename".into()])
-            .executable(Some("test_executable".into()))
-            .fresh(false)
-            .build()
+        let compiler_artifact = default_compiler_artifact();
+
+        channels
+            .sender_to_actor
+            .send(CargoStdout(CompilerArtifact(compiler_artifact)))
             .unwrap();
 
-        send_to_actor
-            .send(CargoStdout(CompilerArtifact(compiler_artifact.clone())))
-            .unwrap();
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),
+        {
+            ".params.eventTime" => TIMESTAMP,
+            ".params.taskId.id" => RANDOM_TASK_ID,
+        }, @r###"
+        {
+          "method": "build/taskProgress",
+          "params": {
+            "eventTime": "timestamp",
+            "message": "{\"package_id\":\"test_pkg_id\",\"manifest_path\":\"test_manifest_path\",\"target\":{\"name\":\"test_target\",\"kind\":[\"test_kind\"],\"crate_types\":[\"test_crate_type\"],\"required-features\":[],\"src_path\":\"test_src_path\",\"edition\":\"2015\",\"doctest\":true,\"test\":true,\"doc\":true},\"profile\":{\"opt_level\":\"test_opt_level\",\"debuginfo\":0,\"debug_assertions\":false,\"overflow_checks\":false,\"test\":false},\"features\":[\"test_feature\"],\"filenames\":[\"test_filename\"],\"executable\":\"test_executable\",\"fresh\":false}",
+            "taskId": {
+              "id": "random_task_id",
+              "parents": [
+                "test_origin_id"
+              ]
+            }
+          }
+        }
+        "###
+        );
 
-        let proper_notif_task_progress = Notification::new(
-            TaskProgress::METHOD.to_string(),
-            TaskProgressParams {
-                task_id: TaskId {
-                    id: "random_task_id".into(),
-                    parents: vec!["test_origin_id".into()],
-                },
-                event_time: Some(1),
-                message: Some(to_string(&compiler_artifact).unwrap()),
-                total: None,
-                progress: None,
-                unit: None,
-                data: None,
-            },
-        );
-        assert_is_last_msg(
-            recv_from_actor,
-            Message::Notification(proper_notif_task_progress),
-        );
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn build_script_out() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let build_script_output = BuildScriptBuilder::default()
-            .package_id(PackageId {
-                repr: "test_package_id".to_string(),
-            })
-            .linked_libs(vec!["test_linked_lib".into()])
-            .linked_paths(vec!["test_linked_path".into()])
-            .cfgs(vec!["test_cfg".into()])
-            .env(vec![("test_env".into(), "test_env".into())])
-            .out_dir("test_out_dir".to_string())
-            .build()
+        let build_script = default_build_script();
+
+        channels
+            .sender_to_actor
+            .send(CargoStdout(BuildScriptExecuted(build_script)))
             .unwrap();
 
-        send_to_actor
-            .send(CargoStdout(BuildScriptExecuted(
-                build_script_output.clone(),
-            )))
-            .unwrap();
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+            ".params.eventTime" => TIMESTAMP,
+            ".params.taskId.id" => RANDOM_TASK_ID,
+        },@r###"
+        {
+          "method": "build/taskProgress",
+          "params": {
+            "eventTime": "timestamp",
+            "message": "{\"package_id\":\"test_pkg_id\",\"linked_libs\":[\"test_linked_lib\"],\"linked_paths\":[\"test_linked_path\"],\"cfgs\":[\"test_cfg\"],\"env\":[[\"test_env\",\"test_env\"]],\"out_dir\":\"test_out_dir\"}",
+            "taskId": {
+              "id": "random_task_id",
+              "parents": [
+                "test_origin_id"
+              ]
+            }
+          }
+        }
+        "###);
 
-        let proper_notif_task_progress = Notification::new(
-            TaskProgress::METHOD.to_string(),
-            TaskProgressParams {
-                task_id: TaskId {
-                    id: "random_task_id".into(),
-                    parents: vec!["test_origin_id".into()],
-                },
-                event_time: Some(1),
-                message: Some(to_string(&build_script_output).unwrap()),
-                total: None,
-                progress: None,
-                unit: None,
-                data: None,
-            },
-        );
-        assert_is_last_msg(
-            recv_from_actor,
-            Message::Notification(proper_notif_task_progress),
-        );
-    }
-
-    fn eq_unordered_vec<T>(a: &[T], b: &[T]) -> bool
-    where
-        T: Eq + Hash,
-    {
-        let a: HashSet<_> = a.iter().collect();
-        let b: HashSet<_> = b.iter().collect();
-
-        a == b
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn compiler_message() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let compiler_mess = CompilerMessageBuilder::default()
-            .package_id(PackageId {
-                repr: "test_package_id".to_string(),
-            })
-            .target(
-                TargetBuilder::default()
-                    .name("test_target_name".to_string())
-                    .kind(vec!["test_kind".into()])
-                    .crate_types(vec!["test_crate_type".into()])
-                    .required_features(vec!["test_required_feature".into()])
-                    .src_path("test_src_path".to_string())
-                    .edition(Edition::E2021)
-                    .doctest(false)
-                    .test(false)
-                    .doc(false)
-                    .build()
-                    .unwrap(),
-            )
-            .message(
-                DiagnosticBuilder::default()
-                    .message("test_message".to_string())
-                    .code(Some(
-                        DiagnosticCodeBuilder::default()
-                            .code("test_code".to_string())
-                            .explanation(Some("test_explanation".to_string()))
-                            .build()
-                            .unwrap(),
-                    ))
-                    .level(DiagnosticLevel::Error)
-                    .spans(vec![
-                        DiagnosticSpanBuilder::default()
-                            .file_name("test_filename1".to_string())
-                            .byte_start(0_u32)
-                            .byte_end(0_u32)
-                            .line_start(1_usize)
-                            .line_end(2_usize)
-                            .column_start(3_usize)
-                            .column_end(4_usize)
-                            .is_primary(true)
-                            .text(vec![DiagnosticSpanLineBuilder::default()
-                                .text("test_text".to_string())
-                                .highlight_start(0_usize)
-                                .highlight_end(0_usize)
-                                .build()
-                                .unwrap()])
-                            .label(Some("test_label".to_string()))
-                            .suggested_replacement(None)
-                            .suggestion_applicability(None)
-                            .expansion(None)
-                            .build()
-                            .unwrap(),
-                        DiagnosticSpanBuilder::default()
-                            .file_name("test_filename2".to_string())
-                            .byte_start(0_u32)
-                            .byte_end(0_u32)
-                            .line_start(1_usize)
-                            .line_end(2_usize)
-                            .column_start(3_usize)
-                            .column_end(4_usize)
-                            .is_primary(false)
-                            .text(vec![DiagnosticSpanLineBuilder::default()
-                                .text("test_text".to_string())
-                                .highlight_start(0_usize)
-                                .highlight_end(0_usize)
-                                .build()
-                                .unwrap()])
-                            .label(Some("test_label".to_string()))
-                            .suggested_replacement(None)
-                            .suggestion_applicability(None)
-                            .expansion(None)
-                            .build()
-                            .unwrap(),
-                    ])
-                    .children(vec![DiagnosticBuilder::default()
-                        .message("test_child_message".to_string())
-                        .code(None)
-                        .level(DiagnosticLevel::Help)
-                        .spans(vec![DiagnosticSpanBuilder::default()
-                            .file_name("test_filename1".to_string())
-                            .byte_start(0_u32)
-                            .byte_end(0_u32)
-                            .line_start(5_usize)
-                            .line_end(6_usize)
-                            .column_start(7_usize)
-                            .column_end(8_usize)
-                            .is_primary(true)
-                            .text(vec![DiagnosticSpanLineBuilder::default()
-                                .text("test_text".to_string())
-                                .highlight_start(0_usize)
-                                .highlight_end(0_usize)
-                                .build()
-                                .unwrap()])
-                            .label(Some("test_label".to_string()))
-                            .suggested_replacement(None)
-                            .suggestion_applicability(None)
-                            .expansion(None)
-                            .build()
-                            .unwrap()])
-                        .children(vec![])
-                        .rendered(None)
-                        .build()
-                        .unwrap()])
-                    .rendered(Some("test_rendered".to_string()))
-                    .build()
-                    .unwrap(),
-            )
-            .build()
+        let compiler_msg = default_compiler_message(DiagnosticLevel::Error);
+        channels
+            .sender_to_actor
+            .send(CargoStdout(CompilerMessageEnum(compiler_msg)))
             .unwrap();
 
-        send_to_actor
-            .send(CargoStdout(CompilerMessage(compiler_mess)))
-            .unwrap();
-
-        let proper_publish_diagnostic_first = Message::Notification(Notification::new(
-            PublishDiagnostics::METHOD.to_string(),
-            PublishDiagnosticsParams {
-                text_document: TextDocumentIdentifier {
-                    uri: "file:///test_root_path/test_filename1".into(),
-                },
-                build_target: "".into(),
-                //TODO change to "test_target_name" later
-                origin_id: Some("test_origin_id".into()),
-                diagnostics: vec![
-                    LspDiagnostic {
-                        range: Range {
-                            start: Position {
-                                line: 0,
-                                character: 2,
-                            },
-                            end: Position {
-                                line: 1,
-                                character: 3,
-                            },
-                        },
-                        severity: Some(DiagnosticSeverity::ERROR),
-                        code: Some(NumberOrString::String("test_code".to_string())),
-                        code_description: None,
-                        source: Some("cargo".into()),
-                        message: "test_message\ntest_label".to_string(),
-                        related_information: Some(vec![
-                            DiagnosticRelatedInformation {
-                                location: Location {
-                                    uri: Url::parse("file:///test_root_path/test_filename2")
-                                        .unwrap(),
-                                    range: Range {
-                                        start: Position {
-                                            line: 0,
-                                            character: 2,
-                                        },
-                                        end: Position {
-                                            line: 1,
-                                            character: 3,
-                                        },
-                                    },
-                                },
-                                message: "test_label".to_string(),
-                            },
-                            DiagnosticRelatedInformation {
-                                location: Location {
-                                    uri: Url::parse("file:///test_root_path/test_filename1")
-                                        .unwrap(),
-                                    range: Range {
-                                        start: Position {
-                                            line: 4,
-                                            character: 6,
-                                        },
-                                        end: Position {
-                                            line: 5,
-                                            character: 7,
-                                        },
-                                    },
-                                },
-                                message: "test_child_message".to_string(),
-                            },
-                        ]),
-                        tags: None,
-                        data: None,
-                    },
-                    LspDiagnostic {
-                        range: Range {
-                            start: Position {
-                                line: 4,
-                                character: 6,
-                            },
-                            end: Position {
-                                line: 5,
-                                character: 7,
-                            },
-                        },
-                        severity: Some(DiagnosticSeverity::HINT),
-                        code: Some(NumberOrString::String("test_code".to_string())),
-                        code_description: None,
-                        source: Some("cargo".into()),
-                        message: "test_child_message".to_string(),
-                        related_information: Some(vec![DiagnosticRelatedInformation {
-                            location: Location {
-                                uri: Url::parse("file:///test_root_path/test_filename1").unwrap(),
-                                range: Range {
-                                    start: Position {
-                                        line: 0,
-                                        character: 2,
-                                    },
-                                    end: Position {
-                                        line: 1,
-                                        character: 3,
-                                    },
-                                },
-                            },
-                            message: "original diagnostic".to_string(),
-                        }]),
-                        tags: None,
-                        data: None,
-                    },
-                ],
-                reset: false,
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),
+            {
+                ".params.task.id" => RANDOM_TASK_ID,
+            },@r###"
+        {
+          "method": "build/publishDiagnostics",
+          "params": {
+            "buildTarget": {
+              "uri": ""
             },
-        ));
-
-        let proper_publish_diagnostic_second = Message::Notification(Notification::new(
-            PublishDiagnostics::METHOD.to_string(),
-            PublishDiagnosticsParams {
-                text_document: TextDocumentIdentifier {
-                    uri: "file:///test_root_path/test_filename2".into(),
+            "diagnostics": [
+              {
+                "message": "test_message",
+                "range": {
+                  "end": {
+                    "character": 0,
+                    "line": 0
+                  },
+                  "start": {
+                    "character": 0,
+                    "line": 0
+                  }
                 },
-                build_target: "".into(),
-                //TODO change to "test_target_name" later
-                origin_id: Some("test_origin_id".into()),
-                diagnostics: vec![LspDiagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 2,
-                        },
-                        end: Position {
-                            line: 1,
-                            character: 3,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::HINT),
-                    code: Some(NumberOrString::String("test_code".to_string())),
-                    code_description: None,
-                    source: Some("cargo".into()),
-                    message: "test_label".to_string(),
-                    related_information: Some(vec![DiagnosticRelatedInformation {
-                        location: Location {
-                            uri: Url::parse("file:///test_root_path/test_filename1").unwrap(),
-                            range: Range {
-                                start: Position {
-                                    line: 0,
-                                    character: 2,
-                                },
-                                end: Position {
-                                    line: 1,
-                                    character: 3,
-                                },
-                            },
-                        },
-                        message: "original diagnostic".to_string(),
-                    }]),
-                    tags: None,
-                    data: None,
-                }],
-                reset: false,
-            },
-        ));
-
-        assert!(eq_unordered_vec(
-            &[
-                to_string(&proper_publish_diagnostic_first).unwrap(),
-                to_string(&proper_publish_diagnostic_second).unwrap(),
+                "severity": 1,
+                "source": "cargo"
+              }
             ],
-            &[
-                to_string(&recv_from_actor.recv().unwrap()).unwrap(),
-                to_string(&recv_from_actor.recv().unwrap()).unwrap()
-            ]
-        ));
-        assert!(recv_from_actor
-            .recv_timeout(Duration::from_millis(100))
-            .is_err());
+            "originId": "test_origin_id",
+            "reset": false,
+            "textDocument": {
+              "uri": "file:///test_root_path/test_filename"
+            }
+          }
+        }
+        "###);
+
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn build_finished_simple() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let build_finished = BuildFinishedBuilder::default()
-            .success(true)
-            .build()
+        let build_finished = default_build_finished();
+        channels
+            .sender_to_actor
+            .send(CargoStdout(BuildFinishedEnum(build_finished)))
             .unwrap();
-        send_to_actor
-            .send(CargoStdout(BuildFinished(build_finished)))
-            .unwrap();
-        let proper_task_finished = Notification::new(
-            TaskFinish::METHOD.to_string(),
-            TaskFinishParams {
-                task_id: TaskId {
-                    id: "random_task_id".into(),
-                    parents: vec!["test_origin_id".into()],
-                },
-                event_time: Some(1),
-                message: None,
-                status: StatusCode::Ok,
-                data: Some(TaskDataWithKind::CompileReport(CompileReportData {
-                    // TODO do poprawy
-                    target: BuildTargetIdentifier { uri: "".into() },
-                    origin_id: Some("test_origin_id".into()),
-                    errors: 0,
-                    warnings: 0,
-                    time: Some(0),
-                    no_op: None,
-                })),
+
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+            ".params.eventTime" => TIMESTAMP,
+            ".params.taskId.id" => RANDOM_TASK_ID,
+            ".params.data.time" => 0,
+        },@r###"
+        {
+          "method": "build/taskFinish",
+          "params": {
+            "data": {
+              "errors": 0,
+              "originId": "test_origin_id",
+              "target": {
+                "uri": ""
+              },
+              "time": 0,
+              "warnings": 0
             },
-        );
-        assert_is_last_msg(recv_from_actor, Message::Notification(proper_task_finished));
+            "dataKind": "compile-report",
+            "eventTime": "timestamp",
+            "status": 1,
+            "taskId": {
+              "id": "random_task_id",
+              "parents": [
+                "test_origin_id"
+              ]
+            }
+          }
+        }
+        "###);
+
+        no_more_msg(channels.receiver_from_actor);
     }
 
     #[test]
     fn build_finished_with_complex_compile_report() {
         #[allow(unused_mut)]
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let (recv_from_actor, send_to_actor, _cancel_sender) = init_test(mock_cargo_handle);
+        let channels = init_test(mock_cargo_handle);
 
-        let _ = recv_from_actor.recv(); // main task started
-        let _ = recv_from_actor.recv(); // compilation task started
+        let _ = channels.receiver_from_actor.recv(); // main task started
+        let _ = channels.receiver_from_actor.recv(); // compilation task started
 
-        let compiler_message_warning = CompilerMessageBuilder::default()
-            .package_id(PackageId {
-                repr: "test_package_id".to_string(),
-            })
-            .target(
-                TargetBuilder::default()
-                    .name("test_target_name".to_string())
-                    .kind(vec!["test_kind".to_string()])
-                    .crate_types(vec!["test_crate_type".to_string()])
-                    .required_features(vec!["test_required_feature".to_string()])
-                    .src_path("test_src_path".to_string())
-                    .edition(Edition::E2021)
-                    .doctest(false)
-                    .test(false)
-                    .doc(false)
-                    .build()
-                    .unwrap(),
-            )
-            .message(
-                DiagnosticBuilder::default()
-                    .message("".to_string())
-                    .code(None)
-                    .level(DiagnosticLevel::Warning)
-                    .spans(vec![DiagnosticSpanBuilder::default()
-                        .file_name("test_filename".to_string())
-                        .byte_start(0_u32)
-                        .byte_end(0_u32)
-                        .line_start(0_usize)
-                        .line_end(0_usize)
-                        .column_start(0_usize)
-                        .column_end(0_usize)
-                        .is_primary(true)
-                        .text(vec![DiagnosticSpanLineBuilder::default()
-                            .text("test_text".to_string())
-                            .highlight_start(0_usize)
-                            .highlight_end(0_usize)
-                            .build()
-                            .unwrap()])
-                        .label(Some("test_label".to_string()))
-                        .suggested_replacement(None)
-                        .suggestion_applicability(None)
-                        .expansion(None)
-                        .build()
-                        .unwrap()])
-                    .children(vec![])
-                    .rendered(None)
-                    .build()
-                    .unwrap(),
-            )
+        let compiler_msg_warning = default_compiler_message(DiagnosticLevel::Warning);
+        let compiler_msg_error = default_compiler_message(DiagnosticLevel::Error);
+
+        channels
+            .sender_to_actor
+            .send(CargoStdout(CompilerMessageEnum(compiler_msg_warning)))
+            .unwrap();
+        channels
+            .sender_to_actor
+            .send(CargoStdout(CompilerMessageEnum(compiler_msg_error)))
+            .unwrap();
+
+        let _ = channels.receiver_from_actor.recv(); // publish diagnostic
+        let _ = channels.receiver_from_actor.recv(); // publish diagnostic
+
+        let build_finished = default_build_finished();
+        channels
+            .sender_to_actor
+            .send(CargoStdout(BuildFinishedEnum(build_finished)))
+            .unwrap();
+
+        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+            ".params.eventTime" => TIMESTAMP,
+            ".params.taskId.id" => RANDOM_TASK_ID,
+            ".params.data.time" => 0,
+        },@r###"
+        {
+          "method": "build/taskFinish",
+          "params": {
+            "data": {
+              "errors": 1,
+              "originId": "test_origin_id",
+              "target": {
+                "uri": ""
+              },
+              "time": 0,
+              "warnings": 1
+            },
+            "dataKind": "compile-report",
+            "eventTime": "timestamp",
+            "status": 1,
+            "taskId": {
+              "id": "random_task_id",
+              "parents": [
+                "test_origin_id"
+              ]
+            }
+          }
+        }
+        "###);
+
+        no_more_msg(channels.receiver_from_actor);
+    }
+
+    fn default_target() -> Target {
+        TargetBuilder::default()
+            .name(TEST_TARGET.to_string())
+            .kind(vec![TEST_KIND.into()])
+            .crate_types(vec![TEST_CRATE_TYPE.into()])
+            .src_path(TEST_SRC_PATH.to_string())
             .build()
-            .unwrap();
+            .unwrap()
+    }
 
-        let compiler_message_error = CompilerMessageBuilder::default()
-            .package_id(PackageId {
-                repr: "test_package_id".to_string(),
-            })
-            .target(
-                TargetBuilder::default()
-                    .name("test_target_name".to_string())
-                    .kind(vec!["test_kind".to_string()])
-                    .crate_types(vec!["test_crate_type".to_string()])
-                    .required_features(vec!["test_required_feature".to_string()])
-                    .src_path("test_src_path".to_string())
-                    .edition(Edition::E2021)
-                    .doctest(false)
-                    .test(false)
-                    .doc(false)
-                    .build()
-                    .unwrap(),
-            )
-            .message(
-                DiagnosticBuilder::default()
-                    .message("".to_string())
-                    .code(None)
-                    .level(DiagnosticLevel::Error)
-                    .spans(vec![DiagnosticSpanBuilder::default()
-                        .file_name("test_filename".to_string())
-                        .byte_start(0_u32)
-                        .byte_end(0_u32)
-                        .line_start(0_usize)
-                        .line_end(0_usize)
-                        .column_start(0_usize)
-                        .column_end(0_usize)
-                        .is_primary(true)
-                        .text(vec![DiagnosticSpanLineBuilder::default()
-                            .text("test_text".to_string())
-                            .highlight_start(0_usize)
-                            .highlight_end(0_usize)
-                            .build()
-                            .unwrap()])
-                        .label(Some("test_label".to_string()))
-                        .suggested_replacement(None)
-                        .suggestion_applicability(None)
-                        .expansion(None)
-                        .build()
-                        .unwrap()])
-                    .children(vec![])
-                    .rendered(None)
-                    .build()
-                    .unwrap(),
-            )
+    fn default_artifact_profile() -> ArtifactProfile {
+        ArtifactProfileBuilder::default()
+            .opt_level(TEST_OPT_LEVEL.to_string())
+            .debuginfo(Some(0))
+            .debug_assertions(false)
+            .overflow_checks(false)
+            .test(false)
             .build()
-            .unwrap();
+            .unwrap()
+    }
 
-        send_to_actor
-            .send(CargoStdout(CompilerMessage(compiler_message_warning)))
-            .unwrap();
-        send_to_actor
-            .send(CargoStdout(CompilerMessage(compiler_message_error)))
-            .unwrap();
+    fn default_compiler_artifact() -> Artifact {
+        ArtifactBuilder::default()
+            .package_id(PackageId {
+                repr: TEST_PKG_ID.into(),
+            })
+            .manifest_path(TEST_MANIFEST_PATH.to_string())
+            .target(default_target())
+            .profile(default_artifact_profile())
+            .executable(Some(TEST_EXECUTABLE.into()))
+            .features(vec![TEST_FEATURE.into()])
+            .filenames(vec![TEST_FILENAME.into()])
+            .fresh(false)
+            .build()
+            .unwrap()
+    }
 
-        let _ = recv_from_actor.recv(); // publish diagnostic
-        let _ = recv_from_actor.recv(); // publish diagnostic
+    fn default_build_script() -> BuildScript {
+        BuildScriptBuilder::default()
+            .package_id(PackageId {
+                repr: TEST_PKG_ID.into(),
+            })
+            .linked_libs(vec![TEST_LINKED_LIB.into()])
+            .linked_paths(vec![TEST_LINKED_PATH.into()])
+            .cfgs(vec![TEST_CFG.into()])
+            .env(vec![(TEST_ENV.into(), TEST_ENV.into())])
+            .out_dir(TEST_OUT_DIR.to_string())
+            .build()
+            .unwrap()
+    }
 
-        let build_finished = BuildFinishedBuilder::default()
+    fn default_diagnostic_span() -> DiagnosticSpan {
+        DiagnosticSpanBuilder::default()
+            .file_name(TEST_FILENAME.to_string())
+            .byte_start(0_u32)
+            .byte_end(0_u32)
+            .line_start(0_usize)
+            .line_end(0_usize)
+            .column_start(0_usize)
+            .column_end(0_usize)
+            .is_primary(true)
+            .text(vec![])
+            .label(None)
+            .suggested_replacement(None)
+            .suggestion_applicability(None)
+            .expansion(None)
+            .build()
+            .unwrap()
+    }
+
+    fn default_diagnostic(level: DiagnosticLevel) -> Diagnostic {
+        DiagnosticBuilder::default()
+            .message(TEST_MESSAGE.to_string())
+            .level(level)
+            .code(None)
+            .spans(vec![default_diagnostic_span()])
+            .children(vec![])
+            .rendered(None)
+            .build()
+            .unwrap()
+    }
+
+    fn default_compiler_message(level: DiagnosticLevel) -> CompilerMessage {
+        CompilerMessageBuilder::default()
+            .package_id(PackageId {
+                repr: TEST_PKG_ID.into(),
+            })
+            .target(default_target())
+            .message(default_diagnostic(level))
+            .build()
+            .unwrap()
+    }
+
+    fn default_build_finished() -> BuildFinished {
+        BuildFinishedBuilder::default()
             .success(true)
             .build()
-            .unwrap();
-
-        send_to_actor
-            .send(CargoStdout(BuildFinished(build_finished)))
-            .unwrap();
-        let proper_task_finished = Notification::new(
-            TaskFinish::METHOD.to_string(),
-            TaskFinishParams {
-                task_id: TaskId {
-                    id: "random_task_id".into(),
-                    parents: vec!["test_origin_id".into()],
-                },
-                event_time: Some(1),
-                message: None,
-                status: StatusCode::Ok,
-                data: Some(TaskDataWithKind::CompileReport(CompileReportData {
-                    // TODO do poprawy
-                    target: BuildTargetIdentifier { uri: "".into() },
-                    origin_id: Some("test_origin_id".into()),
-                    errors: 1,
-                    warnings: 1,
-                    time: Some(0),
-                    no_op: None,
-                })),
-            },
-        );
-        assert_is_last_msg(recv_from_actor, Message::Notification(proper_task_finished));
+            .unwrap()
     }
 }
