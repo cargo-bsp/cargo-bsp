@@ -197,6 +197,7 @@ pub mod compile_request_tests {
     use std::time::Duration;
 
     use crate::bsp_types::requests::{Compile, CompileParams};
+    use crate::bsp_types::BuildTargetIdentifier;
     use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
     use bsp_server::Message;
     use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
@@ -257,7 +258,9 @@ pub mod compile_request_tests {
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
                 TEST_REQ_ID.to_string().into(),
                 CompileParams {
-                    targets: vec![TEST_TARGET.into()],
+                    targets: vec![BuildTargetIdentifier {
+                        uri: TEST_TARGET.into(),
+                    }],
                     origin_id: Some(TEST_ORIGIN_ID.into()),
                     arguments: vec![TEST_ARGUMENTS.into()],
                 },
