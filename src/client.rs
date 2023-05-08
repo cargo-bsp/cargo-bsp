@@ -60,15 +60,17 @@ impl<'a> Client<'a> {
     }
 
     pub fn recv_resp(&mut self) -> String {
-        let content_length = self.parse_headers();
-        let content = self.read_n_chars(content_length);
-        match from_str(&content) {
-            Ok(Message::Response(resp)) => println!("Client got a response: {:?}\n", resp),
-            Ok(Message::Notification(notif)) => {
-                println!("Client got a notification: {:?}\n", notif)
-            }
-            _ => println!("Client got an invalid message: {}", content),
+        let msg_len = self.parse_headers();
+        let mut msg = self.read_n_chars(msg_len);
+        while let Ok(Message::Notification(notif)) = from_str(&msg) {
+            println!("Client got a notification: {:?}\n", notif);
+            let content_length = self.parse_headers();
+            msg = self.read_n_chars(content_length);
         }
-        content
+        match from_str(&msg) {
+            Ok(Message::Response(resp)) => println!("Client got a response: {:?}\n", resp),
+            _ => println!("Client got an invalid message: {}", msg),
+        }
+        msg
     }
 }

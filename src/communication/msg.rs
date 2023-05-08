@@ -9,7 +9,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::communication::ExtractError;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Message {
     Request(Request),
@@ -70,7 +70,7 @@ impl fmt::Display for RequestId {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct Request {
     pub id: RequestId,
     pub method: String,
@@ -79,7 +79,7 @@ pub struct Request {
     pub params: serde_json::Value,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct Response {
     // JSON RPC allows this to be null if it was impossible
     // to decode the request's id. Ignore this special case
@@ -91,7 +91,7 @@ pub struct Response {
     pub error: Option<ResponseError>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct ResponseError {
     pub code: i32,
     pub message: String,
@@ -147,7 +147,7 @@ pub enum ErrorCode {
     RequestFailed = -32803,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct Notification {
     pub method: String,
     #[serde(default = "serde_json::Value::default")]

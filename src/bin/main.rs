@@ -25,9 +25,9 @@ mod tests {
         ExitBuild, InitializedBuild, InitializedBuildParams, Notification as _,
     };
     use cargo_bsp::bsp_types::requests::{
-        BuildServerCapabilities, CompileProvider, InitializeBuild, InitializeBuildParams,
-        InitializeBuildResult, Request as _, Run, RunParams, RunProvider, RunResult, ShutdownBuild,
-        Test, TestParams, TestProvider, TestResult, WorkspaceBuildTargets,
+        BuildServerCapabilities, Compile, CompileParams, CompileProvider, InitializeBuild,
+        InitializeBuildParams, InitializeBuildResult, Request as _, Run, RunParams, RunProvider,
+        RunResult, ShutdownBuild, Test, TestParams, TestProvider, TestResult,
         WorkspaceBuildTargetsResult,
     };
     use cargo_bsp::bsp_types::{
@@ -139,6 +139,7 @@ mod tests {
         cl.send(&serde_json::to_string(&run_req).unwrap());
 
         cl.recv_resp(); // LogMessage notification
+        cl.recv_resp(); // TaskFinished notification
         let server_resp: Response = from_str(&cl.recv_resp()).unwrap();
         assert_eq!(
             serde_json::to_string(&server_resp).unwrap(),
@@ -255,10 +256,17 @@ mod tests {
     }
 
     fn create_build_req(id: i32) -> Request {
+        let params = CompileParams {
+            targets: vec![BuildTargetIdentifier {
+                uri: "main".to_string(),
+            }],
+            origin_id: "2137".to_owned().into(),
+            arguments: vec![],
+        };
         Request {
             id: id.into(),
-            method: WorkspaceBuildTargets::METHOD.to_string(),
-            params: Default::default(),
+            method: Compile::METHOD.to_string(),
+            params: to_value(params).unwrap(),
         }
     }
 
