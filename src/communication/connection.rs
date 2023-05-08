@@ -5,7 +5,7 @@ use crossbeam_channel::{Receiver, Sender};
 
 use crate::communication::{
     error::ProtocolError,
-    msg::{ErrorCode, Message, Request, RequestId, Response},
+    msg::{ErrorCode, Message, RequestId, Response},
     stdio,
     stdio::IoThreads,
 };
@@ -25,6 +25,24 @@ impl Connection {
         (Connection { sender, receiver }, io_threads)
     }
 
+    /// Creates a pair of connected connections.
+    ///
+    /// Use this for testing.
+    pub fn memory() -> (Connection, Connection) {
+        let (s1, r1) = crossbeam_channel::unbounded();
+        let (s2, r2) = crossbeam_channel::unbounded();
+        (
+            Connection {
+                sender: s1,
+                receiver: r2,
+            },
+            Connection {
+                sender: s2,
+                receiver: r1,
+            },
+        )
+    }
+
     /// Starts the initialization process by waiting for an initialize
     /// request from the client. Use this for more advanced customization than
     /// `initialize` can provide.
@@ -32,31 +50,27 @@ impl Connection {
     /// Returns the request id and serialized `InitializeParams` from the client.
     pub fn initialize_start(&self) -> Result<(RequestId, serde_json::Value), ProtocolError> {
         loop {
-            match self.receiver.recv() {
-                Ok(Message::Request(req)) if req.is_initialize() => {
-                    return Ok((req.id, req.params));
-                }
+            break match self.receiver.recv() {
+                Ok(Message::Request(req)) if req.is_initialize() => Ok((req.id, req.params)),
                 // Respond to non-initialize requests with ServerNotInitialized
                 Ok(Message::Request(req)) => {
                     let resp = Response::new_err(
                         req.id.clone(),
                         ErrorCode::ServerNotInitialized as i32,
-                        format!("expected initialize request, got {:?}", req),
+                        format!("expected initialize request, got {req:?}"),
                     );
                     self.sender.send(resp.into()).unwrap();
+                    continue;
                 }
-                Ok(msg) => {
-                    return Err(ProtocolError(format!(
-                        "expected initialize request, got {:?}",
-                        msg
-                    )));
+                Ok(Message::Notification(n)) if !n.is_exit() => {
+                    continue;
                 }
-                Err(e) => {
-                    return Err(ProtocolError(format!(
-                        "expected initialize request, got error: {}",
-                        e
-                    )));
-                }
+                Ok(msg) => Err(ProtocolError(format!(
+                    "expected initialize request, got {msg:?}"
+                ))),
+                Err(e) => Err(ProtocolError(format!(
+                    "expected initialize request, got error: {e}"
+                ))),
             };
         }
     }
@@ -70,48 +84,13 @@ impl Connection {
         let resp = Response::new_ok(initialize_id, initialize_result);
         self.sender.send(resp.into()).unwrap();
         match &self.receiver.recv() {
-            Ok(Message::Notification(n)) if n.is_initialized() => (),
-            Ok(msg) => {
-                return Err(ProtocolError(format!(
-                    "expected Message::Notification, got: {:?}",
-                    msg,
-                )));
-            }
-            Err(e) => {
-                return Err(ProtocolError(format!(
-                    "expected initialized notification, got error: {}",
-                    e,
-                )));
-            }
+            Ok(Message::Notification(n)) if n.is_initialized() => Ok(()),
+            Ok(msg) => Err(ProtocolError(format!(
+                r#"expected initialized notification, got: {msg:?}"#
+            ))),
+            Err(e) => Err(ProtocolError(format!(
+                "expected initialized notification, got error: {e}",
+            ))),
         }
-        Ok(())
-    }
-
-    /// If `req` is `Shutdown`, respond to it and return `true`, otherwise return `false`
-    pub fn handle_shutdown(&self, req: &Request) -> Result<bool, ProtocolError> {
-        if !req.is_shutdown() {
-            return Ok(false);
-        }
-        let resp = Response::new_ok(req.id.clone(), ());
-        let _ = self.sender.send(resp.into());
-        match &self
-            .receiver
-            .recv_timeout(std::time::Duration::from_secs(30))
-        {
-            Ok(Message::Notification(n)) if n.is_exit() => (),
-            Ok(msg) => {
-                return Err(ProtocolError(format!(
-                    "unexpected message during shutdown: {:?}",
-                    msg
-                )));
-            }
-            Err(e) => {
-                return Err(ProtocolError(format!(
-                    "unexpected error during shutdown: {}",
-                    e
-                )));
-            }
-        }
-        Ok(true)
     }
 }

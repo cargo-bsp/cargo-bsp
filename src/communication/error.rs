@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::communication::{Notification, Request};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProtocolError(pub(crate) String);
 
 impl std::error::Error for ProtocolError {}

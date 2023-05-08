@@ -11,7 +11,6 @@ use crate::communication::Message;
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
-use crate::server::main_loop::Event::{Bsp, FromThread};
 use crate::server::{handlers, Result};
 use crate::{bsp_types, communication};
 
@@ -28,7 +27,7 @@ enum Event {
 impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
-            if let Bsp(Message::Notification(not)) = &event {
+            if let Event::Bsp(Message::Notification(not)) = &event {
                 if not.method == bsp_types::notifications::ExitBuild::METHOD {
                     if !self.shutdown_requested {
                         break;
@@ -56,12 +55,12 @@ impl GlobalState {
         let loop_start = Instant::now();
 
         match event {
-            Bsp(msg) => match msg {
+            Event::Bsp(msg) => match msg {
                 Message::Request(req) => self.on_new_request(loop_start, req),
                 Message::Notification(not) => self.on_notification(not)?,
                 Message::Response(_) => {}
             },
-            FromThread(msg) => match &msg {
+            Event::FromThread(msg) => match &msg {
                 Message::Request(_) => {}
                 Message::Notification(not) => self.send_notification(not.to_owned()),
                 Message::Response(resp) => {
@@ -140,5 +139,100 @@ impl GlobalState {
         })?
         .finish();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod test_shutdown_order {
+        use std::path::PathBuf;
+
+        use crate::bsp_types::requests::BuildClientCapabilities;
+        use crate::communication::Connection;
+        use crate::server::config::Config;
+        use crate::server::global_state::GlobalState;
+        use crate::server::Result;
+        use crate::test_utils::{
+            test_exit_notif, test_shutdown_req, test_shutdown_resp, Channel, ConnectionTestCase,
+            FuncReturns,
+        };
+
+        enum ShutdownReq {
+            Send,
+            Omit,
+        }
+
+        enum ShutdownNotif {
+            Send,
+            Omit,
+        }
+
+        fn shutdown_order_test(
+            mut case: ConnectionTestCase,
+            req_action: ShutdownReq,
+            notif_action: ShutdownNotif,
+        ) {
+            let test_id = 234;
+            let req = test_shutdown_req(test_id);
+            let resp = test_shutdown_resp(test_id);
+            let notif = test_exit_notif();
+
+            if let ShutdownReq::Send = req_action {
+                case.to_send.push(req.into());
+                case.expected_recv.push(resp.into());
+            }
+            if let ShutdownNotif::Send = notif_action {
+                case.to_send.push(notif.into());
+            }
+
+            if let FuncReturns::Error = case.func_returns {
+                case.expected_err = "client exited without proper shutdown sequence".into();
+            }
+            case.func_to_test = |server: Connection| -> Result<()> {
+                let global_state = GlobalState::new(
+                    server.sender,
+                    Config::new(PathBuf::from("test"), BuildClientCapabilities::default()),
+                );
+                global_state.run(server.receiver)
+            };
+
+            case.test();
+        }
+
+        #[test]
+        fn proper_shutdown_order() {
+            shutdown_order_test(
+                ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Ok),
+                ShutdownReq::Send,
+                ShutdownNotif::Send,
+            );
+        }
+
+        #[test]
+        fn exit_notif_without_shutdown() {
+            shutdown_order_test(
+                ConnectionTestCase::new(Channel::WorksOk, FuncReturns::Error),
+                ShutdownReq::Omit,
+                ShutdownNotif::Send,
+            );
+        }
+
+        #[test]
+        fn channel_err_before_shutdown_req() {
+            shutdown_order_test(
+                ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error),
+                ShutdownReq::Omit,
+                ShutdownNotif::Omit,
+            );
+        }
+
+        #[test]
+        fn channel_err_before_exit_notif() {
+            shutdown_order_test(
+                ConnectionTestCase::new(Channel::Disconnects, FuncReturns::Error),
+                ShutdownReq::Send,
+                ShutdownNotif::Omit,
+            );
+        }
     }
 }

@@ -2,7 +2,7 @@
 name = "cargo-bsp"
 version = "0.1.0"
 edition = "2021"
-default-run = "main"
+default-run = "server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,3 +29,4 @@ rand = "0.8.5"
 [dev-dependencies]
 insta = { version = "1.29.0", features = ["yaml", "json"] }
 tempfile = "3.5.0"
+assert_cmd = "2.0.11"
