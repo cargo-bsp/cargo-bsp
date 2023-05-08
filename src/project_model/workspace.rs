@@ -62,12 +62,12 @@ impl ProjectWorkspace {
             .iter()
             .flat_map(|p| {
                 p.targets.iter().map(|tr| {
-                    let bid = build_target_id_from_name_and_path(&tr.name, &tr.src_path);
+                    let target_id = build_target_id_from_name_and_path(&tr.name, &tr.src_path);
                     (
                         // BuildTargetIdentifier to package name map (key, value)
-                        (bid.clone(), p.name.clone()),
+                        (target_id.clone(), p.name.clone()),
                         // BuildTargetIdentifier to target_details map (key, value)
-                        (bid, Rc::clone(tr)),
+                        (target_id, Rc::clone(tr)),
                     )
                 })
             })
