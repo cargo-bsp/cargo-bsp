@@ -191,7 +191,7 @@ pub mod compile_request_tests {
     use crate::bsp_types::BuildTargetIdentifier;
     use crate::test_utils::no_more_msg;
     use bsp_server::Message;
-    use crossbeam_channel::{unbounded, Sender};
+    use crossbeam_channel::unbounded;
     use insta::{assert_json_snapshot, Settings};
 
     const TEST_ORIGIN_ID: &str = "test_origin_id";
@@ -203,30 +203,35 @@ pub mod compile_request_tests {
     const TEST_ROOT_PATH: &str = "/test_root_path";
 
     fn default_req_actor(
-        sender_to_main: Sender<Message>,
         cargo_handle: MockCargoHandler<CargoMessage>,
-    ) -> RequestActor<Compile, MockCargoHandler<CargoMessage>> {
+    ) -> (
+        RequestActor<Compile, MockCargoHandler<CargoMessage>>,
+        Receiver<Message>,
+    ) {
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         let (_cancel_sender, cancel_receiver) = unbounded::<Event>();
 
-        RequestActor::new(
-            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-            TEST_REQ_ID.to_string().into(),
-            CompileParams {
-                targets: vec![BuildTargetIdentifier {
-                    uri: TEST_TARGET.into(),
-                }],
-                origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
-            },
-            Path::new(TEST_ROOT_PATH),
-            cargo_handle,
-            cancel_receiver,
+        (
+            RequestActor::new(
+                Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+                TEST_REQ_ID.to_string().into(),
+                CompileParams {
+                    targets: vec![BuildTargetIdentifier {
+                        uri: TEST_TARGET.into(),
+                    }],
+                    origin_id: Some(TEST_ORIGIN_ID.into()),
+                    arguments: vec![TEST_ARGUMENTS.into()],
+                },
+                Path::new(TEST_ROOT_PATH),
+                cargo_handle,
+                cancel_receiver,
+            ),
+            receiver_from_actor,
         )
     }
 
     #[test]
     fn compile_lifetime() {
-        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
 
         let mut mock_cargo_handle = MockCargoHandler::new();
@@ -238,8 +243,7 @@ pub mod compile_request_tests {
         mock_cargo_handle
             .expect_receiver()
             .return_const(receiver_from_cargo);
-        let req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-            default_req_actor(sender_to_main, mock_cargo_handle);
+        let (req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
 
         // The channel is closed so the actor finishes its execution.
         drop(sender_to_actor);
@@ -311,13 +315,10 @@ pub mod compile_request_tests {
 
     #[test]
     fn cancel_with_cargo_handle() {
-        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-
         let mut mock_cargo_handle = MockCargoHandler::new();
         mock_cargo_handle.expect_cancel().return_const(());
 
-        let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-            default_req_actor(sender_to_main, mock_cargo_handle);
+        let (mut req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
 
         req_actor.cancel();
 
@@ -343,13 +344,11 @@ pub mod compile_request_tests {
     #[test]
     fn multiple_cancel() {
         // Client should receive only one cancel message.
-        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
 
         let mut mock_cargo_handle = MockCargoHandler::new();
         mock_cargo_handle.expect_cancel().return_const(());
 
-        let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-            default_req_actor(sender_to_main, mock_cargo_handle);
+        let (mut req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
 
         req_actor.cancel();
         req_actor.cancel();
@@ -392,9 +391,7 @@ pub mod compile_request_tests {
 
         #[test]
         fn compiler_artifact() {
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-                default_req_actor(sender_to_main, MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
                 default_compiler_artifact(),
@@ -426,9 +423,7 @@ pub mod compile_request_tests {
 
         #[test]
         fn build_script_out() {
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-                default_req_actor(sender_to_main, MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
                 default_build_script(),
@@ -458,9 +453,7 @@ pub mod compile_request_tests {
 
         #[test]
         fn compiler_message() {
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-                default_req_actor(sender_to_main, MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
                 default_compiler_message(DiagnosticLevel::Error),
@@ -507,9 +500,7 @@ pub mod compile_request_tests {
 
         #[test]
         fn build_finished_simple() {
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-                default_req_actor(sender_to_main, MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
                 default_build_finished(),
@@ -552,9 +543,7 @@ pub mod compile_request_tests {
         fn build_finished_with_complex_compile_report() {
             // Checks if server counts warnings and error and produces a correct compile report.
 
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let mut req_actor: RequestActor<Compile, MockCargoHandler<CargoMessage>> =
-                default_req_actor(sender_to_main, MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
                 default_compiler_message(DiagnosticLevel::Error),
