@@ -13,7 +13,7 @@ use crate::bsp_types::StatusCode;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::{CargoHandleTrait, RequestActor};
+use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::utils::get_current_time;
 
 impl<R, C> RequestActor<R, C>
@@ -21,7 +21,7 @@ where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
-    C: CargoHandleTrait<CargoMessage>,
+    C: CargoHandler<CargoMessage>,
 {
     pub(super) fn send_response(&self, _: io::Result<ExitStatus>, status_code: &StatusCode) {
         self.send(Message::Response(Response {

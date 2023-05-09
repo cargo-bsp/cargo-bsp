@@ -13,7 +13,7 @@ use crate::cargo_communication::request_actor::RequestActor;
 
 #[derive(Debug)]
 pub struct RequestHandle {
-    sender_to_cancel: Sender<Event>,
+    cancel_sender: Sender<Event>,
     _thread: jod_thread::JoinHandle,
 }
 
@@ -46,7 +46,7 @@ impl RequestHandle {
                     .spawn(move || actor.run())
                     .expect("failed to spawn thread");
                 RequestHandle {
-                    sender_to_cancel: cancel_sender,
+                    cancel_sender,
                     _thread: thread,
                 }
             }
@@ -57,6 +57,6 @@ impl RequestHandle {
     }
 
     pub fn cancel(&self) {
-        self.sender_to_cancel.send(Event::Cancel).unwrap();
+        self.cancel_sender.send(Event::Cancel).unwrap();
     }
 }

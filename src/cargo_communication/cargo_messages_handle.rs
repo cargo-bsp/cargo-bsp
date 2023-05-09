@@ -16,7 +16,7 @@ use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestResult, TestType};
-use crate::cargo_communication::request_actor::{CargoHandleTrait, RequestActor};
+use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
 
@@ -25,7 +25,7 @@ where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
-    C: CargoHandleTrait<CargoMessage>,
+    C: CargoHandler<CargoMessage>,
 {
     pub(super) fn handle_cargo_information(&mut self, message: Message) {
         match message {

@@ -13,7 +13,7 @@ use crossbeam_channel::{unbounded, Receiver};
 
 use crate::cargo_communication::cargo_actor::CargoActor;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::CargoHandleTrait;
+use crate::cargo_communication::request_actor::CargoHandler;
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
@@ -23,7 +23,7 @@ pub struct CargoHandle {
     receiver: Receiver<CargoMessage>,
 }
 
-impl CargoHandleTrait<CargoMessage> for CargoHandle {
+impl CargoHandler<CargoMessage> for CargoHandle {
     fn receiver(&self) -> &Receiver<CargoMessage> {
         &self.receiver
     }
