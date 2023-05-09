@@ -202,11 +202,6 @@ pub mod compile_request_tests {
     const TEST_ARGUMENTS: &str = "test_arguments";
     const TEST_ROOT_PATH: &str = "/test_root_path";
 
-    struct ActorChannels {
-        sender_to_actor: Sender<CargoMessage>,
-        receiver_from_actor: Receiver<Message>,
-    }
-
     fn default_req_actor(
         sender_to_main: Sender<Message>,
         cargo_handle: MockCargoHandleTrait<CargoMessage>,
@@ -229,45 +224,32 @@ pub mod compile_request_tests {
         )
     }
 
-    fn init_test(mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>) -> ActorChannels {
+    #[test]
+    fn compile_lifetime() {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
 
-        mock_cargo_handle
-            .expect_receiver()
-            .return_const(receiver_from_cargo);
-
-        let req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
-            default_req_actor(sender_to_main, mock_cargo_handle);
-        let _ = jod_thread::Builder::new()
-            .spawn(move || req_actor.run())
-            .expect("failed to spawn thread")
-            .detach();
-
-        ActorChannels {
-            receiver_from_actor,
-            sender_to_actor,
-        }
-    }
-
-    #[test]
-    fn compile_lifetime() {
         let mut mock_cargo_handle = MockCargoHandleTrait::new();
         // There is no robust way to return ExitStatus hence we return Error. In consequence the
         // status code of response is 2(Error).
         mock_cargo_handle
             .expect_join()
             .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
-        let channels = init_test(mock_cargo_handle);
+        mock_cargo_handle
+            .expect_receiver()
+            .return_const(receiver_from_cargo);
+        let req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main, mock_cargo_handle);
 
         // The channel is closed so the actor finishes its execution.
-        drop(channels.sender_to_actor);
+        drop(sender_to_actor);
+
+        req_actor.run();
 
         let mut settings = Settings::clone_current();
         settings.add_redaction(".params.eventTime", TIMESTAMP);
-
         settings.bind(|| {
-            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
             {
               "method": "build/taskStart",
               "params": {
@@ -282,7 +264,7 @@ pub mod compile_request_tests {
 
         settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
         settings.bind(|| {
-            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
             {
               "method": "build/taskStart",
               "params": {
@@ -302,7 +284,7 @@ pub mod compile_request_tests {
               }
             }
             "###);
-            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
             {
               "method": "build/taskFinish",
               "params": {
@@ -314,7 +296,7 @@ pub mod compile_request_tests {
               }
             }
             "###);
-            assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(), @r###"
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
             {
               "id": "test_req_id",
               "result": {
@@ -324,7 +306,7 @@ pub mod compile_request_tests {
             }
             "###);
         });
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
     }
 
     #[test]
@@ -359,15 +341,21 @@ pub mod compile_request_tests {
     }
 
     #[test]
-    fn cancel_without_cargo_handle() {
+    fn multiple_cancel() {
+        // Client should receive only one cancel message.
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
 
-        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
-            default_req_actor(sender_to_main, MockCargoHandleTrait::new());
+        let mut mock_cargo_handle = MockCargoHandleTrait::new();
+        mock_cargo_handle.expect_cancel().return_const(());
 
-        req_actor.cargo_handle = None;
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main, mock_cargo_handle);
+
+        req_actor.cancel();
+        req_actor.cancel();
         req_actor.cancel();
 
+        let _ = receiver_from_actor.recv().unwrap();
         no_more_msg(receiver_from_actor);
     }
 
