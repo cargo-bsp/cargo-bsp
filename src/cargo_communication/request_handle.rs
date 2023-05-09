@@ -2,6 +2,7 @@ use std::path::Path;
 
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Sender};
+use log::info;
 
 use crate::bsp_types::requests::Request;
 use crate::cargo_communication::cargo_handle::CargoHandle;
@@ -28,20 +29,30 @@ impl RequestHandle {
         R::Params: CreateCommand + Send,
         R::Result: CargoResult,
     {
-        let mut actor: RequestActor<R, CargoHandle> =
-            RequestActor::new(sender_to_main, req_id, params, root_path);
-        let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
-        let thread = jod_thread::Builder::new()
-            .spawn(move || match actor.spawn_cargo_handle() {
-                Ok(cargo_handle) => actor.run(receiver_to_cancel, cargo_handle),
-                Err(_err) => {
-                    todo!()
+        let cmd = params.create_command(root_path.into());
+        info!("Created command: {:?}", cmd);
+        match CargoHandle::spawn(cmd) {
+            Ok(cargo_handle) => {
+                let (cancel_sender, cancel_receiver) = unbounded::<Event>();
+                let actor: RequestActor<R, CargoHandle> = RequestActor::new(
+                    sender_to_main,
+                    req_id,
+                    params,
+                    root_path,
+                    cargo_handle,
+                    cancel_receiver,
+                );
+                let thread = jod_thread::Builder::new()
+                    .spawn(move || actor.run())
+                    .expect("failed to spawn thread");
+                RequestHandle {
+                    sender_to_cancel: cancel_sender,
+                    _thread: thread,
                 }
-            })
-            .expect("failed to spawn thread");
-        RequestHandle {
-            sender_to_cancel,
-            _thread: thread,
+            }
+            Err(_err) => {
+                todo!()
+            }
         }
     }
 

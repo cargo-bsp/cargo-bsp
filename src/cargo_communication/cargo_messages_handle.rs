@@ -70,7 +70,7 @@ where
             self.params.origin_id(),
             // TODO change to actual BuildTargetIdentifier
             &BuildTargetIdentifier::default(),
-            AbsPath::assert(&self.root_path),
+            AbsPath::assert(&self.root_path), // TODO nie mozna panikowac
         );
         match diagnostic_msg {
             DiagnosticMessage::Diagnostics(diagnostics) => {
