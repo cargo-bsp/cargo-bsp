@@ -36,7 +36,7 @@ where
     /// back over a channel.
     cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
-    pub(crate) req_id: RequestId,
+    pub(super) req_id: RequestId,
     pub(super) params: R::Params,
     pub(super) root_path: PathBuf,
     pub(super) state: RequestActorState,
