@@ -94,6 +94,26 @@ where
         }
     }
 
+    pub fn handle_event(&mut self, event: Event) {
+        match event {
+            Event::CargoEvent(message) => {
+                // handle information and create notification based on that
+                match message {
+                    CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
+                    CargoMessage::CargoStderr(msg) => {
+                        self.log_message(MessageType::Error, msg, None)
+                    }
+                }
+            }
+            Event::Cancel => {
+                self.cancel();
+            }
+            Event::CargoFinish => {
+                self.finish_request();
+            }
+        }
+    }
+
     pub fn run(mut self, cancel_receiver: Receiver<Event>, cargo_handle: C) {
         self.cargo_handle = Some(cargo_handle);
 
@@ -101,25 +121,7 @@ where
         self.start_compile_task();
 
         while let Some(event) = self.next_event(&cancel_receiver) {
-            match event {
-                Event::Cancel => {
-                    self.cancel();
-                    return;
-                }
-                Event::CargoFinish => {
-                    self.finish_request();
-                    return;
-                }
-                Event::CargoEvent(message) => {
-                    // handle information and create notification based on that
-                    match message {
-                        CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
-                        CargoMessage::CargoStderr(msg) => {
-                            self.log_message(MessageType::Error, msg, None)
-                        }
-                    }
-                }
-            }
+            self.handle_event(event);
         }
     }
 
@@ -199,6 +201,7 @@ pub mod compile_request_tests {
     use crate::bsp_types::requests::{Compile, CompileParams};
     use crate::bsp_types::BuildTargetIdentifier;
     use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
+    use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
     use bsp_server::Message;
     use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
     use cargo_metadata::Message::{
@@ -254,18 +257,7 @@ pub mod compile_request_tests {
             .return_const(receiver_from_cargo);
 
         let req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
-            RequestActor::new(
-                Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-                TEST_REQ_ID.to_string().into(),
-                CompileParams {
-                    targets: vec![BuildTargetIdentifier {
-                        uri: TEST_TARGET.into(),
-                    }],
-                    origin_id: Some(TEST_ORIGIN_ID.into()),
-                    arguments: vec![TEST_ARGUMENTS.into()],
-                },
-                Path::new(TEST_ROOT_PATH),
-            );
+            default_req_actor(sender_to_main);
         let _ = jod_thread::Builder::new()
             .spawn(move || req_actor.run(cancel_receiver, mock_cargo_handle))
             .expect("failed to spawn thread")
@@ -391,21 +383,15 @@ pub mod compile_request_tests {
 
     #[test]
     fn compiler_artifact() {
-        #[allow(unused_mut)]
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let channels = init_test(mock_cargo_handle);
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main);
 
-        let _ = channels.receiver_from_actor.recv(); // main task started
-        let _ = channels.receiver_from_actor.recv(); // compilation task started
+        req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
+            default_compiler_artifact(),
+        ))));
 
-        let compiler_artifact = default_compiler_artifact();
-
-        channels
-            .sender_to_actor
-            .send(CargoStdout(CompilerArtifact(compiler_artifact)))
-            .unwrap();
-
-        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),
+        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
         {
             ".params.eventTime" => TIMESTAMP,
             ".params.taskId.id" => RANDOM_TASK_ID,
@@ -426,26 +412,20 @@ pub mod compile_request_tests {
         "###
         );
 
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
     }
 
     #[test]
     fn build_script_out() {
-        #[allow(unused_mut)]
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let channels = init_test(mock_cargo_handle);
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main);
 
-        let _ = channels.receiver_from_actor.recv(); // main task started
-        let _ = channels.receiver_from_actor.recv(); // compilation task started
+        req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
+            default_build_script(),
+        ))));
 
-        let build_script = default_build_script();
-
-        channels
-            .sender_to_actor
-            .send(CargoStdout(BuildScriptExecuted(build_script)))
-            .unwrap();
-
-        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
             ".params.eventTime" => TIMESTAMP,
             ".params.taskId.id" => RANDOM_TASK_ID,
         },@r###"
@@ -464,25 +444,20 @@ pub mod compile_request_tests {
         }
         "###);
 
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
     }
 
     #[test]
     fn compiler_message() {
-        #[allow(unused_mut)]
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let channels = init_test(mock_cargo_handle);
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main);
 
-        let _ = channels.receiver_from_actor.recv(); // main task started
-        let _ = channels.receiver_from_actor.recv(); // compilation task started
+        req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+            default_compiler_message(DiagnosticLevel::Error),
+        ))));
 
-        let compiler_msg = default_compiler_message(DiagnosticLevel::Error);
-        channels
-            .sender_to_actor
-            .send(CargoStdout(CompilerMessageEnum(compiler_msg)))
-            .unwrap();
-
-        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),
+        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
             {
                 ".params.task.id" => RANDOM_TASK_ID,
             },@r###"
@@ -518,25 +493,20 @@ pub mod compile_request_tests {
         }
         "###);
 
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
     }
 
     #[test]
     fn build_finished_simple() {
-        #[allow(unused_mut)]
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let channels = init_test(mock_cargo_handle);
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main);
 
-        let _ = channels.receiver_from_actor.recv(); // main task started
-        let _ = channels.receiver_from_actor.recv(); // compilation task started
+        req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
+            default_build_finished(),
+        ))));
 
-        let build_finished = default_build_finished();
-        channels
-            .sender_to_actor
-            .send(CargoStdout(BuildFinishedEnum(build_finished)))
-            .unwrap();
-
-        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
             ".params.eventTime" => TIMESTAMP,
             ".params.taskId.id" => RANDOM_TASK_ID,
             ".params.data.time" => 0,
@@ -566,40 +536,30 @@ pub mod compile_request_tests {
         }
         "###);
 
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
     }
 
     #[test]
     fn build_finished_with_complex_compile_report() {
-        #[allow(unused_mut)]
-        let mut mock_cargo_handle = MockCargoHandleTrait::new();
-        let channels = init_test(mock_cargo_handle);
+        let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+        let mut req_actor: RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> =
+            default_req_actor(sender_to_main);
 
-        let _ = channels.receiver_from_actor.recv(); // main task started
-        let _ = channels.receiver_from_actor.recv(); // compilation task started
+        req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+            default_compiler_message(DiagnosticLevel::Error),
+        ))));
+        req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+            default_compiler_message(DiagnosticLevel::Warning),
+        ))));
 
-        let compiler_msg_warning = default_compiler_message(DiagnosticLevel::Warning);
-        let compiler_msg_error = default_compiler_message(DiagnosticLevel::Error);
+        let _ = receiver_from_actor.recv(); // publish diagnostic
+        let _ = receiver_from_actor.recv(); // publish diagnostic
 
-        channels
-            .sender_to_actor
-            .send(CargoStdout(CompilerMessageEnum(compiler_msg_warning)))
-            .unwrap();
-        channels
-            .sender_to_actor
-            .send(CargoStdout(CompilerMessageEnum(compiler_msg_error)))
-            .unwrap();
+        req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
+            default_build_finished(),
+        ))));
 
-        let _ = channels.receiver_from_actor.recv(); // publish diagnostic
-        let _ = channels.receiver_from_actor.recv(); // publish diagnostic
-
-        let build_finished = default_build_finished();
-        channels
-            .sender_to_actor
-            .send(CargoStdout(BuildFinishedEnum(build_finished)))
-            .unwrap();
-
-        assert_json_snapshot!(channels.receiver_from_actor.recv().unwrap(),         {
+        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
             ".params.eventTime" => TIMESTAMP,
             ".params.taskId.id" => RANDOM_TASK_ID,
             ".params.data.time" => 0,
@@ -629,7 +589,24 @@ pub mod compile_request_tests {
         }
         "###);
 
-        no_more_msg(channels.receiver_from_actor);
+        no_more_msg(receiver_from_actor);
+    }
+
+    fn default_req_actor(
+        sender_to_main: Sender<Message>,
+    ) -> RequestActor<Compile, MockCargoHandleTrait<CargoMessage>> {
+        RequestActor::new(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            TEST_REQ_ID.to_string().into(),
+            CompileParams {
+                targets: vec![BuildTargetIdentifier {
+                    uri: TEST_TARGET.into(),
+                }],
+                origin_id: Some(TEST_ORIGIN_ID.into()),
+                arguments: vec![TEST_ARGUMENTS.into()],
+            },
+            Path::new(TEST_ROOT_PATH),
+        )
     }
 
     fn default_target() -> Target {
