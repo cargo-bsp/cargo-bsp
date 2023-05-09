@@ -196,12 +196,11 @@ pub trait CargoHandleTrait<T> {
 
 #[cfg(test)]
 pub mod compile_request_tests {
-    use std::time::Duration;
-
     use crate::bsp_types::requests::{Compile, CompileParams};
     use crate::bsp_types::BuildTargetIdentifier;
     use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
     use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
+    use crate::test_utils::no_more_msg;
     use bsp_server::Message;
     use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
     use cargo_metadata::Message::{
@@ -268,10 +267,6 @@ pub mod compile_request_tests {
             sender_to_actor,
             cancel_sender,
         }
-    }
-
-    fn no_more_msg(receiver: Receiver<Message>) {
-        assert!(receiver.recv_timeout(Duration::from_millis(200)).is_err());
     }
 
     #[test]

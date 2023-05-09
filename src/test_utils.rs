@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bsp_server;
 use bsp_server::{Connection, Message};
+use crossbeam_channel::Receiver;
 use serde_json::to_value;
 
 use crate::bsp_types::notifications::{
@@ -74,6 +75,10 @@ impl ConnectionTestCase {
         }
         assert!(client.receiver.is_empty());
     }
+}
+
+pub fn no_more_msg<T>(receiver: Receiver<T>) {
+    assert!(receiver.recv_timeout(Duration::from_millis(200)).is_err());
 }
 
 pub fn test_init_params() -> InitializeBuildParams {
