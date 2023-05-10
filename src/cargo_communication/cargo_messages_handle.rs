@@ -1,3 +1,8 @@
+use cargo_metadata::diagnostic::DiagnosticLevel;
+use cargo_metadata::{BuildFinished, CompilerMessage, Message};
+use lsp_types::DiagnosticSeverity;
+use paths::AbsPath;
+
 use crate::bsp_types::mappings::to_publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
@@ -9,20 +14,18 @@ use crate::bsp_types::requests::Request;
 use crate::bsp_types::{BuildTargetIdentifier, StatusCode};
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestResult, TestType};
-use crate::cargo_communication::request_actor::RequestActor;
+use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
-use cargo_metadata::diagnostic::DiagnosticLevel;
-use cargo_metadata::{BuildFinished, CompilerMessage, Message};
-use lsp_types::DiagnosticSeverity;
-use paths::AbsPath;
 
-impl<R> RequestActor<R>
+impl<R, C> RequestActor<R, C>
 where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
+    C: CargoHandler<CargoMessage>,
 {
     pub(super) fn handle_cargo_information(&mut self, message: Message) {
         match message {
@@ -67,7 +70,7 @@ where
             self.params.origin_id(),
             // TODO change to actual BuildTargetIdentifier
             &BuildTargetIdentifier::default(),
-            AbsPath::assert(&self.root_path),
+            AbsPath::assert(&self.root_path), // TODO nie mozna panikowac
         );
         match diagnostic_msg {
             DiagnosticMessage::Diagnostics(diagnostics) => {

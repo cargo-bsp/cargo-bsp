@@ -1,5 +1,7 @@
-use bsp_server::{Message, Notification};
+use bsp_server::{Message, Notification, Response};
 use serde_json::to_value;
+use std::io;
+use std::process::ExitStatus;
 
 use crate::bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
@@ -10,15 +12,30 @@ use crate::bsp_types::requests::Request;
 use crate::bsp_types::StatusCode;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
-use crate::cargo_communication::request_actor::RequestActor;
+use crate::cargo_communication::cargo_types::event::CargoMessage;
+use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::utils::get_current_time;
 
-impl<R> RequestActor<R>
+impl<R, C> RequestActor<R, C>
 where
     R: Request,
     R::Params: CreateCommand,
     R::Result: CargoResult,
+    C: CargoHandler<CargoMessage>,
 {
+    pub(super) fn send_response(&self, _: io::Result<ExitStatus>, status_code: &StatusCode) {
+        self.send(Message::Response(Response {
+            id: self.req_id.clone(),
+            result: to_value(R::Result::create_result(
+                self.params.origin_id(),
+                status_code.clone(),
+            ))
+            .ok(),
+            // TODO create error for response
+            error: None,
+        }));
+    }
+
     pub(super) fn report_task_start(
         &self,
         task_id: TaskId,
