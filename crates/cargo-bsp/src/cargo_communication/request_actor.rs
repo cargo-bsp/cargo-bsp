@@ -188,7 +188,7 @@ pub trait CargoHandler<T> {
 #[cfg(test)]
 pub mod compile_request_tests {
     use bsp_server::Message;
-    use crossbeam_channel::{unbounded, Sender};
+    use crossbeam_channel::unbounded;
     use insta::{assert_json_snapshot, Settings};
 
     use bsp_types::requests::{Compile, CompileParams};
@@ -702,15 +702,13 @@ pub mod compile_request_tests {
     mod run_request_tests {
         use super::*;
         use crate::bsp_types::requests::{Run, RunParams};
-        use crate::bsp_types::BuildTargetIdentifier;
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
         use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
-        use bsp_server::Message;
         use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
         use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
-        use crossbeam_channel::unbounded;
+        use crossbeam_channel::Sender;
 
         const TEST_STDOUT: &str = "test_stdout";
         const TEST_STDERR: &str = "test_stderr";
