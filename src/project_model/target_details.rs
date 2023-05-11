@@ -3,8 +3,7 @@ use crate::project_model::cargo_package::{CargoPackage, Feature};
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::rc::Rc;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone)]
 pub struct TargetDetails<'a> {
@@ -12,17 +11,11 @@ pub struct TargetDetails<'a> {
     pub kind: CargoTargetKind,
     pub package_abs_path: Utf8PathBuf,
     pub default_features_disabled: bool,
-    pub enabled_features: &'a HashSet<Feature>,
+    pub enabled_features: &'a BTreeSet<Feature>,
 }
 
-impl<'a, 'b> TargetDetails<'a>
-where
-    'b: 'a,
-{
-    pub fn new(
-        package: &'b CargoPackage,
-        target_data: &Rc<cargo_metadata::Target>,
-    ) -> Option<Self> {
+impl<'a> TargetDetails<'a> {
+    pub fn new(package: &'a CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
         Some(Self {
             name: target_data.name.clone(),
             kind: TargetDetails::get_kind(target_data)?,
@@ -32,7 +25,7 @@ where
         })
     }
 
-    fn get_kind(target_data: &Rc<cargo_metadata::Target>) -> Option<CargoTargetKind> {
+    fn get_kind(target_data: &cargo_metadata::Target) -> Option<CargoTargetKind> {
         serde_json::from_str::<CargoTargetKind>(target_data.kind.get(0).or_else(|| {
             error!("Invalid `kind vector` for target: {:?}", target_data.name);
             None
