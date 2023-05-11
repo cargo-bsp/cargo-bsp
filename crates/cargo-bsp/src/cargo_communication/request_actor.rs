@@ -188,7 +188,7 @@ pub trait CargoHandler<T> {
 #[cfg(test)]
 pub mod compile_request_tests {
     use bsp_server::Message;
-    use crossbeam_channel::unbounded;
+    use crossbeam_channel::{unbounded, Sender};
     use insta::{assert_json_snapshot, Settings};
 
     use bsp_types::requests::{Compile, CompileParams};
@@ -712,11 +712,15 @@ pub mod compile_request_tests {
         use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
         use crossbeam_channel::unbounded;
 
+        const TEST_STDOUT: &str = "test_stdout";
+        const TEST_STDERR: &str = "test_stderr";
+
         fn default_req_actor(
             cargo_handle: MockCargoHandler<CargoMessage>,
         ) -> (
             RequestActor<Run, MockCargoHandler<CargoMessage>>,
             Receiver<Message>,
+            Sender<Event>,
         ) {
             let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
             let (_cancel_sender, cancel_receiver) = unbounded::<Event>();
@@ -739,6 +743,7 @@ pub mod compile_request_tests {
                     cancel_receiver,
                 ),
                 receiver_from_actor,
+                _cancel_sender,
             )
         }
 
@@ -762,47 +767,27 @@ pub mod compile_request_tests {
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
 
-            let (req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
+            let (req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor(mock_cargo_handle);
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
                 .expect("failed to spawn thread")
                 .detach();
 
-            println!(
-                "{:?}",
-                receiver_from_actor
-                    .recv()
-                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
-            );
-            println!(
-                "{:?}",
-                receiver_from_actor
-                    .recv()
-                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
-            );
-
-            // let _ = receiver_from_actor.recv(); // main task started
-            // let _ = receiver_from_actor.recv(); // compilation task started
+            let _ = receiver_from_actor.recv(); // main task started
+            let _ = receiver_from_actor.recv(); // compilation task started
 
             sender_to_actor
                 .send(CargoStdout(BuildFinishedEnum(default_build_finished())))
-                .unwrap_or_else(|e| panic!("Failed to send message: {}", e));
+                .unwrap();
 
-            // let _ = receiver_from_actor.recv(); // compilation task finished
-            println!(
-                "{:?}",
-                receiver_from_actor
-                    .recv()
-                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
-            );
+            let _ = receiver_from_actor.recv(); // compilation task finished
 
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap_or_else(|e|
-            panic!("Failed to receive message: {}", e)
-            ),{
-            ".params.taskId.id" => RANDOM_TASK_ID,
-            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
-            ".params.eventTime" => TIMESTAMP,
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
+                ".params.taskId.id" => RANDOM_TASK_ID,
+                ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+                ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
             {
@@ -818,12 +803,12 @@ pub mod compile_request_tests {
             }
             "###);
 
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap_or_else(|e|
-            panic!("Failed to receive message: {}", e)
-            ),{
-            ".params.taskId.id" => RANDOM_TASK_ID,
-            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
-            ".params.eventTime" => TIMESTAMP,
+            drop(sender_to_actor);
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
+                ".params.taskId.id" => RANDOM_TASK_ID,
+                ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+                ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
             {
@@ -840,8 +825,8 @@ pub mod compile_request_tests {
             }
             "###);
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
-            ".params.taskId.id" => TEST_ORIGIN_ID,
-            ".params.eventTime" => TIMESTAMP,
+                ".params.taskId.id" => TEST_ORIGIN_ID,
+                ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
             {
@@ -856,7 +841,7 @@ pub mod compile_request_tests {
             }
             "###);
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
-            ".result.originId" => TEST_ORIGIN_ID,
+                ".result.originId" => TEST_ORIGIN_ID,
             }
             ,@r###"
             {
@@ -873,11 +858,10 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stdout() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _) =
+                default_req_actor(MockCargoHandler::new());
 
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                "test_text_line".to_string(),
-            ))));
+            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(TEST_STDOUT.to_string()))));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
             ".params.task.id" => RANDOM_TASK_ID,
@@ -886,7 +870,7 @@ pub mod compile_request_tests {
             {
               "method": "build/logMessage",
               "params": {
-                "message": "test_text_line",
+                "message": "test_stdout",
                 "originId": "test_origin_id",
                 "task": {
                   "id": "random_task_id",
@@ -904,9 +888,10 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stderr() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _) =
+                default_req_actor(MockCargoHandler::new());
 
-            req_actor.handle_event(CargoEvent(CargoStderr("test_stderr".to_string())));
+            req_actor.handle_event(CargoEvent(CargoStderr(TEST_STDERR.to_string())));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
             ".params.task.id" => RANDOM_TASK_ID,
