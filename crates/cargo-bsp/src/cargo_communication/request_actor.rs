@@ -188,6 +188,7 @@ pub trait CargoHandler<T> {
 #[cfg(test)]
 pub mod compile_request_tests {
     use bsp_server::Message;
+    use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
     use crossbeam_channel::unbounded;
     use insta::{assert_json_snapshot, Settings};
 
@@ -232,6 +233,13 @@ pub mod compile_request_tests {
             ),
             receiver_from_actor,
         )
+    }
+
+    fn default_build_finished() -> BuildFinished {
+        BuildFinishedBuilder::default()
+            .success(true)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -369,9 +377,9 @@ pub mod compile_request_tests {
             CompilerMessage as CompilerMessageEnum,
         };
         use cargo_metadata::{
-            Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildFinished,
-            BuildFinishedBuilder, BuildScript, BuildScriptBuilder, CompilerMessage,
-            CompilerMessageBuilder, PackageId, Target, TargetBuilder,
+            Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildScript,
+            BuildScriptBuilder, CompilerMessage, CompilerMessageBuilder, PackageId, Target,
+            TargetBuilder,
         };
 
         use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
@@ -690,13 +698,6 @@ pub mod compile_request_tests {
                 .build()
                 .unwrap()
         }
-
-        fn default_build_finished() -> BuildFinished {
-            BuildFinishedBuilder::default()
-                .success(true)
-                .build()
-                .unwrap()
-        }
     }
 
     mod run_request_tests {
@@ -707,7 +708,6 @@ pub mod compile_request_tests {
         };
         use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
-        use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
         use crossbeam_channel::Sender;
 
         const TEST_STDOUT: &str = "test_stdout";
@@ -745,14 +745,6 @@ pub mod compile_request_tests {
             )
         }
 
-        fn default_build_finished() -> BuildFinished {
-            BuildFinishedBuilder::default()
-                .success(true)
-                .build()
-                .unwrap()
-        }
-
-        #[ignore]
         #[test]
         fn simple_run() {
             #[allow(unused_mut)]
