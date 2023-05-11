@@ -698,219 +698,237 @@ pub mod compile_request_tests {
                 .unwrap()
         }
     }
+
+    mod run_request_tests {
+        use super::*;
+        use crate::bsp_types::requests::{Run, RunParams};
+        use crate::bsp_types::BuildTargetIdentifier;
+        use crate::cargo_communication::cargo_types::event::CargoMessage::{
+            CargoStderr, CargoStdout,
+        };
+        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
+        use bsp_server::Message;
+        use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
+        use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
+        use crossbeam_channel::unbounded;
+
+        fn default_req_actor(
+            cargo_handle: MockCargoHandler<CargoMessage>,
+        ) -> (
+            RequestActor<Run, MockCargoHandler<CargoMessage>>,
+            Receiver<Message>,
+        ) {
+            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
+            let (_cancel_sender, cancel_receiver) = unbounded::<Event>();
+
+            (
+                RequestActor::new(
+                    Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+                    TEST_REQ_ID.to_string().into(),
+                    RunParams {
+                        target: BuildTargetIdentifier {
+                            uri: TEST_TARGET.into(),
+                        },
+                        origin_id: Some(TEST_ORIGIN_ID.into()),
+                        arguments: vec![TEST_ARGUMENTS.into()],
+                        data_kind: None,
+                        data: None,
+                    },
+                    Path::new(TEST_ROOT_PATH),
+                    cargo_handle,
+                    cancel_receiver,
+                ),
+                receiver_from_actor,
+            )
+        }
+
+        fn default_build_finished() -> BuildFinished {
+            BuildFinishedBuilder::default()
+                .success(true)
+                .build()
+                .unwrap()
+        }
+
+        #[ignore]
+        #[test]
+        fn simple_run() {
+            #[allow(unused_mut)]
+            let mut mock_cargo_handle = MockCargoHandler::new();
+            mock_cargo_handle
+                .expect_join()
+                .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
+            let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
+            mock_cargo_handle
+                .expect_receiver()
+                .return_const(receiver_from_cargo);
+
+            let (req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
+
+            let _ = jod_thread::Builder::new()
+                .spawn(move || req_actor.run())
+                .expect("failed to spawn thread")
+                .detach();
+
+            println!(
+                "{:?}",
+                receiver_from_actor
+                    .recv()
+                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
+            );
+            println!(
+                "{:?}",
+                receiver_from_actor
+                    .recv()
+                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
+            );
+
+            // let _ = receiver_from_actor.recv(); // main task started
+            // let _ = receiver_from_actor.recv(); // compilation task started
+
+            sender_to_actor
+                .send(CargoStdout(BuildFinishedEnum(default_build_finished())))
+                .unwrap_or_else(|e| panic!("Failed to send message: {}", e));
+
+            // let _ = receiver_from_actor.recv(); // compilation task finished
+            println!(
+                "{:?}",
+                receiver_from_actor
+                    .recv()
+                    .unwrap_or_else(|e| panic!("Failed to receive message: {}", e))
+            );
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap_or_else(|e|
+            panic!("Failed to receive message: {}", e)
+            ),{
+            ".params.taskId.id" => RANDOM_TASK_ID,
+            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+            ".params.eventTime" => TIMESTAMP,
+            }
+            ,@r###"
+            {
+              "method": "build/taskStart",
+              "params": {
+                "eventTime": "timestamp",
+                "message": "Started target execution",
+                "taskId": {
+                  "id": "random_task_id",
+                  "parents": "[test_origin_id]"
+                }
+              }
+            }
+            "###);
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap_or_else(|e|
+            panic!("Failed to receive message: {}", e)
+            ),{
+            ".params.taskId.id" => RANDOM_TASK_ID,
+            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+            ".params.eventTime" => TIMESTAMP,
+            }
+            ,@r###"
+            {
+              "method": "build/taskFinish",
+              "params": {
+                "eventTime": "timestamp",
+                "message": "Finished target execution",
+                "status": 2,
+                "taskId": {
+                  "id": "random_task_id",
+                  "parents": "[test_origin_id]"
+                }
+              }
+            }
+            "###);
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
+            ".params.taskId.id" => TEST_ORIGIN_ID,
+            ".params.eventTime" => TIMESTAMP,
+            }
+            ,@r###"
+            {
+              "method": "build/taskFinish",
+              "params": {
+                "eventTime": "timestamp",
+                "status": 2,
+                "taskId": {
+                  "id": "test_origin_id"
+                }
+              }
+            }
+            "###);
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
+            ".result.originId" => TEST_ORIGIN_ID,
+            }
+            ,@r###"
+            {
+              "id": "test_req_id",
+              "result": {
+                "originId": "test_origin_id",
+                "statusCode": 2
+              }
+            }
+            "###);
+
+            no_more_msg(receiver_from_actor);
+        }
+
+        #[test]
+        fn simple_stdout() {
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+
+            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+                "test_text_line".to_string(),
+            ))));
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+            ".params.task.id" => RANDOM_TASK_ID,
+            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+            } ,@r###"
+            {
+              "method": "build/logMessage",
+              "params": {
+                "message": "test_text_line",
+                "originId": "test_origin_id",
+                "task": {
+                  "id": "random_task_id",
+                  "parents": [
+                    "test_origin_id"
+                  ]
+                },
+                "type": 4
+              }
+            }
+            "###);
+
+            no_more_msg(receiver_from_actor);
+        }
+
+        #[test]
+        fn simple_stderr() {
+            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+
+            req_actor.handle_event(CargoEvent(CargoStderr("test_stderr".to_string())));
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+            ".params.task.id" => RANDOM_TASK_ID,
+            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+            } ,@r###"
+            {
+              "method": "build/logMessage",
+              "params": {
+                "message": "test_stderr",
+                "originId": "test_origin_id",
+                "task": {
+                  "id": "random_task_id",
+                  "parents": [
+                    "test_origin_id"
+                  ]
+                },
+                "type": 1
+              }
+            }
+            "###);
+
+            no_more_msg(receiver_from_actor);
+        }
+    }
 }
-//
-// #[cfg(test)]
-// pub mod run_request_tests {
-//     use crate::bsp_types::notifications::{
-//         CompileReportData, LogMessage, LogMessageParams, Notification as NotificationTrait,
-//         TaskFinish, TaskFinishParams, TaskId, TaskStart, TaskStartParams,
-//     };
-//     use crate::bsp_types::requests::{Run, RunParams, RunResult};
-//     use crate::bsp_types::BuildTargetIdentifier;
-//     use crate::cargo_communication::cargo_types::event::CargoMessage::{CargoStderr, CargoStdout};
-//     use bsp_server::{Message, Notification, Response};
-//     use cargo_metadata::BuildFinishedBuilder;
-//     use cargo_metadata::Message::{BuildFinished, TextLine};
-//     use crossbeam_channel::{unbounded, Sender};
-//     use std::os::unix::process::ExitStatusExt;
-//
-//     use super::*;
-//
-//     fn init_test(
-//         mut mock_cargo_handle: MockCargoHandleTrait<CargoMessage>,
-//     ) -> (Receiver<Message>, Sender<CargoMessage>, Sender<Event>) {
-//         let (sender_to_main, receiver_to_main) = unbounded::<Message>();
-//         let (sender_from_cargo, receiver_from_cargo) = unbounded::<CargoMessage>();
-//         let (sender_to_cancel, receiver_to_cancel) = unbounded::<Event>();
-//
-//         mock_cargo_handle
-//             .expect_receiver()
-//             .return_const(receiver_from_cargo);
-//
-//         let req_actor: RequestActor<Run, MockCargoHandleTrait<CargoMessage>> = RequestActor::new(
-//             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-//             "test_req_id".to_string().into(),
-//             RunParams {
-//                 target: "test_target".into(),
-//                 origin_id: Some("test_origin_id".into()),
-//                 arguments: vec!["--test_argument".into()],
-//                 data_kind: Some("test_data_kind".into()),
-//                 data: Some("test_data".into()),
-//             },
-//             Path::new("/test_root_path"),
-//         );
-//         let thread = jod_thread::Builder::new()
-//             .spawn(move || req_actor.run(receiver_to_cancel, mock_cargo_handle))
-//             .expect("failed to spawn thread")
-//             .detach();
-//
-//         (receiver_to_main, sender_from_cargo, sender_to_cancel)
-//     }
-//
-//     #[test]
-//     fn simple_run() {
-//         #[allow(unused_mut)]
-//             let mut mock_cargo_handle = MockCargoHandleTrait::new();
-//         mock_cargo_handle
-//             .expect_join()
-//             .returning(|| Ok(ExitStatus::from_raw(0)));
-//         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
-//
-//         let _ = recv_to_main.recv(); // main task started
-//         let _ = recv_to_main.recv(); // compilation task started
-//         send_from_cargo
-//             .send(CargoStdout(BuildFinished(
-//                 BuildFinishedBuilder::default()
-//                     .success(true)
-//                     .build()
-//                     .unwrap(),
-//             )))
-//             .unwrap();
-//         let compile_subtask_finished = Notification::new(
-//             TaskFinish::METHOD.to_string(),
-//             TaskFinishParams {
-//                 task_id: TaskId {
-//                     id: "random_task_id".into(),
-//                     parents: vec!["test_origin_id".into()],
-//                 },
-//                 event_time: Some(1),
-//                 message: None,
-//                 status: StatusCode::Ok,
-//                 data: Some(TaskDataWithKind::CompileReport(CompileReportData {
-//                     // TODO do poprawy
-//                     target: BuildTargetIdentifier { uri: "".into() },
-//                     origin_id: Some("test_origin_id".into()),
-//                     errors: 0,
-//                     warnings: 0,
-//                     time: Some(0),
-//                     no_op: None,
-//                 })),
-//             },
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(compile_subtask_finished)
-//         );
-//         let run_subtask_started = Notification::new(
-//             TaskStart::METHOD.to_string(),
-//             TaskStartParams {
-//                 task_id: TaskId {
-//                     id: "random_task_id".into(),
-//                     parents: vec!["test_origin_id".into()],
-//                 },
-//                 event_time: Some(1),
-//                 message: Some("Started target execution".into()),
-//                 data: None,
-//             },
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(run_subtask_started)
-//         );
-//         drop(send_from_cargo);
-//
-//         let run_subtask_finished = Notification::new(
-//             TaskFinish::METHOD.to_string(),
-//             TaskFinishParams {
-//                 task_id: TaskId {
-//                     id: "random_task_id".into(),
-//                     parents: vec!["test_origin_id".into()],
-//                 },
-//                 event_time: Some(1),
-//                 message: Some("Finished target execution".into()),
-//                 status: StatusCode::Ok,
-//                 data: None,
-//             },
-//         );
-//         let run_task_finished = Notification::new(
-//             TaskFinish::METHOD.to_string(),
-//             TaskFinishParams {
-//                 task_id: TaskId {
-//                     id: "test_origin_id".into(),
-//                     parents: vec![],
-//                 },
-//                 event_time: Some(1),
-//                 message: None,
-//                 status: StatusCode::Ok,
-//                 data: None,
-//             },
-//         );
-//         let proper_resp = Response::new_ok(
-//             "test_req_id".to_string().into(),
-//             RunResult {
-//                 origin_id: Some("test_origin_id".into()),
-//                 status_code: StatusCode::Ok,
-//             },
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(run_subtask_finished)
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(run_task_finished)
-//         );
-//         assert_eq!(recv_to_main.recv().unwrap(), Message::Response(proper_resp));
-//     }
-//
-//     #[test]
-//     fn simple_stdout() {
-//         #[allow(unused_mut)]
-//             let mut mock_cargo_handle = MockCargoHandleTrait::new();
-//         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
-//
-//         let _ = recv_to_main.recv(); // main task started
-//         let _ = recv_to_main.recv(); // compilation task started
-//
-//         let text_line = TextLine("test_text_line".to_string());
-//         send_from_cargo.send(CargoStdout(text_line)).unwrap();
-//
-//         let proper_notif = Notification::new(
-//             LogMessage::METHOD.to_string(),
-//             LogMessageParams {
-//                 message_type: MessageType::Log,
-//                 message: "test_text_line".to_string(),
-//                 origin_id: Some("test_origin_id".into()),
-//                 task: Some(TaskId {
-//                     id: "random_task_id".into(),
-//                     parents: vec!["test_origin_id".into()],
-//                 }),
-//             },
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(proper_notif)
-//         );
-//     }
-//
-//     #[test]
-//     fn simple_stderr() {
-//         #[allow(unused_mut)]
-//             let mut mock_cargo_handle = MockCargoHandleTrait::new();
-//         let (recv_to_main, send_from_cargo, send_to_cancel) = init_test(mock_cargo_handle);
-//
-//         let _ = recv_to_main.recv(); // main task started
-//         let _ = recv_to_main.recv(); // compilation task started
-//
-//         let stderr = CargoStderr("test_stderr".to_string());
-//         send_from_cargo.send(stderr).unwrap();
-//
-//         let proper_notif = Notification::new(
-//             LogMessage::METHOD.to_string(),
-//             LogMessageParams {
-//                 message_type: MessageType::Error,
-//                 message: "test_stderr".to_string(),
-//                 origin_id: Some("test_origin_id".into()),
-//                 task: Some(TaskId {
-//                     id: "random_task_id".into(),
-//                     parents: vec!["test_origin_id".into()],
-//                 }),
-//             },
-//         );
-//         assert_eq!(
-//             recv_to_main.recv().unwrap(),
-//             Message::Notification(proper_notif)
-//         );
-//     }
-// }
