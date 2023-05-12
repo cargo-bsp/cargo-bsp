@@ -23,10 +23,10 @@
 //! **Alternative next steps:** Analyze how cargo discovers tests and compile only
 //! to the moment when unit tests can be obtained.
 
-use crate::bsp_types::mappings::build_target::{
+use crate::bsp_types::BuildTarget;
+use crate::project_model::build_target_mappings::{
     build_target_id_from_name_and_path, path_parent_directory_uri,
 };
-use crate::bsp_types::BuildTarget;
 use cargo_metadata::camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};

@@ -1,80 +1,119 @@
-use crate::bsp_types::mappings::build_target::new_bsp_build_target;
-use crate::bsp_types::BuildTarget;
-use crate::project_model::package_dependencies::{PackageDependency, PackageWithDependenciesIds};
-use cargo_metadata::{CargoOpt, Error, MetadataCommand, Package};
+use crate::bsp_types::{BuildTarget, BuildTargetIdentifier};
+use crate::project_model::cargo_package::CargoPackage;
+use cargo_metadata::{CargoOpt, Error, MetadataCommand};
+use std::collections::HashMap;
+
+use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
+use crate::project_model::target_details::TargetDetails;
+use log::error;
 use std::path::PathBuf;
+use std::rc::Rc;
+
+pub type TargetIdToPackageName = HashMap<BuildTargetIdentifier, String>;
+pub type TargetIdToTargetData = HashMap<BuildTargetIdentifier, Rc<cargo_metadata::Target>>;
 
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {
-    /// cargo_metadata targets from all packages in the workspace
-    pub _cargo_targets: Vec<cargo_metadata::Target>,
-    /// BSP build targets from all packages in the workspace
-    pub build_targets: Vec<BuildTarget>,
+    /// List of all packages in a workspace
+    pub packages: Vec<CargoPackage>,
+
+    /// Map creating an easy access from BuildTargetIdentifier of a target to package name
+    pub target_id_to_package_name: TargetIdToPackageName,
+
+    /// Map creating an easy access from BuildTargetIdentifier of a target to its details
+    pub target_id_to_target_data: TargetIdToTargetData,
 }
 
 impl ProjectWorkspace {
-    /// Retrieves build targets from *'cargo metadata'*, maps them to BSP build
-    /// targets and stores in new instance of ProjectWorkspace.
+    /// Creates new ProjectWorkspace instance by extracting from *'cargo metadata'* workspace packages and its:
+    /// * dependencies
+    /// * targets
+    /// * features
     ///
-    /// Skips unit_tests discovery, see:
-    /// [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
+    /// Skips unit_tests discovery, see: [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
+        // Cargo metadata is called with `--all-features`, so we can get all features because
+        // we want the output to contain all the packages - even those feature-dependent
         let metadata = MetadataCommand::new()
             .manifest_path(project_manifest_path)
-            .features(CargoOpt::AllFeatures) // TODO: in future can be a way to discover dependencies with features
+            .features(CargoOpt::AllFeatures)
             .exec()?;
 
-        let workspace_packages = metadata.workspace_packages();
-        let cargo_targets = ProjectWorkspace::cargo_targets(&workspace_packages);
-
-        let packages_with_dependencies: Vec<PackageWithDependenciesIds> = workspace_packages
-            .iter()
-            .map(|&package| {
-                PackageWithDependenciesIds(
-                    package,
-                    package
-                        .dependencies
-                        .iter()
-                        .filter_map(|dep| {
-                            PackageDependency::new(dep, &metadata.packages)?
-                                .create_id_from_dependency()
-                        })
-                        .collect(),
-                )
-            })
+        let bsp_packages: Vec<CargoPackage> = metadata
+            .workspace_packages()
+            .into_iter()
+            .map(|p| CargoPackage::new(p, &metadata.packages))
             .collect();
 
-        let targets =
-            ProjectWorkspace::bsp_targets_from_metadata_packages(packages_with_dependencies);
+        let (target_id_to_package_name, target_id_to_target_data) =
+            ProjectWorkspace::create_hashmaps(&bsp_packages);
 
         Ok(ProjectWorkspace {
-            _cargo_targets: cargo_targets,
-            build_targets: targets,
+            packages: bsp_packages,
+            target_id_to_package_name,
+            target_id_to_target_data,
         })
     }
 
-    /// Return targets from all packages
-    fn cargo_targets(packages: &[&Package]) -> Vec<cargo_metadata::Target> {
-        packages
+    fn create_hashmaps(
+        bsp_packages: &[CargoPackage],
+    ) -> (TargetIdToPackageName, TargetIdToTargetData) {
+        bsp_packages
             .iter()
-            .flat_map(|package| package.targets.iter())
-            .cloned()
-            .collect()
-    }
-
-    /// Create BSP build targets from cargo targets from all packages in the workspace
-    fn bsp_targets_from_metadata_packages(
-        packages_with_deps: Vec<PackageWithDependenciesIds>,
-    ) -> Vec<BuildTarget> {
-        packages_with_deps
-            .into_iter()
-            .flat_map(|PackageWithDependenciesIds(p, d)| {
-                p.targets.iter().map(move |t| new_bsp_build_target(t, &d))
+            .flat_map(|p| {
+                p.targets.iter().map(|tr| {
+                    let target_id = build_target_id_from_name_and_path(&tr.name, &tr.src_path);
+                    (
+                        // BuildTargetIdentifier to package name map (key, value)
+                        (target_id.clone(), p.name.clone()),
+                        // BuildTargetIdentifier to target_details map (key, value)
+                        (target_id, Rc::clone(tr)),
+                    )
+                })
             })
+            .unzip()
+    }
+
+    fn get_package_related_to_target(
+        &self,
+        target_id: &BuildTargetIdentifier,
+    ) -> Option<&CargoPackage> {
+        let package_name = self.target_id_to_package_name.get(target_id).or_else(|| {
+            error!("Package not found for target: {:?}", target_id);
+            None
+        })?;
+
+        self.packages
+            .iter()
+            .find(|p| p.name == *package_name)
+            .or_else(|| {
+                error!("Package not found for target: {:?}", target_id);
+                None
+            })
+    }
+
+    fn get_target_data(
+        &self,
+        target_id: &BuildTargetIdentifier,
+    ) -> Option<&Rc<cargo_metadata::Target>> {
+        self.target_id_to_target_data.get(target_id).or_else(|| {
+            error!("Target details not found for id: {:?}", target_id);
+            None
+        })
+    }
+
+    /// Returns a list of all BSP build targets in a workspace
+    pub fn get_bsp_build_targets(&self) -> Vec<BuildTarget> {
+        self.packages
+            .iter()
+            .flat_map(|p| p.get_bsp_build_targets())
             .collect()
     }
 
-    pub fn get_build_targets(&self) -> Vec<BuildTarget> {
-        self.build_targets.clone()
+    /// Returns target details for a given build target identifier
+    pub fn _get_target_details(&self, id: &BuildTargetIdentifier) -> Option<TargetDetails> {
+        let package = self.get_package_related_to_target(id)?;
+        let target_data = self.get_target_data(id)?;
+        TargetDetails::new(package, target_data)
     }
 }

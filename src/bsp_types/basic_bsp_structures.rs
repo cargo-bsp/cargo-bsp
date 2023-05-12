@@ -74,10 +74,16 @@ pub struct RustBuildTarget {
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
 within the workspace. Clients should not infer metadata out of the URI structure such as the path
 or query parameters, use BuildTarget instead.*/
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone, Hash)]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
     pub uri: Uri,
+}
+
+impl From<&str> for BuildTargetIdentifier {
+    fn from(uri: &str) -> Self {
+        BuildTargetIdentifier { uri: uri.into() }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]

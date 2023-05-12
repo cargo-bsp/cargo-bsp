@@ -1,5 +1,8 @@
-use crate::bsp_types::basic_bsp_structures::*;
 use crate::bsp_types::mappings::file_uri;
+use crate::bsp_types::{
+    BuildTarget, BuildTargetCapabilities, BuildTargetIdentifier, BuildTargetTag, RustBuildTarget,
+    RustBuildTargetData, Uri, RUST_ID,
+};
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
 use std::fmt::Display;
@@ -13,11 +16,15 @@ pub fn build_target_id_from_name_and_path<T: Display, R: Display>(
     }
 }
 
-/// Assumes calling only with valid path which additionally has a parent
-pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+/// We assume that this function is called only with valid path which has a parent
+pub fn parent_path(path: &Utf8PathBuf) -> Utf8PathBuf {
     let mut parent_directory = path.clone();
     parent_directory.pop();
-    file_uri(parent_directory)
+    parent_directory
+}
+
+pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+    file_uri(parent_path(path))
 }
 
 fn tags_and_capabilities_from_cargo_kind(
@@ -49,7 +56,7 @@ fn tags_and_capabilities_from_cargo_kind(
                 capabilities.can_test = false;
             }
             "test" => {
-                tags.push(BuildTargetTag::Test);
+                tags.push(BuildTargetTag::IntegrationTest);
                 capabilities.can_run = false;
             }
             "bench" => {
@@ -66,7 +73,7 @@ fn tags_and_capabilities_from_cargo_kind(
     (tags, capabilities)
 }
 
-pub fn new_bsp_build_target(
+pub fn bsp_build_target_from_cargo_target(
     cargo_target: &cargo_metadata::Target,
     target_dependencies: &[BuildTargetIdentifier],
 ) -> BuildTarget {
