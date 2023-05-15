@@ -12,10 +12,9 @@ use crossbeam_channel::{never, select, Receiver};
 use log::warn;
 use mockall::*;
 
-use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
-use bsp_types::requests::Request;
-use bsp_types::StatusCode;
-
+use crate::bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
+use crate::bsp_types::requests::Request;
+use crate::bsp_types::StatusCode;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
@@ -187,17 +186,14 @@ pub trait CargoHandler<T> {
 
 #[cfg(test)]
 pub mod compile_request_tests {
+    use super::*;
+    use crate::bsp_types::requests::{Compile, CompileParams};
+    use crate::bsp_types::BuildTargetIdentifier;
+    use crate::test_utils::no_more_msg;
     use bsp_server::Message;
     use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
-    use crossbeam_channel::unbounded;
+    use crossbeam_channel::{unbounded, Sender};
     use insta::{assert_json_snapshot, Settings};
-
-    use bsp_types::requests::{Compile, CompileParams};
-    use bsp_types::BuildTargetIdentifier;
-
-    use crate::utils::tests::no_more_msg;
-
-    use super::*;
 
     const TEST_ORIGIN_ID: &str = "test_origin_id";
     const TEST_TARGET: &str = "test_target";
@@ -207,32 +203,44 @@ pub mod compile_request_tests {
     const TEST_ARGUMENTS: &str = "test_arguments";
     const TEST_ROOT_PATH: &str = "/test_root_path";
 
-    fn default_req_actor(
+    fn default_req_actor<R>(
         cargo_handle: MockCargoHandler<CargoMessage>,
+        params: R::Params,
     ) -> (
-        RequestActor<Compile, MockCargoHandler<CargoMessage>>,
+        RequestActor<R, MockCargoHandler<CargoMessage>>,
         Receiver<Message>,
-    ) {
+        Sender<Event>,
+    )
+    where
+        R: Request,
+        R::Params: CreateCommand,
+        R::Result: CargoResult,
+    {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-        let (_cancel_sender, cancel_receiver) = unbounded::<Event>();
-
+        // Cancel sender needs to be referenced to avoid closing the channel
+        let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         (
             RequestActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
                 TEST_REQ_ID.to_string().into(),
-                CompileParams {
-                    targets: vec![BuildTargetIdentifier {
-                        uri: TEST_TARGET.into(),
-                    }],
-                    origin_id: Some(TEST_ORIGIN_ID.into()),
-                    arguments: vec![TEST_ARGUMENTS.into()],
-                },
+                params,
                 Path::new(TEST_ROOT_PATH),
                 cargo_handle,
                 cancel_receiver,
             ),
             receiver_from_actor,
+            cancel_sender,
         )
+    }
+
+    fn default_compile_params() -> CompileParams {
+        CompileParams {
+            targets: vec![BuildTargetIdentifier {
+                uri: TEST_TARGET.into(),
+            }],
+            origin_id: Some(TEST_ORIGIN_ID.into()),
+            arguments: vec![TEST_ARGUMENTS.into()],
+        }
     }
 
     fn default_build_finished() -> BuildFinished {
@@ -255,12 +263,13 @@ pub mod compile_request_tests {
         mock_cargo_handle
             .expect_receiver()
             .return_const(receiver_from_cargo);
-        let (req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
+        let (req_actor, receiver_from_actor, _cancel_sender) =
+            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
 
-        // The channel is closed so the actor finishes its execution.
-        drop(sender_to_actor);
-
-        req_actor.run();
+        let _ = jod_thread::Builder::new()
+            .spawn(move || req_actor.run())
+            .expect("failed to spawn thread")
+            .detach();
 
         let mut settings = Settings::clone_current();
         settings.add_redaction(".params.eventTime", TIMESTAMP);
@@ -277,6 +286,9 @@ pub mod compile_request_tests {
             }
             "###);
         });
+
+        // The channel is closed so the actor finishes its execution.
+        drop(sender_to_actor);
 
         settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
         settings.bind(|| {
@@ -330,7 +342,8 @@ pub mod compile_request_tests {
         let mut mock_cargo_handle = MockCargoHandler::new();
         mock_cargo_handle.expect_cancel().return_const(());
 
-        let (mut req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
+        let (mut req_actor, receiver_from_actor, _cancel_sender) =
+            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
 
         req_actor.cancel();
 
@@ -360,7 +373,8 @@ pub mod compile_request_tests {
         let mut mock_cargo_handle = MockCargoHandler::new();
         mock_cargo_handle.expect_cancel().return_const(());
 
-        let (mut req_actor, receiver_from_actor) = default_req_actor(mock_cargo_handle);
+        let (mut req_actor, receiver_from_actor, _cancel_sender) =
+            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
 
         req_actor.cancel();
         req_actor.cancel();
@@ -370,7 +384,10 @@ pub mod compile_request_tests {
         no_more_msg(receiver_from_actor);
     }
 
-    mod cargo_messages_tests {
+    mod cargo_compile_messages_tests {
+        use super::*;
+        use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
+        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
         use cargo_metadata::Message::{
             BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
@@ -381,11 +398,6 @@ pub mod compile_request_tests {
             BuildScriptBuilder, CompilerMessage, CompilerMessageBuilder, PackageId, Target,
             TargetBuilder,
         };
-
-        use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
-        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
-
-        use super::*;
 
         const TEST_KIND: &str = "test_kind";
         const TEST_MESSAGE: &str = "test_message";
@@ -405,7 +417,8 @@ pub mod compile_request_tests {
 
         #[test]
         fn compiler_artifact() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
                 default_compiler_artifact(),
@@ -437,7 +450,8 @@ pub mod compile_request_tests {
 
         #[test]
         fn build_script_out() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
                 default_build_script(),
@@ -467,7 +481,8 @@ pub mod compile_request_tests {
 
         #[test]
         fn compiler_message() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
                 default_compiler_message(DiagnosticLevel::Error),
@@ -514,7 +529,8 @@ pub mod compile_request_tests {
 
         #[test]
         fn build_finished_simple() {
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
                 default_build_finished(),
@@ -557,7 +573,8 @@ pub mod compile_request_tests {
         fn build_finished_with_complex_compile_report() {
             // Checks if server counts warnings and error and produces a correct compile report.
 
-            let (mut req_actor, receiver_from_actor) = default_req_actor(MockCargoHandler::new());
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
                 default_compiler_message(DiagnosticLevel::Error),
@@ -708,45 +725,24 @@ pub mod compile_request_tests {
         };
         use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
-        use crossbeam_channel::Sender;
 
         const TEST_STDOUT: &str = "test_stdout";
         const TEST_STDERR: &str = "test_stderr";
 
-        fn default_req_actor(
-            cargo_handle: MockCargoHandler<CargoMessage>,
-        ) -> (
-            RequestActor<Run, MockCargoHandler<CargoMessage>>,
-            Receiver<Message>,
-            Sender<Event>,
-        ) {
-            let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            // Cancel sender needs to be referenced to avoid closing the channel
-            let (cancel_sender, cancel_receiver) = unbounded::<Event>();
-            (
-                RequestActor::new(
-                    Box::new(move |msg| sender_to_main.send(msg).unwrap()),
-                    TEST_REQ_ID.to_string().into(),
-                    RunParams {
-                        target: BuildTargetIdentifier {
-                            uri: TEST_TARGET.into(),
-                        },
-                        origin_id: Some(TEST_ORIGIN_ID.into()),
-                        arguments: vec![TEST_ARGUMENTS.into()],
-                        data_kind: None,
-                        data: None,
-                    },
-                    Path::new(TEST_ROOT_PATH),
-                    cargo_handle,
-                    cancel_receiver,
-                ),
-                receiver_from_actor,
-                cancel_sender,
-            )
+        fn default_run_params() -> RunParams {
+            RunParams {
+                target: BuildTargetIdentifier {
+                    uri: TEST_TARGET.into(),
+                },
+                origin_id: Some(TEST_ORIGIN_ID.into()),
+                arguments: vec![TEST_ARGUMENTS.into()],
+                data_kind: None,
+                data: None,
+            }
         }
 
         #[test]
-        fn simple_run() {
+        fn run_lifetime() {
             let mut mock_cargo_handle = MockCargoHandler::new();
             mock_cargo_handle
                 .expect_join()
@@ -757,7 +753,7 @@ pub mod compile_request_tests {
                 .return_const(receiver_from_cargo);
 
             let (req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor(mock_cargo_handle);
+                default_req_actor::<Run>(mock_cargo_handle, default_run_params());
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
@@ -847,7 +843,7 @@ pub mod compile_request_tests {
         #[test]
         fn simple_stdout() {
             let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor(MockCargoHandler::new());
+                default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(TextLine(TEST_STDOUT.to_string()))));
 
@@ -876,7 +872,7 @@ pub mod compile_request_tests {
         #[test]
         fn simple_stderr() {
             let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor(MockCargoHandler::new());
+                default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
             req_actor.handle_event(CargoEvent(CargoStderr(TEST_STDERR.to_string())));
 
