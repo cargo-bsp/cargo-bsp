@@ -721,8 +721,8 @@ pub mod compile_request_tests {
             Sender<Event>,
         ) {
             let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
-            let (_cancel_sender, cancel_receiver) = unbounded::<Event>();
-
+            // Cancel sender needs to be referenced to avoid closing the channel
+            let (cancel_sender, cancel_receiver) = unbounded::<Event>();
             (
                 RequestActor::new(
                     Box::new(move |msg| sender_to_main.send(msg).unwrap()),
@@ -741,13 +741,12 @@ pub mod compile_request_tests {
                     cancel_receiver,
                 ),
                 receiver_from_actor,
-                _cancel_sender,
+                cancel_sender,
             )
         }
 
         #[test]
         fn simple_run() {
-            #[allow(unused_mut)]
             let mut mock_cargo_handle = MockCargoHandler::new();
             mock_cargo_handle
                 .expect_join()
@@ -776,7 +775,6 @@ pub mod compile_request_tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
                 ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
@@ -787,7 +785,9 @@ pub mod compile_request_tests {
                 "message": "Started target execution",
                 "taskId": {
                   "id": "random_task_id",
-                  "parents": "[test_origin_id]"
+                  "parents": [
+                    "test_origin_id"
+                  ]
                 }
               }
             }
@@ -797,7 +797,6 @@ pub mod compile_request_tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
                 ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
@@ -809,13 +808,14 @@ pub mod compile_request_tests {
                 "status": 2,
                 "taskId": {
                   "id": "random_task_id",
-                  "parents": "[test_origin_id]"
+                  "parents": [
+                    "test_origin_id"
+                  ]
                 }
               }
             }
             "###);
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
-                ".params.taskId.id" => TEST_ORIGIN_ID,
                 ".params.eventTime" => TIMESTAMP,
             }
             ,@r###"
@@ -830,9 +830,7 @@ pub mod compile_request_tests {
               }
             }
             "###);
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
-                ".result.originId" => TEST_ORIGIN_ID,
-            }
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap()
             ,@r###"
             {
               "id": "test_req_id",
@@ -848,14 +846,13 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stdout() {
-            let (mut req_actor, receiver_from_actor, _) =
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
                 default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStdout(TextLine(TEST_STDOUT.to_string()))));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-            ".params.task.id" => RANDOM_TASK_ID,
-            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+                ".params.task.id" => RANDOM_TASK_ID,
             } ,@r###"
             {
               "method": "build/logMessage",
@@ -878,14 +875,13 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stderr() {
-            let (mut req_actor, receiver_from_actor, _) =
+            let (mut req_actor, receiver_from_actor, _cancel_sender) =
                 default_req_actor(MockCargoHandler::new());
 
             req_actor.handle_event(CargoEvent(CargoStderr(TEST_STDERR.to_string())));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-            ".params.task.id" => RANDOM_TASK_ID,
-            ".params.taskId.parents" => format!("[{TEST_ORIGIN_ID}]"),
+                ".params.task.id" => RANDOM_TASK_ID,
             } ,@r###"
             {
               "method": "build/logMessage",
