@@ -12,13 +12,13 @@ fn debug_log_file_path() -> PathBuf {
     let debug_dir = exe_path.parent().unwrap();
     let target_dir = debug_dir.parent().unwrap();
     let project_dir = target_dir.parent().unwrap();
-    project_dir.join("cargo-bsp.log")
+    project_dir.join("server.log")
 }
 
 fn log_file_path() -> PathBuf {
     let logs_dir = env::current_dir().unwrap().join(".cargobsp");
     if !logs_dir.exists() {
-        create_dir(logs_dir.clone()).unwrap();
+        let _ = create_dir(logs_dir.clone()); // no unwrap, it messes up integration test
     }
     logs_dir.join("server.log")
 }
