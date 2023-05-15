@@ -12,14 +12,14 @@ use crossbeam_channel::{never, select, Receiver};
 use log::warn;
 use mockall::*;
 
-use crate::bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
-use crate::bsp_types::requests::Request;
-use crate::bsp_types::StatusCode;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
 use crate::cargo_communication::utils::get_current_time;
+use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
+use bsp_types::requests::Request;
+use bsp_types::StatusCode;
 
 pub struct RequestActor<R, C>
 where
@@ -187,10 +187,10 @@ pub trait CargoHandler<T> {
 #[cfg(test)]
 pub mod compile_request_tests {
     use super::*;
-    use crate::bsp_types::requests::{Compile, CompileParams};
-    use crate::bsp_types::BuildTargetIdentifier;
-    use crate::test_utils::no_more_msg;
+    use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
+    use bsp_types::requests::{Compile, CompileParams};
+    use bsp_types::BuildTargetIdentifier;
     use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
     use crossbeam_channel::{unbounded, Sender};
     use insta::{assert_json_snapshot, Settings};
@@ -719,11 +719,11 @@ pub mod compile_request_tests {
 
     mod run_request_tests {
         use super::*;
-        use crate::bsp_types::requests::{Run, RunParams};
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
         use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
+        use bsp_types::requests::{Run, RunParams};
         use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
 
         const TEST_STDOUT: &str = "test_stdout";
