@@ -21,7 +21,11 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
-      - run: cargo build --all-features
+      - name: Compile
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-features
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
