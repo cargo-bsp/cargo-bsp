@@ -1,3 +1,6 @@
+//! This file was added to connect with the Bazel BSP Client,
+//! which for the time of the development of this project didn't handle Rust
+
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
