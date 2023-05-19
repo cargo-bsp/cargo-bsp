@@ -20,9 +20,9 @@ pub struct RustWorkspaceParams {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
-    pub packages: Vec<RustPackage>,
-    pub raw_dependencies: Vec<RustRawDependency>,
-    pub dependencies: Vec<RustDependency>,
+    pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
+    pub raw_dependencies: Vec<RustRawDependency>, //suma dependencji pakietów targetów
+    pub dependencies: Vec<RustDependency>, //zmapowane RustRawDependency na RustDependency
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -85,8 +85,9 @@ pub struct RustCfgOptions {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustProcMacroArtifact {
-    pub path: String,
-    pub hash: String,
+    pub path: String, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
+    // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
+    pub hash: String, // ignore
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -104,14 +105,14 @@ pub struct RustPackage {
     pub targets: Vec<RustTarget>,
     pub all_targets: Vec<RustTarget>,
     pub features: Vec<RustFeature>,
-    pub enabled_features: Vec<String>,
+    pub enabled_features: Vec<String>, //?
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cfg_options: Option<RustCfgOptions>,
-    pub env: Vec<RustEnvData>,
+    pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
+    pub env: Vec<RustEnvData>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub out_dir_url: Option<String>,
+    pub out_dir_url: Option<String>, // tutaj Null, bo nie mamy pojęcia co to
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proc_macro_artifact: Option<RustProcMacroArtifact>,
+    pub proc_macro_artifact: Option<RustProcMacroArtifact>, //?
 }
 
 #[derive(Serialize, Deserialize, Default)]
