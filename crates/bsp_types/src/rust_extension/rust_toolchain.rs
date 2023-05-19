@@ -14,13 +14,13 @@ impl Request for RustToolchainReq {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainParams {
-    pub targets: Vec<BuildTargetIdentifier>,
+    pub targets: Vec<BuildTargetIdentifier>, // targety mogą mieć toolchainy różnego strumienia - stable - nigghtly itp
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    pub toolchains: Vec<RustToolchain>,
+    pub toolchains: Vec<RustToolchain>, // toolchain  dostępny systemowo, z którego korzysta cargo
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -28,16 +28,17 @@ pub struct RustToolchainResult {
 pub struct RustToolchain {
     pub rustc: RustcInfo,
     pub cargo_bin_path: String,
-    pub proc_macro_srv_path: String,
+    pub proc_macro_srv_path: String, // scieżka do binraki rozwijającej makra proceduralne
 }
+///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
     pub sysroot: String,
-    pub src_sysroot: String,
+    pub src_sysroot: String, ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
     pub version: String,
-    pub host: String,
+    pub host: String, //example: x86_64-unknown-linux-gnu rustc --version --verbose
 }
 
 #[cfg(test)]
@@ -163,3 +164,9 @@ mod test {
         "###);
     }
 }
+
+
+// Q: Czy zakładamy, że jak nie ma not null, to jest optional?
+// Q: all_targets w package?
+// Q: RustcInfo: src_sysroot, host?
+// Q: ProcMacroSrvPath, błąd? Co to? i czy jest target specific? (Vec[buildTargetIdentifier])
