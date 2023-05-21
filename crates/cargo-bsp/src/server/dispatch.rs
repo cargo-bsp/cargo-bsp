@@ -77,13 +77,21 @@ impl<'a> RequestDispatcher<'a> {
             None => return self,
         };
         let sender_to_main = self.global_state.handlers_sender.clone();
-        let request_handle = RequestHandle::spawn::<R>(
+        match RequestHandle::spawn::<R>(
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
             req.id.clone(),
             params,
             self.global_state.config.root_path(),
-        );
-        self.global_state.handlers.insert(req.id, request_handle);
+        ) {
+            Ok(request_handle) => {
+                self.global_state.handlers.insert(req.id, request_handle);
+            }
+            Err(e) => {
+                let response =
+                    Response::new_err(req.id, ErrorCode::InternalError as i32, e.to_string());
+                self.global_state.respond(response);
+            }
+        }
 
         self
     }

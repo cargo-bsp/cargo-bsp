@@ -60,7 +60,9 @@ impl CargoActor {
                     Ok(message) => {
                         self.sender
                             .send(CargoMessage::CargoStdout(message))
-                            .expect("TODO: panic message");
+                            .unwrap_or_else(|e| {
+                                warn!("Could not send a message from cargo: {}", e.to_string());
+                            });
                     }
                     Err(e) => {
                         warn!("Could not parse a message from cargo: {}", e.to_string());
@@ -70,7 +72,9 @@ impl CargoActor {
             &mut |line| {
                 self.sender
                     .send(CargoMessage::CargoStderr(line.to_string()))
-                    .expect("TODO: panic message");
+                    .unwrap_or_else(|e| {
+                        warn!("Could not send a message from cargo: {}", e.to_string());
+                    });
             },
         );
         match output {
