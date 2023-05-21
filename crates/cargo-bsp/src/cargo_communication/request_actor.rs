@@ -1246,8 +1246,6 @@ pub mod tests {
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                     ".params.eventTime" => TIMESTAMP,
                     ".params.data.status" => dynamic_redaction(move |value, _path| {
-                        println!("=======================================");
-                        println!("value: {:?}", value);
                         assert_eq!(value.as_u64().unwrap(), expected_status as u64);
                         "CORRECT_STATUS"
                     }),
@@ -1276,10 +1274,7 @@ pub mod tests {
             #[test]
             fn test_finished_ok() {
                 test_finish_status(
-                    &TestType::Test(TestEvent::Ok(TestResultEnum {
-                        name: TEST_NAME.to_string(),
-                        stdout: None,
-                    })),
+                    &TestType::Test(TestEvent::Ok(default_test_result_enum())),
                     TestStatus::Passed,
                 );
             }
@@ -1287,10 +1282,7 @@ pub mod tests {
             #[test]
             fn test_finish_failed() {
                 test_finish_status(
-                    &TestType::Test(TestEvent::Failed(TestResultEnum {
-                        name: TEST_NAME.to_string(),
-                        stdout: None,
-                    })),
+                    &TestType::Test(TestEvent::Failed(default_test_result_enum())),
                     TestStatus::Failed,
                 );
             }
@@ -1298,10 +1290,7 @@ pub mod tests {
             #[test]
             fn test_finish_ignored() {
                 test_finish_status(
-                    &TestType::Test(TestEvent::Ignored(TestResultEnum {
-                        name: TEST_NAME.to_string(),
-                        stdout: None,
-                    })),
+                    &TestType::Test(TestEvent::Ignored(default_test_result_enum())),
                     TestStatus::Ignored,
                 );
             }
@@ -1309,12 +1298,16 @@ pub mod tests {
             #[test]
             fn test_finish_timeout() {
                 test_finish_status(
-                    &TestType::Test(TestEvent::Timeout(TestResultEnum {
-                        name: TEST_NAME.to_string(),
-                        stdout: None,
-                    })),
+                    &TestType::Test(TestEvent::Timeout(default_test_result_enum())),
                     TestStatus::Failed,
                 );
+            }
+
+            fn default_test_result_enum() -> TestResultEnum {
+                TestResultEnum {
+                    name: TEST_NAME.to_string(),
+                    stdout: None,
+                }
             }
         }
     }
