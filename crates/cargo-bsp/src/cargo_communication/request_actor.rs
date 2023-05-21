@@ -382,7 +382,6 @@ pub mod tests {
               }
             }
             "###);
-
             no_more_msg(receiver_from_actor);
         }
 
@@ -472,7 +471,6 @@ pub mod tests {
                 }
                 "###
                 );
-
                 no_more_msg(receiver_from_actor);
             }
 
@@ -507,7 +505,6 @@ pub mod tests {
                   }
                 }
                 "###);
-
                 no_more_msg(receiver_from_actor);
             }
 
@@ -558,7 +555,6 @@ pub mod tests {
                   }
                 }
                 "###);
-
                 no_more_msg(receiver_from_actor);
             }
 
@@ -882,7 +878,6 @@ pub mod tests {
               }
             }
             "###);
-
             no_more_msg(receiver_from_actor);
         }
 
@@ -915,7 +910,6 @@ pub mod tests {
               }
             }
             "###);
-
             no_more_msg(receiver_from_actor);
         }
 
@@ -948,7 +942,6 @@ pub mod tests {
               }
             }
             "###);
-
             no_more_msg(receiver_from_actor);
         }
     }
@@ -1226,7 +1219,7 @@ pub mod tests {
         mod test_finish_status {
             use super::*;
 
-            fn test_finished_with_status(passed_status: &TestType) -> Receiver<Message> {
+            fn init_test_with_status(passed_status: &TestType) -> Receiver<Message> {
                 let TestEndpoints {
                     mut req_actor,
                     receiver_from_actor,
@@ -1251,7 +1244,7 @@ pub mod tests {
             #[test]
             fn test_finished_ok() {
                 let receiver_from_actor =
-                    test_finished_with_status(&TestType::Test(TestEvent::Ok(TestResultEnum {
+                    init_test_with_status(&TestType::Test(TestEvent::Ok(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
                     })));
@@ -1285,7 +1278,7 @@ pub mod tests {
             #[test]
             fn test_finished_failed() {
                 let receiver_from_actor =
-                    test_finished_with_status(&TestType::Test(TestEvent::Failed(TestResultEnum {
+                    init_test_with_status(&TestType::Test(TestEvent::Failed(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
                     })));
@@ -1318,12 +1311,11 @@ pub mod tests {
 
             #[test]
             fn test_finished_ignored() {
-                let receiver_from_actor = test_finished_with_status(&TestType::Test(
-                    TestEvent::Ignored(TestResultEnum {
+                let receiver_from_actor =
+                    init_test_with_status(&TestType::Test(TestEvent::Ignored(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    }),
-                ));
+                    })));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1353,12 +1345,11 @@ pub mod tests {
 
             #[test]
             fn test_finished_timeout() {
-                let receiver_from_actor = test_finished_with_status(&TestType::Test(
-                    TestEvent::Timeout(TestResultEnum {
+                let receiver_from_actor =
+                    init_test_with_status(&TestType::Test(TestEvent::Timeout(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    }),
-                ));
+                    })));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.id" => RANDOM_TASK_ID,
