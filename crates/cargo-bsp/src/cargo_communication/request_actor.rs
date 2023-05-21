@@ -947,7 +947,7 @@ pub mod tests {
     }
 
     #[cfg(test)]
-    pub mod test_request_tests {
+    mod test_request_tests {
         use super::*;
         use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use crate::cargo_communication::cargo_types::test::TestEvent::Started;
@@ -1218,8 +1218,10 @@ pub mod tests {
 
         mod test_finish_status {
             use super::*;
+            use bsp_types::notifications::TestStatus;
+            use insta::{allow_duplicates, dynamic_redaction};
 
-            fn init_test_with_status(passed_status: &TestType) -> Receiver<Message> {
+            fn test_dynamic_redactions(passed_status: &TestType, expected_status: TestStatus) {
                 let TestEndpoints {
                     mut req_actor,
                     receiver_from_actor,
@@ -1238,143 +1240,81 @@ pub mod tests {
                 req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
                     to_string(passed_status).unwrap(),
                 ))));
-                receiver_from_actor
+
+                allow_duplicates!(assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.data.status" => dynamic_redaction(move |value, _path| {
+                        println!("=======================================");
+                        println!("value: {:?}", value);
+                        assert_eq!(value.as_u64().unwrap(), expected_status as u64);
+                        "CORRECT_STATUS"
+                    }),
+                } ,@r###"
+                  {
+                    "method": "build/taskFinish",
+                    "params": {
+                      "data": {
+                        "displayName": "test_name",
+                        "status": "CORRECT_STATUS"
+                      },
+                      "dataKind": "test-finish",
+                      "eventTime": "timestamp",
+                      "status": 1,
+                      "taskId": {
+                        "id": "random_task_id",
+                        "parents": "[random_task_id]"
+                      }
+                    }
+                  }
+                  "###));
+                let _ = receiver_from_actor.recv().unwrap(); // test progress message
+                no_more_msg(receiver_from_actor);
             }
 
             #[test]
             fn test_finished_ok() {
-                let receiver_from_actor =
-                    init_test_with_status(&TestType::Test(TestEvent::Ok(TestResultEnum {
+                test_dynamic_redactions(
+                    &TestType::Test(TestEvent::Ok(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    })));
-
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                    ".params.taskId.id" => RANDOM_TASK_ID,
-                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                    ".params.eventTime" => TIMESTAMP,
-                } ,@r###"
-                {
-                  "method": "build/taskFinish",
-                  "params": {
-                    "data": {
-                      "displayName": "test_name",
-                      "status": 1
-                    },
-                    "dataKind": "test-finish",
-                    "eventTime": "timestamp",
-                    "status": 1,
-                    "taskId": {
-                      "id": "random_task_id",
-                      "parents": "[random_task_id]"
-                    }
-                  }
-                }
-                "###);
-                let _ = receiver_from_actor.recv().unwrap(); // test progress message
-                no_more_msg(receiver_from_actor);
+                    })),
+                    TestStatus::Passed,
+                );
             }
 
             #[test]
-            fn test_finished_failed() {
-                let receiver_from_actor =
-                    init_test_with_status(&TestType::Test(TestEvent::Failed(TestResultEnum {
+            fn test_finish_failed() {
+                test_dynamic_redactions(
+                    &TestType::Test(TestEvent::Failed(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    })));
-
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                    ".params.taskId.id" => RANDOM_TASK_ID,
-                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                    ".params.eventTime" => TIMESTAMP,
-                } ,@r###"
-                {
-                  "method": "build/taskFinish",
-                  "params": {
-                    "data": {
-                      "displayName": "test_name",
-                      "status": 2
-                    },
-                    "dataKind": "test-finish",
-                    "eventTime": "timestamp",
-                    "status": 1,
-                    "taskId": {
-                      "id": "random_task_id",
-                      "parents": "[random_task_id]"
-                    }
-                  }
-                }
-                "###);
-                let _ = receiver_from_actor.recv().unwrap(); // test progress message
-                no_more_msg(receiver_from_actor);
+                    })),
+                    TestStatus::Failed,
+                );
             }
 
             #[test]
-            fn test_finished_ignored() {
-                let receiver_from_actor =
-                    init_test_with_status(&TestType::Test(TestEvent::Ignored(TestResultEnum {
+            fn test_finish_ignored() {
+                test_dynamic_redactions(
+                    &TestType::Test(TestEvent::Ignored(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    })));
-
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                    ".params.taskId.id" => RANDOM_TASK_ID,
-                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                    ".params.eventTime" => TIMESTAMP,
-                } ,@r###"
-                {
-                  "method": "build/taskFinish",
-                  "params": {
-                    "data": {
-                      "displayName": "test_name",
-                      "status": 3
-                    },
-                    "dataKind": "test-finish",
-                    "eventTime": "timestamp",
-                    "status": 1,
-                    "taskId": {
-                      "id": "random_task_id",
-                      "parents": "[random_task_id]"
-                    }
-                  }
-                }
-                "###);
-                let _ = receiver_from_actor.recv().unwrap(); // test progress message
-                no_more_msg(receiver_from_actor);
+                    })),
+                    TestStatus::Ignored,
+                );
             }
 
             #[test]
-            fn test_finished_timeout() {
-                let receiver_from_actor =
-                    init_test_with_status(&TestType::Test(TestEvent::Timeout(TestResultEnum {
+            fn test_finish_timeout() {
+                test_dynamic_redactions(
+                    &TestType::Test(TestEvent::Timeout(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
-                    })));
-
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                    ".params.taskId.id" => RANDOM_TASK_ID,
-                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                    ".params.eventTime" => TIMESTAMP,
-                } ,@r###"
-                {
-                  "method": "build/taskFinish",
-                  "params": {
-                    "data": {
-                      "displayName": "test_name",
-                      "status": 2
-                    },
-                    "dataKind": "test-finish",
-                    "eventTime": "timestamp",
-                    "status": 1,
-                    "taskId": {
-                      "id": "random_task_id",
-                      "parents": "[random_task_id]"
-                    }
-                  }
-                }
-                "###);
-                let _ = receiver_from_actor.recv().unwrap(); // test progress message
-                no_more_msg(receiver_from_actor);
+                    })),
+                    TestStatus::Failed,
+                );
             }
         }
     }
