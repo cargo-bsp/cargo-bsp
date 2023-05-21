@@ -1221,7 +1221,7 @@ pub mod tests {
             use bsp_types::notifications::TestStatus;
             use insta::{allow_duplicates, dynamic_redaction};
 
-            fn test_dynamic_redactions(passed_status: &TestType, expected_status: TestStatus) {
+            fn test_finish_status(passed_status: &TestType, expected_status: TestStatus) {
                 let TestEndpoints {
                     mut req_actor,
                     receiver_from_actor,
@@ -1275,7 +1275,7 @@ pub mod tests {
 
             #[test]
             fn test_finished_ok() {
-                test_dynamic_redactions(
+                test_finish_status(
                     &TestType::Test(TestEvent::Ok(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
@@ -1286,7 +1286,7 @@ pub mod tests {
 
             #[test]
             fn test_finish_failed() {
-                test_dynamic_redactions(
+                test_finish_status(
                     &TestType::Test(TestEvent::Failed(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
@@ -1297,7 +1297,7 @@ pub mod tests {
 
             #[test]
             fn test_finish_ignored() {
-                test_dynamic_redactions(
+                test_finish_status(
                     &TestType::Test(TestEvent::Ignored(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
@@ -1308,7 +1308,7 @@ pub mod tests {
 
             #[test]
             fn test_finish_timeout() {
-                test_dynamic_redactions(
+                test_finish_status(
                     &TestType::Test(TestEvent::Timeout(TestResultEnum {
                         name: TEST_NAME.to_string(),
                         stdout: None,
