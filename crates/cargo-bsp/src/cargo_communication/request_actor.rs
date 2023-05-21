@@ -993,8 +993,12 @@ pub mod tests {
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
 
-            let (req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(mock_cargo_handle, default_test_params());
+            let TestEndpoints {
+                req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Test>(mock_cargo_handle, default_test_params());
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
@@ -1086,8 +1090,12 @@ pub mod tests {
 
         #[test]
         fn suite_started() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
             let suite_started = SuiteStarted { test_count: 1 };
 
@@ -1133,8 +1141,12 @@ pub mod tests {
 
         #[test]
         fn suite_results() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Ok(default_suite_results()))).unwrap(),
@@ -1174,8 +1186,12 @@ pub mod tests {
 
         #[test]
         fn test_started() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
             let test_started = Started(TestName {
                 name: TEST_NAME.into(),
@@ -1211,8 +1227,12 @@ pub mod tests {
             use super::*;
 
             fn test_finished_with_status(passed_status: &TestType) -> Receiver<Message> {
-                let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                    default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
                 let test_started = Started(TestName {
                     name: TEST_NAME.into(),
