@@ -185,7 +185,7 @@ pub trait CargoHandler<T> {
 }
 
 #[cfg(test)]
-pub mod compile_request_tests {
+pub mod tests {
     use super::*;
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
@@ -203,14 +203,22 @@ pub mod compile_request_tests {
     const TEST_ARGUMENTS: &str = "test_arguments";
     const TEST_ROOT_PATH: &str = "/test_root_path";
 
+    // Struct that contains all the endpoints needed for testing
+    struct TestEndpoints<R>
+    where
+        R: Request,
+        R::Params: CreateCommand,
+        R::Result: CargoResult,
+    {
+        req_actor: RequestActor<R, MockCargoHandler<CargoMessage>>,
+        receiver_from_actor: Receiver<Message>,
+        _cancel_sender: Sender<Event>,
+    }
+
     fn default_req_actor<R>(
         cargo_handle: MockCargoHandler<CargoMessage>,
         params: R::Params,
-    ) -> (
-        RequestActor<R, MockCargoHandler<CargoMessage>>,
-        Receiver<Message>,
-        Sender<Event>,
-    )
+    ) -> TestEndpoints<R>
     where
         R: Request,
         R::Params: CreateCommand,
@@ -219,8 +227,8 @@ pub mod compile_request_tests {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         // Cancel sender needs to be referenced to avoid closing the channel
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
-        (
-            RequestActor::new(
+        TestEndpoints {
+            req_actor: RequestActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
                 TEST_REQ_ID.to_string().into(),
                 params,
@@ -229,17 +237,7 @@ pub mod compile_request_tests {
                 cancel_receiver,
             ),
             receiver_from_actor,
-            cancel_sender,
-        )
-    }
-
-    fn default_compile_params() -> CompileParams {
-        CompileParams {
-            targets: vec![BuildTargetIdentifier {
-                uri: TEST_TARGET.into(),
-            }],
-            origin_id: Some(TEST_ORIGIN_ID.into()),
-            arguments: vec![TEST_ARGUMENTS.into()],
+            _cancel_sender: cancel_sender,
         }
     }
 
@@ -250,470 +248,513 @@ pub mod compile_request_tests {
             .unwrap()
     }
 
-    #[test]
-    fn compile_lifetime() {
-        let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
+    mod compile_request_tests {
+        use super::*;
 
-        let mut mock_cargo_handle = MockCargoHandler::new();
-        // There is no robust way to return ExitStatus hence we return Error. In consequence the
-        // status code of response is 2(Error).
-        mock_cargo_handle
-            .expect_join()
-            .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
-        mock_cargo_handle
-            .expect_receiver()
-            .return_const(receiver_from_cargo);
-        let (req_actor, receiver_from_actor, _cancel_sender) =
-            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+        fn default_compile_params() -> CompileParams {
+            CompileParams {
+                targets: vec![BuildTargetIdentifier {
+                    uri: TEST_TARGET.into(),
+                }],
+                origin_id: Some(TEST_ORIGIN_ID.into()),
+                arguments: vec![TEST_ARGUMENTS.into()],
+            }
+        }
 
-        let _ = jod_thread::Builder::new()
-            .spawn(move || req_actor.run())
-            .expect("failed to spawn thread")
-            .detach();
+        #[test]
+        fn compile_lifetime() {
+            let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
 
-        let mut settings = Settings::clone_current();
-        settings.add_redaction(".params.eventTime", TIMESTAMP);
-        settings.bind(|| {
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+            let mut mock_cargo_handle = MockCargoHandler::new();
+            // There is no robust way to return ExitStatus hence we return Error. In consequence the
+            // status code of response is 2(Error).
+            mock_cargo_handle
+                .expect_join()
+                .returning(|| Err(io::Error::from(io::ErrorKind::Other)));
+            mock_cargo_handle
+                .expect_receiver()
+                .return_const(receiver_from_cargo);
+            let TestEndpoints {
+                req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+
+            let _ = jod_thread::Builder::new()
+                .spawn(move || req_actor.run())
+                .expect("failed to spawn thread")
+                .detach();
+
+            let mut settings = Settings::clone_current();
+            settings.add_redaction(".params.eventTime", TIMESTAMP);
+            settings.bind(|| {
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "method": "build/taskStart",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "taskId": {
+                      "id": "test_origin_id"
+                    }
+                  }
+                }
+                "###);
+            });
+
+            // The channel is closed so the actor finishes its execution.
+            drop(sender_to_actor);
+
+            settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
+            settings.bind(|| {
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "method": "build/taskStart",
+                  "params": {
+                    "data": {
+                      "target": {
+                        "uri": ""
+                      }
+                    },
+                    "dataKind": "compile-task",
+                    "eventTime": "timestamp",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "status": 2,
+                    "taskId": {
+                      "id": "random_task_id"
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "id": "test_req_id",
+                  "result": {
+                    "originId": "test_origin_id",
+                    "statusCode": 2
+                  }
+                }
+                "###);
+            });
+            no_more_msg(receiver_from_actor);
+        }
+
+        #[test]
+        fn cancel_with_cargo_handle() {
+            let mut mock_cargo_handle = MockCargoHandler::new();
+            mock_cargo_handle.expect_cancel().return_const(());
+
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+
+            req_actor.cancel();
+
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
             {
-              "method": "build/taskStart",
+                ".params.eventTime" => TIMESTAMP,
+            }, @r###"
+            {
+              "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "status": 3,
                 "taskId": {
                   "id": "test_origin_id"
                 }
               }
             }
             "###);
-        });
 
-        // The channel is closed so the actor finishes its execution.
-        drop(sender_to_actor);
+            no_more_msg(receiver_from_actor);
+        }
 
-        settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
-        settings.bind(|| {
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
-            {
-              "method": "build/taskStart",
-              "params": {
-                "data": {
-                  "target": {
-                    "uri": ""
+        #[test]
+        fn multiple_cancel() {
+            // Client should receive only one cancel message.
+
+            let mut mock_cargo_handle = MockCargoHandler::new();
+            mock_cargo_handle.expect_cancel().return_const(());
+
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+
+            req_actor.cancel();
+            req_actor.cancel();
+            req_actor.cancel();
+
+            let _ = receiver_from_actor.recv().unwrap();
+            no_more_msg(receiver_from_actor);
+        }
+
+        mod cargo_compile_messages_tests {
+            use super::*;
+            use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
+            use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
+            use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
+            use cargo_metadata::Message::{
+                BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
+                CompilerMessage as CompilerMessageEnum,
+            };
+            use cargo_metadata::{
+                Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildScript,
+                BuildScriptBuilder, CompilerMessage, CompilerMessageBuilder, PackageId, Target,
+                TargetBuilder,
+            };
+
+            const TEST_KIND: &str = "test_kind";
+            const TEST_MESSAGE: &str = "test_message";
+            const TEST_CRATE_TYPE: &str = "test_crate_type";
+            const TEST_SRC_PATH: &str = "test_src_path";
+            const TEST_OPT_LEVEL: &str = "test_opt_level";
+            const TEST_PKG_ID: &str = "test_pkg_id";
+            const TEST_MANIFEST_PATH: &str = "test_manifest_path";
+            const TEST_FEATURE: &str = "test_feature";
+            const TEST_EXECUTABLE: &str = "test_executable";
+            const TEST_FILENAME: &str = "test_filename";
+            const TEST_LINKED_LIB: &str = "test_linked_lib";
+            const TEST_LINKED_PATH: &str = "test_linked_path";
+            const TEST_CFG: &str = "test_cfg";
+            const TEST_ENV: &str = "test_env";
+            const TEST_OUT_DIR: &str = "test_out_dir";
+
+            #[test]
+            fn compiler_artifact() {
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+
+                req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
+                    default_compiler_artifact(),
+                ))));
+
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
+                {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                }, @r###"
+                {
+                  "method": "build/taskProgress",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "{\"package_id\":\"test_pkg_id\",\"manifest_path\":\"test_manifest_path\",\"target\":{\"name\":\"test_target\",\"kind\":[\"test_kind\"],\"crate_types\":[\"test_crate_type\"],\"required-features\":[],\"src_path\":\"test_src_path\",\"edition\":\"2015\",\"doctest\":true,\"test\":true,\"doc\":true},\"profile\":{\"opt_level\":\"test_opt_level\",\"debuginfo\":0,\"debug_assertions\":false,\"overflow_checks\":false,\"test\":false},\"features\":[\"test_feature\"],\"filenames\":[\"test_filename\"],\"executable\":\"test_executable\",\"fresh\":false}",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
                   }
-                },
-                "dataKind": "compile-task",
-                "eventTime": "timestamp",
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": [
-                    "test_origin_id"
-                  ]
                 }
-              }
+                "###
+                );
+
+                no_more_msg(receiver_from_actor);
             }
-            "###);
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
-            {
-              "method": "build/taskFinish",
-              "params": {
-                "eventTime": "timestamp",
-                "status": 2,
-                "taskId": {
-                  "id": "random_task_id"
-                }
-              }
-            }
-            "###);
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
-            {
-              "id": "test_req_id",
-              "result": {
-                "originId": "test_origin_id",
-                "statusCode": 2
-              }
-            }
-            "###);
-        });
-        no_more_msg(receiver_from_actor);
-    }
 
-    #[test]
-    fn cancel_with_cargo_handle() {
-        let mut mock_cargo_handle = MockCargoHandler::new();
-        mock_cargo_handle.expect_cancel().return_const(());
+            #[test]
+            fn build_script_out() {
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-        let (mut req_actor, receiver_from_actor, _cancel_sender) =
-            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+                req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
+                    default_build_script(),
+                ))));
 
-        req_actor.cancel();
-
-        assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
-        {
-            ".params.eventTime" => TIMESTAMP,
-        }, @r###"
-        {
-          "method": "build/taskFinish",
-          "params": {
-            "eventTime": "timestamp",
-            "status": 3,
-            "taskId": {
-              "id": "test_origin_id"
-            }
-          }
-        }
-        "###);
-
-        no_more_msg(receiver_from_actor);
-    }
-
-    #[test]
-    fn multiple_cancel() {
-        // Client should receive only one cancel message.
-
-        let mut mock_cargo_handle = MockCargoHandler::new();
-        mock_cargo_handle.expect_cancel().return_const(());
-
-        let (mut req_actor, receiver_from_actor, _cancel_sender) =
-            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
-
-        req_actor.cancel();
-        req_actor.cancel();
-        req_actor.cancel();
-
-        let _ = receiver_from_actor.recv().unwrap();
-        no_more_msg(receiver_from_actor);
-    }
-
-    mod cargo_compile_messages_tests {
-        use super::*;
-        use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
-        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
-        use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
-        use cargo_metadata::Message::{
-            BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
-            CompilerMessage as CompilerMessageEnum,
-        };
-        use cargo_metadata::{
-            Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildScript,
-            BuildScriptBuilder, CompilerMessage, CompilerMessageBuilder, PackageId, Target,
-            TargetBuilder,
-        };
-
-        const TEST_KIND: &str = "test_kind";
-        const TEST_MESSAGE: &str = "test_message";
-        const TEST_CRATE_TYPE: &str = "test_crate_type";
-        const TEST_SRC_PATH: &str = "test_src_path";
-        const TEST_OPT_LEVEL: &str = "test_opt_level";
-        const TEST_PKG_ID: &str = "test_pkg_id";
-        const TEST_MANIFEST_PATH: &str = "test_manifest_path";
-        const TEST_FEATURE: &str = "test_feature";
-        const TEST_EXECUTABLE: &str = "test_executable";
-        const TEST_FILENAME: &str = "test_filename";
-        const TEST_LINKED_LIB: &str = "test_linked_lib";
-        const TEST_LINKED_PATH: &str = "test_linked_path";
-        const TEST_CFG: &str = "test_cfg";
-        const TEST_ENV: &str = "test_env";
-        const TEST_OUT_DIR: &str = "test_out_dir";
-
-        #[test]
-        fn compiler_artifact() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
-
-            req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
-                default_compiler_artifact(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
-            {
-                ".params.eventTime" => TIMESTAMP,
-                ".params.taskId.id" => RANDOM_TASK_ID,
-            }, @r###"
-        {
-          "method": "build/taskProgress",
-          "params": {
-            "eventTime": "timestamp",
-            "message": "{\"package_id\":\"test_pkg_id\",\"manifest_path\":\"test_manifest_path\",\"target\":{\"name\":\"test_target\",\"kind\":[\"test_kind\"],\"crate_types\":[\"test_crate_type\"],\"required-features\":[],\"src_path\":\"test_src_path\",\"edition\":\"2015\",\"doctest\":true,\"test\":true,\"doc\":true},\"profile\":{\"opt_level\":\"test_opt_level\",\"debuginfo\":0,\"debug_assertions\":false,\"overflow_checks\":false,\"test\":false},\"features\":[\"test_feature\"],\"filenames\":[\"test_filename\"],\"executable\":\"test_executable\",\"fresh\":false}",
-            "taskId": {
-              "id": "random_task_id",
-              "parents": [
-                "test_origin_id"
-              ]
-            }
-          }
-        }
-        "###
-            );
-
-            no_more_msg(receiver_from_actor);
-        }
-
-        #[test]
-        fn build_script_out() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
-
-            req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
-                default_build_script(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
-            ".params.eventTime" => TIMESTAMP,
-            ".params.taskId.id" => RANDOM_TASK_ID,
-        },@r###"
-        {
-          "method": "build/taskProgress",
-          "params": {
-            "eventTime": "timestamp",
-            "message": "{\"package_id\":\"test_pkg_id\",\"linked_libs\":[\"test_linked_lib\"],\"linked_paths\":[\"test_linked_path\"],\"cfgs\":[\"test_cfg\"],\"env\":[[\"test_env\",\"test_env\"]],\"out_dir\":\"test_out_dir\"}",
-            "taskId": {
-              "id": "random_task_id",
-              "parents": [
-                "test_origin_id"
-              ]
-            }
-          }
-        }
-        "###);
-
-            no_more_msg(receiver_from_actor);
-        }
-
-        #[test]
-        fn compiler_message() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
-
-            req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
-                default_compiler_message(DiagnosticLevel::Error),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
-            {
-                ".params.task.id" => RANDOM_TASK_ID,
-            },@r###"
-        {
-          "method": "build/publishDiagnostics",
-          "params": {
-            "buildTarget": {
-              "uri": ""
-            },
-            "diagnostics": [
-              {
-                "message": "test_message",
-                "range": {
-                  "end": {
-                    "character": 0,
-                    "line": 0
-                  },
-                  "start": {
-                    "character": 0,
-                    "line": 0
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                },@r###"
+                {
+                  "method": "build/taskProgress",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "{\"package_id\":\"test_pkg_id\",\"linked_libs\":[\"test_linked_lib\"],\"linked_paths\":[\"test_linked_path\"],\"cfgs\":[\"test_cfg\"],\"env\":[[\"test_env\",\"test_env\"]],\"out_dir\":\"test_out_dir\"}",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
                   }
-                },
-                "severity": 1,
-                "source": "cargo"
-              }
-            ],
-            "originId": "test_origin_id",
-            "reset": false,
-            "textDocument": {
-              "uri": "file:///test_root_path/test_filename"
+                }
+                "###);
+
+                no_more_msg(receiver_from_actor);
             }
-          }
-        }
-        "###);
 
-            no_more_msg(receiver_from_actor);
-        }
+            #[test]
+            fn compiler_message() {
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-        #[test]
-        fn build_finished_simple() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                    default_compiler_message(DiagnosticLevel::Error),
+                ))));
 
-            req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
-                default_build_finished(),
-            ))));
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.task.id" => RANDOM_TASK_ID,
+                },@r###"
+                {
+                  "method": "build/publishDiagnostics",
+                  "params": {
+                    "buildTarget": {
+                      "uri": ""
+                    },
+                    "diagnostics": [
+                      {
+                        "message": "test_message",
+                        "range": {
+                          "end": {
+                            "character": 0,
+                            "line": 0
+                          },
+                          "start": {
+                            "character": 0,
+                            "line": 0
+                          }
+                        },
+                        "severity": 1,
+                        "source": "cargo"
+                      }
+                    ],
+                    "originId": "test_origin_id",
+                    "reset": false,
+                    "textDocument": {
+                      "uri": "file:///test_root_path/test_filename"
+                    }
+                  }
+                }
+                "###);
 
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
-            ".params.eventTime" => TIMESTAMP,
-            ".params.taskId.id" => RANDOM_TASK_ID,
-            ".params.data.time" => 0,
-        },@r###"
-        {
-          "method": "build/taskFinish",
-          "params": {
-            "data": {
-              "errors": 0,
-              "originId": "test_origin_id",
-              "target": {
-                "uri": ""
-              },
-              "time": 0,
-              "warnings": 0
-            },
-            "dataKind": "compile-report",
-            "eventTime": "timestamp",
-            "status": 1,
-            "taskId": {
-              "id": "random_task_id",
-              "parents": [
-                "test_origin_id"
-              ]
+                no_more_msg(receiver_from_actor);
             }
-          }
-        }
-        "###);
 
-            no_more_msg(receiver_from_actor);
-        }
+            #[test]
+            fn build_finished_simple() {
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-        #[test]
-        fn build_finished_with_complex_compile_report() {
-            // Checks if server counts warnings and error and produces a correct compile report.
+                req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
+                    default_build_finished(),
+                ))));
 
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
-
-            req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
-                default_compiler_message(DiagnosticLevel::Error),
-            ))));
-            req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
-                default_compiler_message(DiagnosticLevel::Warning),
-            ))));
-
-            let _ = receiver_from_actor.recv(); // publish diagnostic
-            let _ = receiver_from_actor.recv(); // publish diagnostic
-
-            req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
-                default_build_finished(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(),         {
-            ".params.eventTime" => TIMESTAMP,
-            ".params.taskId.id" => RANDOM_TASK_ID,
-            ".params.data.time" => 0,
-        },@r###"
-        {
-          "method": "build/taskFinish",
-          "params": {
-            "data": {
-              "errors": 1,
-              "originId": "test_origin_id",
-              "target": {
-                "uri": ""
-              },
-              "time": 0,
-              "warnings": 1
-            },
-            "dataKind": "compile-report",
-            "eventTime": "timestamp",
-            "status": 1,
-            "taskId": {
-              "id": "random_task_id",
-              "parents": [
-                "test_origin_id"
-              ]
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.data.time" => 0,
+                },@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "errors": 0,
+                      "originId": "test_origin_id",
+                      "target": {
+                        "uri": ""
+                      },
+                      "time": 0,
+                      "warnings": 0
+                    },
+                    "dataKind": "compile-report",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                no_more_msg(receiver_from_actor);
             }
-          }
-        }
-        "###);
 
-            no_more_msg(receiver_from_actor);
-        }
+            #[test]
+            fn build_finished_with_complex_compile_report() {
+                // Checks if server counts warnings and error and produces a correct compile report.
 
-        fn default_target() -> Target {
-            TargetBuilder::default()
-                .name(TEST_TARGET.to_string())
-                .kind(vec![TEST_KIND.into()])
-                .crate_types(vec![TEST_CRATE_TYPE.into()])
-                .src_path(TEST_SRC_PATH.to_string())
-                .build()
-                .unwrap()
-        }
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-        fn default_artifact_profile() -> ArtifactProfile {
-            ArtifactProfileBuilder::default()
-                .opt_level(TEST_OPT_LEVEL.to_string())
-                .debuginfo(Some(0))
-                .debug_assertions(false)
-                .overflow_checks(false)
-                .test(false)
-                .build()
-                .unwrap()
-        }
+                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                    default_compiler_message(DiagnosticLevel::Error),
+                ))));
+                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                    default_compiler_message(DiagnosticLevel::Warning),
+                ))));
 
-        fn default_compiler_artifact() -> Artifact {
-            ArtifactBuilder::default()
-                .package_id(PackageId {
-                    repr: TEST_PKG_ID.into(),
-                })
-                .manifest_path(TEST_MANIFEST_PATH.to_string())
-                .target(default_target())
-                .profile(default_artifact_profile())
-                .executable(Some(TEST_EXECUTABLE.into()))
-                .features(vec![TEST_FEATURE.into()])
-                .filenames(vec![TEST_FILENAME.into()])
-                .fresh(false)
-                .build()
-                .unwrap()
-        }
+                let _ = receiver_from_actor.recv(); // publish diagnostic
+                let _ = receiver_from_actor.recv(); // publish diagnostic
 
-        fn default_build_script() -> BuildScript {
-            BuildScriptBuilder::default()
-                .package_id(PackageId {
-                    repr: TEST_PKG_ID.into(),
-                })
-                .linked_libs(vec![TEST_LINKED_LIB.into()])
-                .linked_paths(vec![TEST_LINKED_PATH.into()])
-                .cfgs(vec![TEST_CFG.into()])
-                .env(vec![(TEST_ENV.into(), TEST_ENV.into())])
-                .out_dir(TEST_OUT_DIR.to_string())
-                .build()
-                .unwrap()
-        }
+                req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
+                    default_build_finished(),
+                ))));
 
-        fn default_diagnostic_span() -> DiagnosticSpan {
-            DiagnosticSpanBuilder::default()
-                .file_name(TEST_FILENAME.to_string())
-                .byte_start(0_u32)
-                .byte_end(0_u32)
-                .line_start(0_usize)
-                .line_end(0_usize)
-                .column_start(0_usize)
-                .column_end(0_usize)
-                .is_primary(true)
-                .text(vec![])
-                .label(None)
-                .suggested_replacement(None)
-                .suggestion_applicability(None)
-                .expansion(None)
-                .build()
-                .unwrap()
-        }
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.data.time" => 0,
+                },@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "errors": 1,
+                      "originId": "test_origin_id",
+                      "target": {
+                        "uri": ""
+                      },
+                      "time": 0,
+                      "warnings": 1
+                    },
+                    "dataKind": "compile-report",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                no_more_msg(receiver_from_actor);
+            }
 
-        fn default_diagnostic(level: DiagnosticLevel) -> Diagnostic {
-            DiagnosticBuilder::default()
-                .message(TEST_MESSAGE.to_string())
-                .level(level)
-                .code(None)
-                .spans(vec![default_diagnostic_span()])
-                .children(vec![])
-                .rendered(None)
-                .build()
-                .unwrap()
-        }
+            fn default_target() -> Target {
+                TargetBuilder::default()
+                    .name(TEST_TARGET.to_string())
+                    .kind(vec![TEST_KIND.into()])
+                    .crate_types(vec![TEST_CRATE_TYPE.into()])
+                    .src_path(TEST_SRC_PATH.to_string())
+                    .build()
+                    .unwrap()
+            }
 
-        fn default_compiler_message(level: DiagnosticLevel) -> CompilerMessage {
-            CompilerMessageBuilder::default()
-                .package_id(PackageId {
-                    repr: TEST_PKG_ID.into(),
-                })
-                .target(default_target())
-                .message(default_diagnostic(level))
-                .build()
-                .unwrap()
+            fn default_artifact_profile() -> ArtifactProfile {
+                ArtifactProfileBuilder::default()
+                    .opt_level(TEST_OPT_LEVEL.to_string())
+                    .debuginfo(Some(0))
+                    .debug_assertions(false)
+                    .overflow_checks(false)
+                    .test(false)
+                    .build()
+                    .unwrap()
+            }
+
+            fn default_compiler_artifact() -> Artifact {
+                ArtifactBuilder::default()
+                    .package_id(PackageId {
+                        repr: TEST_PKG_ID.into(),
+                    })
+                    .manifest_path(TEST_MANIFEST_PATH.to_string())
+                    .target(default_target())
+                    .profile(default_artifact_profile())
+                    .executable(Some(TEST_EXECUTABLE.into()))
+                    .features(vec![TEST_FEATURE.into()])
+                    .filenames(vec![TEST_FILENAME.into()])
+                    .fresh(false)
+                    .build()
+                    .unwrap()
+            }
+
+            fn default_build_script() -> BuildScript {
+                BuildScriptBuilder::default()
+                    .package_id(PackageId {
+                        repr: TEST_PKG_ID.into(),
+                    })
+                    .linked_libs(vec![TEST_LINKED_LIB.into()])
+                    .linked_paths(vec![TEST_LINKED_PATH.into()])
+                    .cfgs(vec![TEST_CFG.into()])
+                    .env(vec![(TEST_ENV.into(), TEST_ENV.into())])
+                    .out_dir(TEST_OUT_DIR.to_string())
+                    .build()
+                    .unwrap()
+            }
+
+            fn default_diagnostic_span() -> DiagnosticSpan {
+                DiagnosticSpanBuilder::default()
+                    .file_name(TEST_FILENAME.to_string())
+                    .byte_start(0_u32)
+                    .byte_end(0_u32)
+                    .line_start(0_usize)
+                    .line_end(0_usize)
+                    .column_start(0_usize)
+                    .column_end(0_usize)
+                    .is_primary(true)
+                    .text(vec![])
+                    .label(None)
+                    .suggested_replacement(None)
+                    .suggestion_applicability(None)
+                    .expansion(None)
+                    .build()
+                    .unwrap()
+            }
+
+            fn default_diagnostic(level: DiagnosticLevel) -> Diagnostic {
+                DiagnosticBuilder::default()
+                    .message(TEST_MESSAGE.to_string())
+                    .level(level)
+                    .code(None)
+                    .spans(vec![default_diagnostic_span()])
+                    .children(vec![])
+                    .rendered(None)
+                    .build()
+                    .unwrap()
+            }
+
+            fn default_compiler_message(level: DiagnosticLevel) -> CompilerMessage {
+                CompilerMessageBuilder::default()
+                    .package_id(PackageId {
+                        repr: TEST_PKG_ID.into(),
+                    })
+                    .target(default_target())
+                    .message(default_diagnostic(level))
+                    .build()
+                    .unwrap()
+            }
         }
     }
 
@@ -752,8 +793,12 @@ pub mod compile_request_tests {
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
 
-            let (req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Run>(mock_cargo_handle, default_run_params());
+            let TestEndpoints {
+                req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Run>(mock_cargo_handle, default_run_params());
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
@@ -842,8 +887,12 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stdout() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
             req_actor.handle_event(CargoEvent(CargoStdout(TextLine(TEST_STDOUT.to_string()))));
 
@@ -871,8 +920,12 @@ pub mod compile_request_tests {
 
         #[test]
         fn simple_stderr() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
+            let TestEndpoints {
+                mut req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
             req_actor.handle_event(CargoEvent(CargoStderr(TEST_STDERR.to_string())));
 
