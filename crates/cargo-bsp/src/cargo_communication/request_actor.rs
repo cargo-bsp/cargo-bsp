@@ -963,8 +963,6 @@ pub mod tests {
             TestResult as TestResultEnum, TestType,
         };
         use crate::cargo_communication::request_actor::CargoMessage::CargoStdout;
-        #[allow(unused_imports)]
-        use bsp_types::notifications::TaskDataWithKind::{TestFinish, TestReport, TestStart};
         use bsp_types::requests::{Test, TestParams};
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
@@ -1099,7 +1097,7 @@ pub mod tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
+                ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
             } ,@r###"
             {
@@ -1114,12 +1112,23 @@ pub mod tests {
                 "eventTime": "timestamp",
                 "taskId": {
                   "id": "random_task_id",
-                  "parents": "random_task_id"
+                  "parents": "[random_task_id]"
                 }
               }
             }
             "###);
             no_more_msg(receiver_from_actor);
+        }
+
+        fn default_suite_results() -> SuiteResults {
+            SuiteResults {
+                passed: 1,
+                failed: 2,
+                ignored: 3,
+                measured: 4,
+                filtered_out: 5,
+                exec_time: 6.6,
+            }
         }
 
         #[test]
@@ -1133,7 +1142,7 @@ pub mod tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
+                ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
             } ,@r###"
             {
@@ -1155,7 +1164,7 @@ pub mod tests {
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
-                  "parents": "random_task_id"
+                  "parents": "[random_task_id]"
                 }
               }
             }
@@ -1177,7 +1186,7 @@ pub mod tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
+                ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
             } ,@r###"
             {
@@ -1190,7 +1199,7 @@ pub mod tests {
                 "eventTime": "timestamp",
                 "taskId": {
                   "id": "random_task_id",
-                  "parents": "random_task_id"
+                  "parents": "[random_task_id]"
                 }
               }
             }
@@ -1198,221 +1207,163 @@ pub mod tests {
             no_more_msg(receiver_from_actor);
         }
 
-        #[test]
-        fn test_finished_ok() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+        mod test_finish_status {
+            use super::*;
 
-            let test_started = Started(TestName {
-                name: TEST_NAME.into(),
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_started)).unwrap(),
-            ))));
-            let _ = receiver_from_actor.recv().unwrap(); // test started message
+            fn test_finished_with_status(passed_status: &TestType) -> Receiver<Message> {
+                let (mut req_actor, receiver_from_actor, _cancel_sender) =
+                    default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
-            let test_finished_ok = TestEvent::Ok(TestResultEnum {
-                name: TEST_NAME.to_string(),
-                stdout: None,
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_finished_ok)).unwrap(),
-            ))));
+                let test_started = Started(TestName {
+                    name: TEST_NAME.into(),
+                });
+                req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+                    to_string(&TestType::Test(test_started)).unwrap(),
+                ))));
+                let _ = receiver_from_actor.recv().unwrap(); // test started message
 
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
-                ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
-            {
-              "method": "build/taskFinish",
-              "params": {
-                "data": {
-                  "displayName": "test_name",
-                  "status": 1
-                },
-                "dataKind": "test-finish",
-                "eventTime": "timestamp",
-                "status": 1,
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": "random_task_id"
+                req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+                    to_string(passed_status).unwrap(),
+                ))));
+                receiver_from_actor
+            }
+
+            #[test]
+            fn test_finished_ok() {
+                let receiver_from_actor =
+                    test_finished_with_status(&TestType::Test(TestEvent::Ok(TestResultEnum {
+                        name: TEST_NAME.to_string(),
+                        stdout: None,
+                    })));
+
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                    ".params.eventTime" => TIMESTAMP,
+                } ,@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "displayName": "test_name",
+                      "status": 1
+                    },
+                    "dataKind": "test-finish",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
                 }
-              }
+                "###);
+                let _ = receiver_from_actor.recv().unwrap(); // test progress message
+                no_more_msg(receiver_from_actor);
             }
-            "###);
 
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
-                ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
-            {
-              "method": "build/taskProgress",
-              "params": {
-                "eventTime": "timestamp",
-                "progress": 1,
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": "random_task_id"
-                },
-                "total": 0,
-                "unit": "tests"
-              }
-            }
-            "###);
-            no_more_msg(receiver_from_actor);
-        }
+            #[test]
+            fn test_finished_failed() {
+                let receiver_from_actor =
+                    test_finished_with_status(&TestType::Test(TestEvent::Failed(TestResultEnum {
+                        name: TEST_NAME.to_string(),
+                        stdout: None,
+                    })));
 
-        #[test]
-        fn test_finished_failed() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
-
-            let test_started = Started(TestName {
-                name: TEST_NAME.into(),
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_started)).unwrap(),
-            ))));
-            let _ = receiver_from_actor.recv().unwrap(); // test started message
-
-            let test_finished_ok = TestEvent::Failed(TestResultEnum {
-                name: TEST_NAME.to_string(),
-                stdout: None,
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_finished_ok)).unwrap(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
-                ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
-            {
-              "method": "build/taskFinish",
-              "params": {
-                "data": {
-                  "displayName": "test_name",
-                  "status": 2
-                },
-                "dataKind": "test-finish",
-                "eventTime": "timestamp",
-                "status": 1,
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": "random_task_id"
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                    ".params.eventTime" => TIMESTAMP,
+                } ,@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "displayName": "test_name",
+                      "status": 2
+                    },
+                    "dataKind": "test-finish",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
                 }
-              }
+                "###);
+                let _ = receiver_from_actor.recv().unwrap(); // test progress message
+                no_more_msg(receiver_from_actor);
             }
-            "###);
-            let _ = receiver_from_actor.recv().unwrap(); // test progress message
-            no_more_msg(receiver_from_actor);
-        }
 
-        #[test]
-        fn test_finished_ignored() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            #[test]
+            fn test_finished_ignored() {
+                let receiver_from_actor = test_finished_with_status(&TestType::Test(
+                    TestEvent::Ignored(TestResultEnum {
+                        name: TEST_NAME.to_string(),
+                        stdout: None,
+                    }),
+                ));
 
-            let test_started = Started(TestName {
-                name: TEST_NAME.into(),
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_started)).unwrap(),
-            ))));
-            let _ = receiver_from_actor.recv().unwrap(); // test started message
-
-            let test_finished_ok = TestEvent::Ignored(TestResultEnum {
-                name: TEST_NAME.to_string(),
-                stdout: None,
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_finished_ok)).unwrap(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
-                ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
-            {
-              "method": "build/taskFinish",
-              "params": {
-                "data": {
-                  "displayName": "test_name",
-                  "status": 3
-                },
-                "dataKind": "test-finish",
-                "eventTime": "timestamp",
-                "status": 1,
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": "random_task_id"
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                    ".params.eventTime" => TIMESTAMP,
+                } ,@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "displayName": "test_name",
+                      "status": 3
+                    },
+                    "dataKind": "test-finish",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
                 }
-              }
+                "###);
+                let _ = receiver_from_actor.recv().unwrap(); // test progress message
+                no_more_msg(receiver_from_actor);
             }
-            "###);
-            let _ = receiver_from_actor.recv().unwrap(); // test progress message
-            no_more_msg(receiver_from_actor);
-        }
 
-        #[test]
-        fn test_finished_timeout() {
-            let (mut req_actor, receiver_from_actor, _cancel_sender) =
-                default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            #[test]
+            fn test_finished_timeout() {
+                let receiver_from_actor = test_finished_with_status(&TestType::Test(
+                    TestEvent::Timeout(TestResultEnum {
+                        name: TEST_NAME.to_string(),
+                        stdout: None,
+                    }),
+                ));
 
-            let test_started = Started(TestName {
-                name: TEST_NAME.into(),
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_started)).unwrap(),
-            ))));
-            let _ = receiver_from_actor.recv().unwrap(); // test started message
-
-            let test_finished_ok = TestEvent::Timeout(TestResultEnum {
-                name: TEST_NAME.to_string(),
-                stdout: None,
-            });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                to_string(&TestType::Test(test_finished_ok)).unwrap(),
-            ))));
-
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
-                ".params.taskId.id" => RANDOM_TASK_ID,
-                ".params.taskId.parents" => format!("{RANDOM_TASK_ID}"),
-                ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
-            {
-              "method": "build/taskFinish",
-              "params": {
-                "data": {
-                  "displayName": "test_name",
-                  "status": 2
-                },
-                "dataKind": "test-finish",
-                "eventTime": "timestamp",
-                "status": 1,
-                "taskId": {
-                  "id": "random_task_id",
-                  "parents": "random_task_id"
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                    ".params.eventTime" => TIMESTAMP,
+                } ,@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "displayName": "test_name",
+                      "status": 2
+                    },
+                    "dataKind": "test-finish",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
                 }
-              }
-            }
-            "###);
-            let _ = receiver_from_actor.recv().unwrap(); // test progress message
-            no_more_msg(receiver_from_actor);
-        }
-
-        fn default_suite_results() -> SuiteResults {
-            SuiteResults {
-                passed: 1,
-                failed: 2,
-                ignored: 3,
-                measured: 4,
-                filtered_out: 5,
-                exec_time: 6.6,
+                "###);
+                let _ = receiver_from_actor.recv().unwrap(); // test progress message
+                no_more_msg(receiver_from_actor);
             }
         }
     }
