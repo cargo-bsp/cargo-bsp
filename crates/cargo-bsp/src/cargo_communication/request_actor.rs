@@ -42,13 +42,6 @@ where
     pub(super) state: RequestActorState,
 }
 
-fn get_request_status_code(result: &io::Result<ExitStatus>) -> StatusCode {
-    match result {
-        Ok(exit_status) if exit_status.success() => StatusCode::Ok,
-        _ => StatusCode::Error,
-    }
-}
-
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
@@ -127,25 +120,24 @@ where
 
     fn finish_request(&mut self) {
         let command_result = self.cargo_handle.take().unwrap().join();
-        let status_code = get_request_status_code(&command_result);
 
-        self.finish_execution_task(&status_code);
-        self.report_task_finish(self.state.root_task_id.clone(), status_code, None, None);
+        self.finish_execution_task();
+        self.report_task_finish(self.state.root_task_id.clone(), StatusCode::Ok, None, None);
         self.send_response(command_result);
     }
 
-    fn finish_execution_task(&self, status_code: &StatusCode) {
+    fn finish_execution_task(&self) {
         match &self.state.task_state {
             TaskState::Compile => (),
             TaskState::Run(run_state) => self.report_task_finish(
                 run_state.task_id.clone(),
-                status_code.clone(),
+                StatusCode::Ok,
                 Some("Finished target execution".to_string()),
                 None,
             ),
             TaskState::Test(test_state) => self.report_task_finish(
                 test_state.task_id.clone(),
-                status_code.clone(),
+                StatusCode::Ok,
                 Some("Finished target testing".to_string()),
                 None,
             ),
@@ -327,7 +319,7 @@ pub mod tests {
                   "method": "build/taskFinish",
                   "params": {
                     "eventTime": "timestamp",
-                    "status": 2,
+                    "status": 1,
                     "taskId": {
                       "id": "random_task_id"
                     }
@@ -835,7 +827,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target execution",
-                "status": 2,
+                "status": 1,
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -853,7 +845,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
-                "status": 2,
+                "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
                 }

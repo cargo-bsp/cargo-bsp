@@ -7,7 +7,7 @@ use paths::AbsPath;
 
 use bsp_types::notifications::{
     CompileReportData, LogMessage, LogMessageParams, MessageType, PublishDiagnostics,
-    PublishDiagnosticsParams, TaskDataWithKind, TestStartData, TestStatus, TestTaskData,
+    PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
 };
 use bsp_types::requests::Request;
 use bsp_types::{BuildTargetIdentifier, StatusCode};
@@ -18,7 +18,9 @@ use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
-use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestResult, TestType};
+use crate::cargo_communication::cargo_types::test::{
+    SuiteEvent, SuiteResults, TestEvent, TestResult, TestType,
+};
 use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
@@ -124,11 +126,6 @@ where
     }
 
     fn finish_compile(&mut self, msg: BuildFinished) {
-        let status_code = if msg.success {
-            StatusCode::Ok
-        } else {
-            StatusCode::Error
-        };
         let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
             // TODO change to actual BuildTargetIdentifier
             target: BuildTargetIdentifier::default(),
@@ -140,15 +137,15 @@ where
         });
         self.report_task_finish(
             self.state.compile_state.task_id.clone(),
-            status_code.clone(),
+            StatusCode::Ok,
             None,
             Some(compile_report),
         );
         // Start execution task if compile finished with success.
-        match status_code {
-            StatusCode::Ok => self.start_execution_task(),
-            StatusCode::Error => self.state.task_state = TaskState::Compile,
-            StatusCode::Cancelled => (),
+        if msg.success {
+            self.start_execution_task()
+        } else {
+            self.state.task_state = TaskState::Compile
         }
     }
 
@@ -191,20 +188,14 @@ where
                         Some(TaskDataWithKind::TestTask(TestTaskData::default())),
                     );
                 }
-                SuiteEvent::Ok(result) => self.report_task_finish(
-                    task_id,
-                    StatusCode::Ok,
-                    None,
-                    Some(result.to_test_report()),
-                ),
-                SuiteEvent::Failed(result) => self.report_task_finish(
-                    task_id,
-                    StatusCode::Error,
-                    None,
-                    Some(result.to_test_report()),
-                ),
+                SuiteEvent::Ok(result) => self.report_suite_finished(task_id, result),
+                SuiteEvent::Failed(result) => self.report_suite_finished(task_id, result),
             }
         }
+    }
+
+    fn report_suite_finished(&self, task_id: TaskId, result: SuiteResults) {
+        self.report_task_finish(task_id, StatusCode::Ok, None, Some(result.to_test_report()))
     }
 
     fn handle_single_test(&mut self, event: TestEvent) {
