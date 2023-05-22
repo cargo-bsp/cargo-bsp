@@ -1,6 +1,8 @@
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
+use log::warn;
 use lsp_types::DiagnosticSeverity;
+use path_absolutize::*;
 use paths::AbsPath;
 
 use bsp_types::notifications::{
@@ -66,12 +68,19 @@ where
     }
 
     fn handle_diagnostic(&mut self, msg: CompilerMessage) {
+        let abs_root_path = match self.root_path.absolutize() {
+            Ok(path) => path.to_path_buf(),
+            Err(e) => {
+                warn!("Couldn't find absolute path for project's root path: {}", e);
+                return;
+            }
+        };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
             self.params.origin_id(),
             // TODO change to actual BuildTargetIdentifier
             &BuildTargetIdentifier::default(),
-            AbsPath::assert(&self.root_path), // TODO nie mozna panikowac
+            AbsPath::assert(&abs_root_path),
         );
         match diagnostic_msg {
             DiagnosticMessage::Diagnostics(diagnostics) => {
