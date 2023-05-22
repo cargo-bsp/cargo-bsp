@@ -86,23 +86,11 @@ where
         }
     }
 
-    pub fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::CargoEvent(message) => {
-                // handle information and create notification based on that
-                match message {
-                    CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
-                    CargoMessage::CargoStderr(msg) => {
-                        self.log_message(MessageType::Error, msg, None)
-                    }
-                }
-            }
-            Event::Cancel => {
-                self.cancel();
-            }
-            Event::CargoFinish => {
-                self.finish_request();
-            }
+    fn handle_cargo_event(&mut self, message: CargoMessage) {
+        // handle information and create notification based on that
+        match message {
+            CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
+            CargoMessage::CargoStderr(msg) => self.log_message(MessageType::Error, msg, None),
         }
     }
 
@@ -111,7 +99,19 @@ where
         self.start_compile_task();
 
         while let Some(event) = self.next_event() {
-            self.handle_event(event);
+            match event {
+                Event::Cancel => {
+                    self.cancel();
+                    return;
+                }
+                Event::CargoFinish => {
+                    self.finish_request();
+                    return;
+                }
+                Event::CargoEvent(message) => {
+                    self.handle_cargo_event(message);
+                }
+            }
         }
     }
 
@@ -405,7 +405,6 @@ pub mod tests {
         mod cargo_compile_messages_tests {
             use super::*;
             use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
-            use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
             use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
             use cargo_metadata::Message::{
                 BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
@@ -442,9 +441,8 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_event(CargoEvent(CargoStdout(CompilerArtifact(
-                    default_compiler_artifact(),
-                ))));
+                req_actor
+                    .handle_cargo_event(CargoStdout(CompilerArtifact(default_compiler_artifact())));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
                 {
@@ -479,9 +477,8 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_event(CargoEvent(CargoStdout(BuildScriptExecuted(
-                    default_build_script(),
-                ))));
+                req_actor
+                    .handle_cargo_event(CargoStdout(BuildScriptExecuted(default_build_script())));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -514,9 +511,9 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
                     default_compiler_message(DiagnosticLevel::Error),
-                ))));
+                )));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.task.id" => RANDOM_TASK_ID,
@@ -565,9 +562,8 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
-                    default_build_finished(),
-                ))));
+                req_actor
+                    .handle_cargo_event(CargoStdout(BuildFinishedEnum(default_build_finished())));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -612,19 +608,18 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
                     default_compiler_message(DiagnosticLevel::Error),
-                ))));
-                req_actor.handle_event(CargoEvent(CargoStdout(CompilerMessageEnum(
+                )));
+                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
                     default_compiler_message(DiagnosticLevel::Warning),
-                ))));
+                )));
 
                 let _ = receiver_from_actor.recv(); // publish diagnostic
                 let _ = receiver_from_actor.recv(); // publish diagnostic
 
-                req_actor.handle_event(CargoEvent(CargoStdout(BuildFinishedEnum(
-                    default_build_finished(),
-                ))));
+                req_actor
+                    .handle_cargo_event(CargoStdout(BuildFinishedEnum(default_build_finished())));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -758,7 +753,6 @@ pub mod tests {
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
-        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use bsp_types::requests::{Run, RunParams};
         use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
 
@@ -889,7 +883,7 @@ pub mod tests {
                 ..
             } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(TEST_STDOUT.to_string()))));
+            req_actor.handle_cargo_event(CargoStdout(TextLine(TEST_STDOUT.to_string())));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.task.id" => RANDOM_TASK_ID,
@@ -922,7 +916,7 @@ pub mod tests {
                 ..
             } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
-            req_actor.handle_event(CargoEvent(CargoStderr(TEST_STDERR.to_string())));
+            req_actor.handle_cargo_event(CargoStderr(TEST_STDERR.to_string()));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.task.id" => RANDOM_TASK_ID,
