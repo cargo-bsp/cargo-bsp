@@ -1,12 +1,11 @@
 use bsp_types::requests::{CompileResult, RunResult, TestResult};
-use bsp_types::StatusCode;
 
 pub trait CargoResult {
-    fn create_result(origin_id: Option<String>, status_code: StatusCode) -> Self;
+    fn create_result(origin_id: Option<String>, status_code: i32) -> Self;
 }
 
 impl CargoResult for CompileResult {
-    fn create_result(origin_id: Option<String>, status_code: StatusCode) -> Self {
+    fn create_result(origin_id: Option<String>, status_code: i32) -> Self {
         CompileResult {
             origin_id,
             status_code,
@@ -17,7 +16,7 @@ impl CargoResult for CompileResult {
 }
 
 impl CargoResult for RunResult {
-    fn create_result(origin_id: Option<String>, status_code: StatusCode) -> Self {
+    fn create_result(origin_id: Option<String>, status_code: i32) -> Self {
         RunResult {
             origin_id,
             status_code,
@@ -26,7 +25,7 @@ impl CargoResult for RunResult {
 }
 
 impl CargoResult for TestResult {
-    fn create_result(origin_id: Option<String>, status_code: StatusCode) -> Self {
+    fn create_result(origin_id: Option<String>, status_code: i32) -> Self {
         TestResult {
             origin_id,
             status_code,

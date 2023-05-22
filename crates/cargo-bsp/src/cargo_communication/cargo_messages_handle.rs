@@ -114,7 +114,7 @@ where
         });
     }
 
-    fn finish_compile(&self, msg: BuildFinished) {
+    fn finish_compile(&mut self, msg: BuildFinished) {
         let status_code = if msg.success {
             StatusCode::Ok
         } else {
@@ -131,11 +131,16 @@ where
         });
         self.report_task_finish(
             self.state.compile_state.task_id.clone(),
-            status_code,
+            status_code.clone(),
             None,
             Some(compile_report),
         );
-        self.start_execution_task();
+        // Start execution task if compile finished with success.
+        match status_code {
+            StatusCode::Ok => self.start_execution_task(),
+            StatusCode::Error => self.state.task_state = TaskState::Compile,
+            StatusCode::Cancelled => (),
+        }
     }
 
     fn start_execution_task(&self) {
@@ -203,7 +208,8 @@ where
                         .insert(started.name.clone(), test_task_id.clone());
                     self.report_task_start(
                         test_task_id,
-                        None,
+                        // TODO to be deleted, when client allows empty message
+                        Some("Test started".to_string()),
                         Some(TaskDataWithKind::TestStart(TestStartData {
                             display_name: started.name,
                             // TODO add location of build target
@@ -232,7 +238,8 @@ where
                 self.report_task_finish(
                     id,
                     StatusCode::Ok,
-                    None,
+                    // TODO to be deleted, when client allows empty message
+                    Some("Test finished".to_string()),
                     Some(TaskDataWithKind::TestFinish(
                         test_result.map_to_test_notification(status),
                     )),

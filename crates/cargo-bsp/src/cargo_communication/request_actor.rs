@@ -126,17 +126,12 @@ where
     }
 
     fn finish_request(&mut self) {
-        let res = self.cargo_handle.take().unwrap().join();
-        let status_code = get_request_status_code(&res);
+        let command_result = self.cargo_handle.take().unwrap().join();
+        let status_code = get_request_status_code(&command_result);
 
         self.finish_execution_task(&status_code);
-        self.report_task_finish(
-            self.state.root_task_id.clone(),
-            status_code.clone(),
-            None,
-            None,
-        );
-        self.send_response(res, &status_code);
+        self.report_task_finish(self.state.root_task_id.clone(), status_code, None, None);
+        self.send_response(command_result);
     }
 
     fn finish_execution_task(&self, status_code: &StatusCode) {
@@ -342,9 +337,9 @@ pub mod tests {
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
                 {
                   "id": "test_req_id",
-                  "result": {
-                    "originId": "test_origin_id",
-                    "statusCode": 2
+                  "error": {
+                    "code": -32603,
+                    "message": "other error"
                   }
                 }
                 "###);
@@ -875,9 +870,9 @@ pub mod tests {
             ,@r###"
             {
               "id": "test_req_id",
-              "result": {
-                "originId": "test_origin_id",
-                "statusCode": 2
+              "error": {
+                "code": -32603,
+                "message": "other error"
               }
             }
             "###);

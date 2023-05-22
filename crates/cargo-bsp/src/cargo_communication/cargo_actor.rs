@@ -55,19 +55,13 @@ impl CargoActor {
 
                 // Try to deserialize a message from Cargo.
                 let mut deserializer = serde_json::Deserializer::from_str(line);
-                deserializer.disable_recursion_limit();
-                match Message::deserialize(&mut deserializer) {
-                    Ok(message) => {
-                        self.sender
-                            .send(CargoMessage::CargoStdout(message))
-                            .unwrap_or_else(|e| {
-                                warn!("Could not send a message from cargo: {}", e.to_string());
-                            });
-                    }
-                    Err(e) => {
-                        warn!("Could not parse a message from cargo: {}", e.to_string());
-                    }
-                };
+                let message = Message::deserialize(&mut deserializer)
+                    .unwrap_or(Message::TextLine(line.to_string()));
+                self.sender
+                    .send(CargoMessage::CargoStdout(message))
+                    .unwrap_or_else(|e| {
+                        warn!("Could not send a message from cargo: {}", e.to_string());
+                    });
             },
             &mut |line| {
                 self.sender

@@ -1,7 +1,7 @@
 use std::io;
 use std::process::ExitStatus;
 
-use bsp_server::{Message, Notification, Response};
+use bsp_server::{ErrorCode, Message, Notification, Response, ResponseError};
 use serde_json::to_value;
 
 use bsp_types::notifications::{
@@ -25,16 +25,22 @@ where
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
-    pub(super) fn send_response(&self, _: io::Result<ExitStatus>, status_code: &StatusCode) {
+    pub(super) fn send_response(&self, command_result: io::Result<ExitStatus>) {
         self.send(Message::Response(Response {
             id: self.req_id.clone(),
-            result: to_value(R::Result::create_result(
-                self.params.origin_id(),
-                status_code.clone(),
-            ))
-            .ok(),
-            // TODO create error for response
-            error: None,
+            result: command_result.as_ref().ok().map(|exit_status| {
+                to_value(R::Result::create_result(
+                    self.params.origin_id(),
+                    // If there is no exit code, process terminated by signal
+                    exit_status.code().unwrap_or(143),
+                ))
+                .unwrap()
+            }),
+            error: command_result.as_ref().err().map(|e| ResponseError {
+                code: ErrorCode::InternalError as i32,
+                message: e.to_string(),
+                data: None,
+            }),
         }));
     }
 
