@@ -11,7 +11,7 @@ use crate::project_model::build_target_mappings::bsp_build_target_from_cargo_tar
 use crate::project_model::package_dependency::PackageDependency;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Feature(String);
+pub struct Feature(pub(crate) String);
 
 impl From<&str> for Feature {
     fn from(s: &str) -> Self {
