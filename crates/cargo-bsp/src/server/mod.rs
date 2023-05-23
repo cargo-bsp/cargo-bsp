@@ -8,7 +8,7 @@ pub use server_run::run_server;
 pub(crate) mod caps;
 pub(crate) mod config;
 mod dispatch;
-mod global_state;
+pub(crate) mod global_state;
 mod handlers;
 mod main_loop;
 mod server_run;
