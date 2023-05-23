@@ -83,7 +83,16 @@ impl<'a> RequestDispatcher<'a> {
             params,
             self.global_state.config.root_path(),
         );
-        self.global_state.handlers.insert(req.id, request_handle);
+        match request_handle {
+            Ok(request_handle) => {
+                self.global_state.handlers.insert(req.id, request_handle);
+            }
+            Err(e) => {
+                let response =
+                    Response::new_err(req.id, ErrorCode::InternalError as i32, e.to_string());
+                self.global_state.respond(response);
+            }
+        }
 
         self
     }

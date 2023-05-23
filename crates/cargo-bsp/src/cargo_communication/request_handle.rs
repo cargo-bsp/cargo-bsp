@@ -1,3 +1,4 @@
+use std::io;
 use std::path::Path;
 
 use bsp_server::{Message, RequestId};
@@ -24,7 +25,7 @@ impl RequestHandle {
         req_id: RequestId,
         params: R::Params,
         root_path: &Path,
-    ) -> RequestHandle
+    ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
         R::Params: CreateCommand + Send,
@@ -32,29 +33,22 @@ impl RequestHandle {
     {
         let cmd = params.create_command(root_path.into());
         info!("Created command: {:?}", cmd);
-        match CargoHandle::spawn(cmd) {
-            Ok(cargo_handle) => {
-                let (cancel_sender, cancel_receiver) = unbounded::<Event>();
-                let actor: RequestActor<R, CargoHandle> = RequestActor::new(
-                    sender_to_main,
-                    req_id,
-                    params,
-                    root_path,
-                    cargo_handle,
-                    cancel_receiver,
-                );
-                let thread = jod_thread::Builder::new()
-                    .spawn(move || actor.run())
-                    .expect("failed to spawn thread");
-                RequestHandle {
-                    cancel_sender,
-                    _thread: thread,
-                }
-            }
-            Err(_err) => {
-                todo!()
-            }
-        }
+        let cargo_handle = CargoHandle::spawn(cmd)?;
+        let (cancel_sender, cancel_receiver) = unbounded::<Event>();
+        let actor: RequestActor<R, CargoHandle> = RequestActor::new(
+            sender_to_main,
+            req_id,
+            params,
+            root_path,
+            cargo_handle,
+            cancel_receiver,
+        );
+        let thread = jod_thread::Builder::new().spawn(move || actor.run())?;
+
+        Ok(RequestHandle {
+            cancel_sender,
+            _thread: thread,
+        })
     }
 
     pub fn cancel(&self) {

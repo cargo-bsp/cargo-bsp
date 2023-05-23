@@ -64,10 +64,7 @@ impl CargoHandle {
 
         let (sender, receiver) = unbounded();
         let actor = CargoActor::new(sender, stdout, stderr);
-        let thread = jod_thread::Builder::new()
-            .name("CargoHandle".to_owned())
-            .spawn(move || actor.run())
-            .expect("failed to spawn thread");
+        let thread = jod_thread::Builder::new().spawn(move || actor.run())?;
         Ok(CargoHandle {
             child,
             thread,
