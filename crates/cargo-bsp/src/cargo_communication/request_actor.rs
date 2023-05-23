@@ -176,11 +176,10 @@ pub mod tests {
     use super::*;
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
-    use crossbeam_channel::unbounded;
-    use insta::{assert_json_snapshot, Settings};
 
     use bsp_types::requests::{Compile, CompileParams};
     use bsp_types::BuildTargetIdentifier;
+    use cargo_metadata::Message::BuildFinished as BuildFinishedEnum;
     use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
     use crossbeam_channel::{unbounded, Sender};
     use insta::{assert_json_snapshot, Settings};
@@ -932,7 +931,6 @@ pub mod tests {
     #[cfg(test)]
     mod test_request_tests {
         use super::*;
-        use crate::cargo_communication::cargo_types::event::Event::CargoEvent;
         use crate::cargo_communication::cargo_types::test::TestEvent::Started;
         use crate::cargo_communication::cargo_types::test::{
             SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName,
@@ -1023,7 +1021,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target testing",
-                "status": 2,
+                "status": 1,
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -1043,7 +1041,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
-                "status": 2,
+                "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
                 }
@@ -1055,9 +1053,9 @@ pub mod tests {
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
             {
               "id": "test_req_id",
-              "result": {
-                "originId": "test_origin_id",
-                "statusCode": 2
+              "error": {
+                "code": -32603,
+                "message": "other error"
               }
             }
             "###);
@@ -1075,9 +1073,9 @@ pub mod tests {
 
             let suite_started = SuiteStarted { test_count: 1 };
 
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+            req_actor.handle_cargo_event(CargoStdout(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Started(suite_started))).unwrap(),
-            ))));
+            )));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1124,9 +1122,9 @@ pub mod tests {
                 ..
             } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+            req_actor.handle_cargo_event(CargoStdout(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Ok(default_suite_results()))).unwrap(),
-            ))));
+            )));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1172,9 +1170,9 @@ pub mod tests {
             let test_started = Started(TestName {
                 name: TEST_NAME.into(),
             });
-            req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+            req_actor.handle_cargo_event(CargoStdout(TextLine(
                 to_string(&TestType::Test(test_started)).unwrap(),
-            ))));
+            )));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1189,6 +1187,7 @@ pub mod tests {
                 },
                 "dataKind": "test-start",
                 "eventTime": "timestamp",
+                "message": "Test started",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1215,14 +1214,13 @@ pub mod tests {
                 let test_started = Started(TestName {
                     name: TEST_NAME.into(),
                 });
-                req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
+                req_actor.handle_cargo_event(CargoStdout(TextLine(
                     to_string(&TestType::Test(test_started)).unwrap(),
-                ))));
+                )));
                 let _ = receiver_from_actor.recv().unwrap(); // test started message
 
-                req_actor.handle_event(CargoEvent(CargoStdout(TextLine(
-                    to_string(passed_status).unwrap(),
-                ))));
+                req_actor
+                    .handle_cargo_event(CargoStdout(TextLine(to_string(passed_status).unwrap())));
 
                 allow_duplicates!(assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1242,6 +1240,7 @@ pub mod tests {
                       },
                       "dataKind": "test-finish",
                       "eventTime": "timestamp",
+                      "message": "Test finished",
                       "status": 1,
                       "taskId": {
                         "id": "random_task_id",

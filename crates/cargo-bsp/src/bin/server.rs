@@ -37,13 +37,14 @@ pub fn main() -> server::Result<()> {
             Config::default(),
             File::create(debug_log_file_path().to_str().unwrap()).unwrap(),
         ),
-        #[cfg(debug_assertions)]
-        TermLogger::new(
-            LevelFilter::Trace,
-            Config::default(),
-            TerminalMode::Stderr,
-            ColorChoice::Auto,
-        ),
+        // TODO uncomment, when client allows stderr logging
+        // #[cfg(debug_assertions)]
+        // TermLogger::new(
+        //     LevelFilter::Trace,
+        //     Config::default(),
+        //     TerminalMode::Stderr,
+        //     ColorChoice::Auto,
+        // ),
     ])
     .unwrap();
 
