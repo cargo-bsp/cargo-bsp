@@ -249,7 +249,7 @@ pub struct TestFinishData {
 
 pub type Location = lsp_types::Location;
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone, Copy)]
 #[repr(u8)]
 pub enum TestStatus {
     /** The test was successful. */
