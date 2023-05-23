@@ -188,8 +188,9 @@ where
                         Some(TaskDataWithKind::TestTask(TestTaskData::default())),
                     );
                 }
-                SuiteEvent::Ok(result) => self.report_suite_finished(task_id, result),
-                SuiteEvent::Failed(result) => self.report_suite_finished(task_id, result),
+                SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
+                    self.report_suite_finished(task_id, result)
+                }
             }
         }
     }
