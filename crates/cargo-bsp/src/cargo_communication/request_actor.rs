@@ -176,7 +176,6 @@ pub mod tests {
     use super::*;
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
-
     use bsp_types::requests::{Compile, CompileParams};
     use bsp_types::BuildTargetIdentifier;
     use cargo_metadata::Message::BuildFinished as BuildFinishedEnum;
@@ -744,7 +743,7 @@ pub mod tests {
             CargoStderr, CargoStdout,
         };
         use bsp_types::requests::{Run, RunParams};
-        use cargo_metadata::Message::{BuildFinished as BuildFinishedEnum, TextLine};
+        use cargo_metadata::Message::TextLine;
 
         const TEST_STDOUT: &str = "test_stdout";
         const TEST_STDERR: &str = "test_stderr";
