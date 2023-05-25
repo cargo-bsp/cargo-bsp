@@ -1,11 +1,13 @@
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
+use log::warn;
 use lsp_types::DiagnosticSeverity;
+use path_absolutize::*;
 use paths::AbsPath;
 
 use bsp_types::notifications::{
     CompileReportData, LogMessage, LogMessageParams, MessageType, PublishDiagnostics,
-    PublishDiagnosticsParams, TaskDataWithKind, TestStartData, TestStatus, TestTaskData,
+    PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
 };
 use bsp_types::requests::Request;
 use bsp_types::{BuildTargetIdentifier, StatusCode};
@@ -16,7 +18,9 @@ use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
-use crate::cargo_communication::cargo_types::test::{SuiteEvent, TestEvent, TestResult, TestType};
+use crate::cargo_communication::cargo_types::test::{
+    SuiteEvent, SuiteResults, TestEvent, TestResult, TestType,
+};
 use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 use crate::cargo_communication::request_actor_state::TaskState;
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
@@ -66,12 +70,19 @@ where
     }
 
     fn handle_diagnostic(&mut self, msg: CompilerMessage) {
+        let abs_root_path = match self.root_path.absolutize() {
+            Ok(path) => path.to_path_buf(),
+            Err(e) => {
+                warn!("Couldn't find absolute path for project's root path: {}", e);
+                return;
+            }
+        };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
             self.params.origin_id(),
             // TODO change to actual BuildTargetIdentifier
             &BuildTargetIdentifier::default(),
-            AbsPath::assert(&self.root_path), // TODO nie mozna panikowac
+            AbsPath::assert(&abs_root_path),
         );
         match diagnostic_msg {
             DiagnosticMessage::Diagnostics(diagnostics) => {
@@ -114,12 +125,7 @@ where
         });
     }
 
-    fn finish_compile(&self, msg: BuildFinished) {
-        let status_code = if msg.success {
-            StatusCode::Ok
-        } else {
-            StatusCode::Error
-        };
+    fn finish_compile(&mut self, msg: BuildFinished) {
         let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
             // TODO change to actual BuildTargetIdentifier
             target: BuildTargetIdentifier::default(),
@@ -131,11 +137,16 @@ where
         });
         self.report_task_finish(
             self.state.compile_state.task_id.clone(),
-            status_code,
+            StatusCode::Ok,
             None,
             Some(compile_report),
         );
-        self.start_execution_task();
+        // Start execution task if compile finished with success.
+        if msg.success {
+            self.start_execution_task()
+        } else {
+            self.state.task_state = TaskState::Compile
+        }
     }
 
     fn start_execution_task(&self) {
@@ -177,20 +188,15 @@ where
                         Some(TaskDataWithKind::TestTask(TestTaskData::default())),
                     );
                 }
-                SuiteEvent::Ok(result) => self.report_task_finish(
-                    task_id,
-                    StatusCode::Ok,
-                    None,
-                    Some(result.to_test_report()),
-                ),
-                SuiteEvent::Failed(result) => self.report_task_finish(
-                    task_id,
-                    StatusCode::Error,
-                    None,
-                    Some(result.to_test_report()),
-                ),
+                SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
+                    self.report_suite_finished(task_id, result)
+                }
             }
         }
+    }
+
+    fn report_suite_finished(&self, task_id: TaskId, result: SuiteResults) {
+        self.report_task_finish(task_id, StatusCode::Ok, None, Some(result.to_test_report()))
     }
 
     fn handle_single_test(&mut self, event: TestEvent) {
@@ -203,7 +209,8 @@ where
                         .insert(started.name.clone(), test_task_id.clone());
                     self.report_task_start(
                         test_task_id,
-                        None,
+                        // TODO to be deleted, when client allows empty message
+                        Some("Test started".to_string()),
                         Some(TaskDataWithKind::TestStart(TestStartData {
                             display_name: started.name,
                             // TODO add location of build target
@@ -232,7 +239,8 @@ where
                 self.report_task_finish(
                     id,
                     StatusCode::Ok,
-                    None,
+                    // TODO to be deleted, when client allows empty message
+                    Some("Test finished".to_string()),
                     Some(TaskDataWithKind::TestFinish(
                         test_result.map_to_test_notification(status),
                     )),

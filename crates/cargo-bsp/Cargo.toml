@@ -28,6 +28,7 @@ simplelog = "0.12.1"
 stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "toolchain", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 url = "2.3.1"
+path-absolutize = "3.1.0"
 
 [dev-dependencies]
 assert_cmd = "2.0.11"
