@@ -76,7 +76,14 @@ mod tests {
     use std::fs::File;
     use std::path::{Path, PathBuf};
 
+    use cargo_metadata::camino::Utf8PathBuf;
+    use insta::assert_json_snapshot;
     use tempfile::tempdir;
+
+    use bsp_types::BuildTargetIdentifier;
+
+    use crate::project_model::sources::get_sources_for_target;
+    use crate::project_model::target_details::{CargoTargetKind, TargetDetails};
 
     fn create_files(files_names: &[&str], dir: &Path) -> HashSet<PathBuf> {
         let files_paths = files_names
@@ -221,5 +228,133 @@ mod tests {
         }
     }
 
+    mod list_target_sources {
+        use std::collections::HashSet;
+        use std::fs;
 
+        use cargo_metadata::camino::Utf8PathBuf;
+
+        use bsp_types::requests::SourceItem;
+
+        use crate::project_model::sources::{create_source_item, list_target_sources};
+        use crate::project_model::target_details::{CargoTargetKind, TargetDetails};
+
+        use super::*;
+
+        struct TestCase<'a> {
+            test_target_kind: CargoTargetKind,
+            expected: &'a HashSet<SourceItem>,
+        }
+
+        const RUST_FILE_NAMES: [&str; 3] = ["test1.rs", "test2.rs", "test3.rs"];
+
+        #[test]
+        fn test() {
+            let root_dir1 = tempdir().unwrap();
+            let root_dir1_path = root_dir1.path();
+            let root_dir1_path_str = Utf8PathBuf::try_from(root_dir1_path.to_path_buf()).unwrap();
+
+            let root_dir2 = tempdir().unwrap();
+            let root_dir2_path = root_dir2.path();
+            let root_dir2_path_str = Utf8PathBuf::try_from(root_dir2_path.to_path_buf()).unwrap();
+
+            let src_dir_path = root_dir1_path.join("src");
+            fs::create_dir(src_dir_path.clone()).unwrap();
+            let tests_dir_path = root_dir1_path.join("tests");
+            fs::create_dir(tests_dir_path.clone()).unwrap();
+
+            let rust_source_files: Vec<HashSet<SourceItem>> =
+                create_files_in_dirs(&RUST_FILE_NAMES, vec![&src_dir_path, &tests_dir_path])
+                    .into_iter()
+                    .map(|paths| {
+                        paths
+                            .iter()
+                            .map(|path| create_source_item(path.clone()))
+                            .collect()
+                    })
+                    .collect();
+
+            let all_rust_source_files: HashSet<SourceItem> =
+                rust_source_files.clone().into_iter().flatten().collect();
+
+            let binding = Default::default();
+            let default_target_details = TargetDetails {
+                name: String::default(),
+                kind: CargoTargetKind::default(),
+                package_abs_path: Utf8PathBuf::default(),
+                default_features_disabled: false,
+                enabled_features: &binding,
+            };
+
+            let test_cases = vec![
+                TestCase {
+                    test_target_kind: CargoTargetKind::Bin,
+                    expected: &rust_source_files[0],
+                },
+                TestCase {
+                    test_target_kind: CargoTargetKind::Lib,
+                    expected: &rust_source_files[0],
+                },
+                TestCase {
+                    test_target_kind: CargoTargetKind::Test,
+                    expected: &all_rust_source_files,
+                },
+                TestCase {
+                    test_target_kind: CargoTargetKind::Bench,
+                    expected: &all_rust_source_files,
+                },
+                TestCase {
+                    test_target_kind: CargoTargetKind::Example,
+                    expected: &all_rust_source_files,
+                },
+            ];
+
+            for case in test_cases {
+                let mut test_target_details = TargetDetails {
+                    package_abs_path: root_dir1_path_str.clone(),
+                    kind: case.test_target_kind.clone(),
+                    ..default_target_details.clone()
+                };
+
+                let source_item = list_target_sources(test_target_details.clone());
+                assert!(source_item.iter().all(|item| case.expected.contains(item)));
+
+                test_target_details.package_abs_path = root_dir2_path_str.clone();
+                let source_item = list_target_sources(test_target_details);
+                assert_eq!(source_item.len(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn get_sources_for_target_test() {
+        let test_id = BuildTargetIdentifier {
+            uri: "testId".to_string(),
+        };
+        let binding = Default::default();
+        let test_target_details = TargetDetails {
+            name: String::default(),
+            kind: CargoTargetKind::Test,
+            package_abs_path: Utf8PathBuf::from(
+                "/var/folders/n6/8743lq293tn0ky5ds10l_89w0000gn/T/.tmpMeeFXt",
+            ),
+            default_features_disabled: false,
+            enabled_features: &binding,
+        };
+
+        assert_json_snapshot!(
+            get_sources_for_target(&test_id, test_target_details),
+            @r###"
+        {
+          "target": {
+            "uri": "testId"
+          },
+          "sources": [],
+          "roots": [
+            "file:///var/folders/n6/8743lq293tn0ky5ds10l_89w0000gn/T/.tmpMeeFXt"
+          ]
+        }
+        "###
+        );
+    }
 }

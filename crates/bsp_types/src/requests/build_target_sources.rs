@@ -36,7 +36,7 @@ pub struct SourcesItem {
     pub roots: Vec<Uri>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone, Eq, Hash)]
 pub struct SourceItem {
     /** Either a text document or a directory. A directory entry must end with a forward
     slash "/" and a directory entry implies that every nested text document within the
@@ -51,7 +51,7 @@ pub struct SourceItem {
     pub generated: bool,
 }
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone, Eq, Hash)]
 #[repr(u8)]
 pub enum SourceItemKind {
     /** The source item references a normal file.  */
