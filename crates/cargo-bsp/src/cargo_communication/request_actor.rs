@@ -8,9 +8,11 @@ pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
+use cargo_metadata::Message as CargoMetadataMessage;
 use crossbeam_channel::{never, select, Receiver};
 use log::warn;
 use mockall::*;
+use serde::Deserialize;
 
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
@@ -34,7 +36,7 @@ where
     /// doesn't provide a way to read sub-process output without blocking, so we
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
-    cargo_handle: Option<C>,
+    pub(super) cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
     pub(super) req_id: RequestId,
     pub(super) params: R::Params,
@@ -68,7 +70,7 @@ where
         }
     }
 
-    fn next_event(&self) -> Option<Event> {
+    pub fn next_event(&self) -> Option<Event> {
         let cargo_chan = self.cargo_handle.as_ref().map(|cargo| cargo.receiver());
         select! {
             recv(self.cancel_receiver) -> msg => msg.ok(),
@@ -82,13 +84,12 @@ where
     fn handle_cargo_event(&mut self, message: CargoMessage) {
         // handle information and create notification based on that
         match message {
-            CargoMessage::CargoStdout(msg) => self.handle_cargo_information(msg),
+            CargoMessage::CargoStdout(msg) => self.deserialize_and_handle_cargo_information(msg),
             CargoMessage::CargoStderr(msg) => self.log_message(MessageType::Error, msg, None),
         }
     }
 
     pub fn run(mut self) {
-        self.report_task_start(self.state.root_task_id.clone(), None, None);
         self.start_compile_task();
 
         while let Some(event) = self.next_event() {
@@ -118,6 +119,13 @@ where
         );
     }
 
+    fn deserialize_and_handle_cargo_information(&mut self, msg: String) {
+        let mut deserializer = serde_json::Deserializer::from_str(&msg);
+        let message = CargoMetadataMessage::deserialize(&mut deserializer)
+            .unwrap_or(CargoMetadataMessage::TextLine(msg));
+        self.handle_cargo_information(message);
+    }
+
     fn finish_request(&mut self) {
         let command_result = self.cargo_handle.take().unwrap().join();
 
@@ -144,7 +152,7 @@ where
         }
     }
 
-    fn cancel(&mut self) {
+    pub fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             cargo_handle.cancel();
             self.report_task_finish(
@@ -249,10 +257,9 @@ pub mod tests {
             }
         }
 
-        #[test]
-        fn compile_lifetime() {
-            let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
-
+        fn mock_cargo_handler(
+            receiver_from_cargo: Receiver<CargoMessage>,
+        ) -> TestEndpoints<Compile> {
             let mut mock_cargo_handle = MockCargoHandler::new();
             // There is no robust way to return ExitStatus hence we return Error. In consequence the
             // status code of response is 2(Error).
@@ -262,22 +269,34 @@ pub mod tests {
             mock_cargo_handle
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
-            let TestEndpoints {
-                req_actor,
-                receiver_from_actor,
-                _cancel_sender,
-                ..
-            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params())
+        }
 
-            let _ = jod_thread::Builder::new()
-                .spawn(move || req_actor.run())
-                .expect("failed to spawn thread")
-                .detach();
+        mod unit_graph_tests {
+            use super::*;
+            use crate::cargo_communication::cargo_types::unit_graph::UnitGraph;
+            use serde_json::to_string;
 
-            let mut settings = Settings::clone_current();
-            settings.add_redaction(".params.eventTime", TIMESTAMP);
-            settings.bind(|| {
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+            #[test]
+            fn unit_graph_error() {
+                let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
+
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = mock_cargo_handler(receiver_from_cargo);
+
+                let _ = jod_thread::Builder::new()
+                    .spawn(move || req_actor.run_unit_graph())
+                    .expect("failed to spawn thread")
+                    .detach();
+
+                let mut settings = Settings::clone_current();
+                settings.add_redaction(".params.eventTime", TIMESTAMP);
+                settings.bind(|| {
+                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
                 {
                   "method": "build/taskStart",
                   "params": {
@@ -288,7 +307,117 @@ pub mod tests {
                   }
                 }
                 "###);
-            });
+                });
+
+                // The channel is closed so the actor finishes its execution.
+                drop(sender_to_actor);
+
+                settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
+                settings.bind(|| {
+                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "method": "build/taskStart",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "Started unit graph command",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "Finished unit graph command",
+                    "status": 2,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                });
+                no_more_msg(receiver_from_actor);
+            }
+
+            #[test]
+            fn unit_graph_success() {
+                let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
+
+                let TestEndpoints {
+                    mut req_actor,
+                    receiver_from_actor,
+                    _cancel_sender,
+                    ..
+                } = mock_cargo_handler(receiver_from_cargo);
+
+                let _ = jod_thread::Builder::new()
+                    .spawn(move || req_actor.run_unit_graph())
+                    .expect("failed to spawn thread")
+                    .detach();
+
+                let _ = receiver_from_actor.recv().unwrap(); // main task started
+                let _ = receiver_from_actor.recv().unwrap(); // unit graph task started
+
+                sender_to_actor
+                    .send(CargoMessage::CargoStdout(
+                        to_string(&UnitGraph::default()).unwrap(),
+                    ))
+                    .unwrap();
+
+                drop(sender_to_actor);
+
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
+                ".params.taskId.id" => RANDOM_TASK_ID,
+                ".params.eventTime" => TIMESTAMP,
+                }
+                ,@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "Finished unit graph command",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                no_more_msg(receiver_from_actor);
+            }
+        }
+
+        #[test]
+        fn compile_lifetime() {
+            let (sender_to_actor, receiver_from_cargo) = unbounded::<CargoMessage>();
+
+            let TestEndpoints {
+                req_actor,
+                receiver_from_actor,
+                _cancel_sender,
+                ..
+            } = mock_cargo_handler(receiver_from_cargo);
+
+            let _ = jod_thread::Builder::new()
+                .spawn(move || req_actor.run())
+                .expect("failed to spawn thread")
+                .detach();
+
+            let mut settings = Settings::clone_current();
+            settings.add_redaction(".params.eventTime", TIMESTAMP);
 
             // The channel is closed so the actor finishes its execution.
             drop(sender_to_actor);
@@ -396,7 +525,6 @@ pub mod tests {
 
         mod cargo_compile_messages_tests {
             use super::*;
-            use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
             use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
             use cargo_metadata::Message::{
                 BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
@@ -433,8 +561,7 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor
-                    .handle_cargo_event(CargoStdout(CompilerArtifact(default_compiler_artifact())));
+                req_actor.handle_cargo_information(CompilerArtifact(default_compiler_artifact()));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
                 {
@@ -468,8 +595,7 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor
-                    .handle_cargo_event(CargoStdout(BuildScriptExecuted(default_build_script())));
+                req_actor.handle_cargo_information(BuildScriptExecuted(default_build_script()));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -501,8 +627,8 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
-                    default_compiler_message(DiagnosticLevel::Error),
+                req_actor.handle_cargo_information(CompilerMessageEnum(default_compiler_message(
+                    DiagnosticLevel::Error,
                 )));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
@@ -551,8 +677,7 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor
-                    .handle_cargo_event(CargoStdout(BuildFinishedEnum(default_build_finished())));
+                req_actor.handle_cargo_information(BuildFinishedEnum(default_build_finished()));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -597,18 +722,17 @@ pub mod tests {
                     ..
                 } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
 
-                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
-                    default_compiler_message(DiagnosticLevel::Error),
+                req_actor.handle_cargo_information(CompilerMessageEnum(default_compiler_message(
+                    DiagnosticLevel::Error,
                 )));
-                req_actor.handle_cargo_event(CargoStdout(CompilerMessageEnum(
-                    default_compiler_message(DiagnosticLevel::Warning),
+                req_actor.handle_cargo_information(CompilerMessageEnum(default_compiler_message(
+                    DiagnosticLevel::Warning,
                 )));
 
                 let _ = receiver_from_actor.recv(); // publish diagnostic
                 let _ = receiver_from_actor.recv(); // publish diagnostic
 
-                req_actor
-                    .handle_cargo_event(CargoStdout(BuildFinishedEnum(default_build_finished())));
+                req_actor.handle_cargo_information(BuildFinishedEnum(default_build_finished()));
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
@@ -744,6 +868,7 @@ pub mod tests {
         };
         use bsp_types::requests::{Run, RunParams};
         use cargo_metadata::Message::TextLine;
+        use serde_json::to_string;
 
         const TEST_STDOUT: &str = "test_stdout";
         const TEST_STDERR: &str = "test_stderr";
@@ -783,11 +908,12 @@ pub mod tests {
                 .expect("failed to spawn thread")
                 .detach();
 
-            let _ = receiver_from_actor.recv(); // main task started
             let _ = receiver_from_actor.recv(); // compilation task started
 
             sender_to_actor
-                .send(CargoStdout(BuildFinishedEnum(default_build_finished())))
+                .send(CargoStdout(
+                    to_string(&BuildFinishedEnum(default_build_finished())).unwrap(),
+                ))
                 .unwrap();
 
             let _ = receiver_from_actor.recv(); // compilation task finished
@@ -871,7 +997,7 @@ pub mod tests {
                 ..
             } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
 
-            req_actor.handle_cargo_event(CargoStdout(TextLine(TEST_STDOUT.to_string())));
+            req_actor.handle_cargo_information(TextLine(TEST_STDOUT.to_string()));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.task.id" => RANDOM_TASK_ID,
@@ -978,10 +1104,11 @@ pub mod tests {
                 .expect("failed to spawn thread")
                 .detach();
 
-            let _ = receiver_from_actor.recv(); // main task started
             let _ = receiver_from_actor.recv(); // compilation task started
             sender_to_actor
-                .send(CargoStdout(BuildFinishedEnum(default_build_finished())))
+                .send(CargoStdout(
+                    to_string(&BuildFinishedEnum(default_build_finished())).unwrap(),
+                ))
                 .unwrap();
 
             let _ = receiver_from_actor.recv(); // compilation task finished
@@ -1072,9 +1199,9 @@ pub mod tests {
 
             let suite_started = SuiteStarted { test_count: 1 };
 
-            req_actor.handle_cargo_event(CargoStdout(TextLine(
+            req_actor.handle_cargo_information(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Started(suite_started))).unwrap(),
-            )));
+            ));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1121,9 +1248,9 @@ pub mod tests {
                 ..
             } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
 
-            req_actor.handle_cargo_event(CargoStdout(TextLine(
+            req_actor.handle_cargo_information(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Ok(default_suite_results()))).unwrap(),
-            )));
+            ));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1169,9 +1296,9 @@ pub mod tests {
             let test_started = Started(TestName {
                 name: TEST_NAME.into(),
             });
-            req_actor.handle_cargo_event(CargoStdout(TextLine(
+            req_actor.handle_cargo_information(TextLine(
                 to_string(&TestType::Test(test_started)).unwrap(),
-            )));
+            ));
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -1213,13 +1340,12 @@ pub mod tests {
                 let test_started = Started(TestName {
                     name: TEST_NAME.into(),
                 });
-                req_actor.handle_cargo_event(CargoStdout(TextLine(
+                req_actor.handle_cargo_information(TextLine(
                     to_string(&TestType::Test(test_started)).unwrap(),
-                )));
+                ));
                 let _ = receiver_from_actor.recv().unwrap(); // test started message
 
-                req_actor
-                    .handle_cargo_event(CargoStdout(TextLine(to_string(passed_status).unwrap())));
+                req_actor.handle_cargo_information(TextLine(to_string(passed_status).unwrap()));
 
                 allow_duplicates!(assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.id" => RANDOM_TASK_ID,
