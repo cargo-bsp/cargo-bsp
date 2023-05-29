@@ -5,5 +5,6 @@ pub(crate) mod cargo_types;
 pub(crate) mod request_actor;
 mod request_actor_sender;
 mod request_actor_state;
+mod request_actor_unit_graph;
 pub(crate) mod request_handle;
 mod utils;

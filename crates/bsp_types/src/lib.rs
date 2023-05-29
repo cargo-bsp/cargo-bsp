@@ -5,11 +5,10 @@ pub mod requests;
 
 pub mod notifications;
 
-#[cfg(test)]
-mod tests {
+pub mod tests {
     use serde::Deserialize;
 
-    pub(crate) fn test_deserialization<T>(json: &str, expected: &T)
+    pub fn test_deserialization<T>(json: &str, expected: &T)
     where
         T: for<'de> Deserialize<'de> + PartialEq + std::fmt::Debug,
     {
