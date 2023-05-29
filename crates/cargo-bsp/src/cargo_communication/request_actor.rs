@@ -155,12 +155,7 @@ where
     pub fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             cargo_handle.cancel();
-            self.report_task_finish(
-                self.state.root_task_id.clone(),
-                StatusCode::Cancelled,
-                None,
-                None,
-            );
+            self.send_cancel_response();
         } else {
             warn!(
                 "Tried to cancel request {} that was already finished",
@@ -498,6 +493,15 @@ pub mod tests {
               }
             }
             "###);
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+            {
+              "id": "test_req_id",
+              "error": {
+                "code": -32800,
+                "message": "canceled by client"
+              }
+            }
+            "###);
             no_more_msg(receiver_from_actor);
         }
 
@@ -519,7 +523,8 @@ pub mod tests {
             req_actor.cancel();
             req_actor.cancel();
 
-            let _ = receiver_from_actor.recv().unwrap();
+            let _ = receiver_from_actor.recv().unwrap(); // main task notification
+            let _ = receiver_from_actor.recv().unwrap(); // response
             no_more_msg(receiver_from_actor);
         }
 
