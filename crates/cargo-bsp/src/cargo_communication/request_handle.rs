@@ -31,7 +31,7 @@ where
     let unit_graph_status_code = actor.run_unit_graph();
     // We don't run requested command, if request was cancelled during
     // unit graph command.
-    if unit_graph_status_code == UnitGraphStatusCode::Ok {
+    if let UnitGraphStatusCode::Ok = unit_graph_status_code {
         info!("Created command: {:?}", requested_cmd);
 
         match CargoHandle::spawn(requested_cmd) {

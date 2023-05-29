@@ -60,17 +60,13 @@ where
     }
 
     fn report_compile_step(&mut self, msg: Option<String>) {
-        self.state.compile_state.compilation_step =
-            self.state.compile_state.compilation_step.map(|s| s + 1);
+        self.state.compile_state.increase_compilation_step();
         self.report_task_progress(
             self.state.compile_state.task_id.clone(),
             msg,
             self.state.unit_graph_state.total_compilation_steps,
             self.state.compile_state.compilation_step,
-            self.state
-                .compile_state
-                .compilation_step
-                .map(|_| "compilation_steps".to_string()),
+            Some("compilation_steps".to_string()),
         );
     }
 

@@ -9,7 +9,6 @@ use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::unit_graph::UnitGraph;
 use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 
-#[derive(PartialEq)]
 pub enum UnitGraphStatusCode {
     Ok,
     Cancelled,

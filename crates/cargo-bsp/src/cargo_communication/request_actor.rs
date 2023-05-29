@@ -578,7 +578,8 @@ pub mod tests {
                       "parents": [
                         "test_origin_id"
                       ]
-                    }
+                    },
+                    "unit": "compilation_steps"
                   }
                 }
                 "###
@@ -611,7 +612,8 @@ pub mod tests {
                       "parents": [
                         "test_origin_id"
                       ]
-                    }
+                    },
+                    "unit": "compilation_steps"
                   }
                 }
                 "###);
