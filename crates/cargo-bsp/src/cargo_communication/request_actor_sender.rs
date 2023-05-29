@@ -44,6 +44,28 @@ where
         }));
     }
 
+    pub(super) fn send_cancel_response(&self) {
+        self.report_task_finish(
+            self.state.root_task_id.clone(),
+            StatusCode::Cancelled,
+            None,
+            None,
+        );
+        let error = ResponseError {
+            code: ErrorCode::RequestCanceled as i32,
+            message: "canceled by client".to_string(),
+            data: None,
+        };
+        self.send(
+            Response {
+                id: self.req_id.clone(),
+                result: None,
+                error: Some(error),
+            }
+            .into(),
+        );
+    }
+
     pub(super) fn report_task_start(
         &self,
         task_id: TaskId,
