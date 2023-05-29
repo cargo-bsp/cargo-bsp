@@ -20,6 +20,7 @@ impl UnitGraph {
 mod tests {
     use crate::cargo_communication::cargo_types::unit_graph::{Unit, UnitGraph};
     use bsp_types::tests::test_deserialization;
+    use insta::assert_json_snapshot;
 
     #[test]
     fn unit_graph() {
@@ -31,6 +32,15 @@ mod tests {
         test_deserialization(
             r#"{"version":1,"units":[{"data":"test_data"}, {"data":"test_data"}, {"data":"test_data"}],"roots":[0]}"#,
             &test_unit_graph,
+        );
+
+        assert_json_snapshot!(UnitGraph::default(),
+            @r###"
+        {
+          "version": 0,
+          "units": []
+        }
+        "###
         );
     }
 }

@@ -49,6 +49,12 @@ pub struct SuiteTaskProgress {
     pub(super) total: i64,
 }
 
+impl CompileState {
+    pub fn increase_compilation_step(&mut self) {
+        self.compilation_step = self.compilation_step.map(|s| s + 1);
+    }
+}
+
 impl TaskState {
     fn new<R: Request>(root_task_id: TaskId) -> TaskState {
         match R::METHOD {
