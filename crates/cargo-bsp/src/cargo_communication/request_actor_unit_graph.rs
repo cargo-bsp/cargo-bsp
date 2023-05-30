@@ -22,7 +22,6 @@ where
     C: CargoHandler<CargoMessage>,
 {
     pub fn run_unit_graph(&mut self) -> UnitGraphStatusCode {
-        self.report_task_start(self.state.root_task_id.clone(), None, None);
         self.report_task_start(
             self.state.unit_graph_state.task_id.clone(),
             Some("Started unit graph command".to_string()),

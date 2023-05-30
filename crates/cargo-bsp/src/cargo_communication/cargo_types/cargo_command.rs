@@ -19,15 +19,13 @@ impl CreateCommand for CompileParams {
     fn create_unit_graph_command(&self, root: PathBuf) -> Command {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
-        cmd.current_dir(root)
-            .args([
-                "+nightly",
-                "build",
-                "--unit-graph",
-                "-Z",
-                "unstable-options",
-            ])
-            .args(self.arguments.clone());
+        cmd.current_dir(root).args([
+            "+nightly",
+            "build",
+            "--unit-graph",
+            "-Z",
+            "unstable-options",
+        ]);
         cmd
     }
 
@@ -54,8 +52,7 @@ impl CreateCommand for RunParams {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)
-            .args(["+nightly", "run", "--unit-graph", "-Z", "unstable-options"])
-            .args(self.arguments.clone());
+            .args(["+nightly", "run", "--unit-graph", "-Z", "unstable-options"]);
         cmd
     }
 
@@ -82,8 +79,7 @@ impl CreateCommand for TestParams {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)
-            .args(["+nightly", "test", "--unit-graph", "-Z", "unstable-options"])
-            .args(self.arguments.clone());
+            .args(["+nightly", "test", "--unit-graph", "-Z", "unstable-options"]);
         cmd
     }
 

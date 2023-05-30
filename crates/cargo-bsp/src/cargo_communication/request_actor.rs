@@ -288,25 +288,11 @@ pub mod tests {
                     .expect("failed to spawn thread")
                     .detach();
 
-                let mut settings = Settings::clone_current();
-                settings.add_redaction(".params.eventTime", TIMESTAMP);
-                settings.bind(|| {
-                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
-                {
-                  "method": "build/taskStart",
-                  "params": {
-                    "eventTime": "timestamp",
-                    "taskId": {
-                      "id": "test_origin_id"
-                    }
-                  }
-                }
-                "###);
-                });
-
                 // The channel is closed so the actor finishes its execution.
                 drop(sender_to_actor);
 
+                let mut settings = Settings::clone_current();
+                settings.add_redaction(".params.eventTime", TIMESTAMP);
                 settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
                 settings.bind(|| {
                     assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
@@ -360,7 +346,6 @@ pub mod tests {
                     .expect("failed to spawn thread")
                     .detach();
 
-                let _ = receiver_from_actor.recv().unwrap(); // main task started
                 let _ = receiver_from_actor.recv().unwrap(); // unit graph task started
 
                 sender_to_actor
