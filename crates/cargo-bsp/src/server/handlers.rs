@@ -1,5 +1,8 @@
+use log::warn;
+
 use bsp_types;
 
+use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
 
@@ -13,10 +16,27 @@ pub(crate) fn handle_workspace_build_targets(
 }
 
 pub(crate) fn handle_sources(
-    _: GlobalStateSnapshot,
-    _: bsp_types::requests::SourcesParams,
+    state: GlobalStateSnapshot,
+    params: bsp_types::requests::SourcesParams,
 ) -> Result<bsp_types::requests::SourcesResult> {
-    Ok(bsp_types::requests::SourcesResult::default())
+    let sources_items = params
+        .targets
+        .into_iter()
+        .filter_map(|id| {
+            state
+                .workspace
+                .get_target_details(&id)
+                .or_else(|| {
+                    warn!("Failed to get target details for: {:?}", id);
+                    None
+                })
+                .map(|details| get_sources_for_target(&id, details))
+        })
+        .collect();
+
+    Ok(bsp_types::requests::SourcesResult {
+        items: sources_items,
+    })
 }
 
 pub(crate) fn handle_resources(

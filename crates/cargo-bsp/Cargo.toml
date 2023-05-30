@@ -20,15 +20,18 @@ log = "0.4"
 lsp-types = "0.94.0"
 mockall = "0.11.3"
 paths = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "paths", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
+path-absolutize = "3.1.0"
 rand = "0.8.5"
 rustc-hash = "1.1.0"
 serde = "1.0.147"
+serde-enum-str = "0.3.2"
 serde_json = "1.0.89"
 simplelog = "0.12.1"
 stdx = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "stdx", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 toolchain = { git = "https://github.com/rust-lang/rust-analyzer.git", package = "toolchain", rev = "6d7511938a8864ccfa0a32d4884d9b92b0a37048" }
 url = "2.3.1"
-path-absolutize = "3.1.0"
+walkdir = "2.3.3"
+
 
 [dev-dependencies]
 assert_cmd = "2.0.11"
