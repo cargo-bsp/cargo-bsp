@@ -113,7 +113,7 @@ impl ProjectWorkspace {
     }
 
     /// Returns target details for a given build target identifier
-    pub fn _get_target_details(&self, id: &BuildTargetIdentifier) -> Option<TargetDetails> {
+    pub fn get_target_details(&self, id: &BuildTargetIdentifier) -> Option<TargetDetails> {
         let package = self.get_package_related_to_target(id)?;
         let target_data = self.get_target_data(id)?;
         TargetDetails::new(package, target_data)
