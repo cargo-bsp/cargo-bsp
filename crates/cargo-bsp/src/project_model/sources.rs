@@ -85,6 +85,9 @@ mod tests {
     use crate::project_model::sources::get_sources_for_target;
     use crate::project_model::target_details::{CargoTargetKind, TargetDetails};
 
+    const RUST_FILE_NAMES: [&str; 3] = ["test1.rs", "test2.rs", "test3.rs"];
+    const NOT_RUST_FILE_NAMES: [&str; 3] = ["test1.txt", "test4", "test5.rs.java"];
+
     fn create_files(files_names: &[&str], dir: &Path) -> HashSet<PathBuf> {
         let files_paths = files_names
             .iter()
@@ -162,9 +165,6 @@ mod tests {
             dir_path: &'a PathBuf,
             expected: HashSet<PathBuf>,
         }
-
-        const RUST_FILE_NAMES: [&str; 3] = ["test1.rs", "test2.rs", "test3.rs"];
-        const NOT_RUST_FILE_NAMES: [&str; 3] = ["test1.txt", "test4", "test5.rs.java"];
 
         fn make_dir(dir_path: &Path, name: &str) -> PathBuf {
             let new_dir_path = dir_path.join(name);
@@ -245,8 +245,6 @@ mod tests {
             test_target_kind: CargoTargetKind,
             expected: &'a HashSet<SourceItem>,
         }
-
-        const RUST_FILE_NAMES: [&str; 3] = ["test1.rs", "test2.rs", "test3.rs"];
 
         #[test]
         fn test() {
@@ -335,9 +333,7 @@ mod tests {
         let test_target_details = TargetDetails {
             name: String::default(),
             kind: CargoTargetKind::Test,
-            package_abs_path: Utf8PathBuf::from(
-                "/var/folders/n6/8743lq293tn0ky5ds10l_89w0000gn/T/.tmpMeeFXt",
-            ),
+            package_abs_path: Utf8PathBuf::from("/test_project_path"),
             default_features_disabled: false,
             enabled_features: &binding,
         };
@@ -351,7 +347,7 @@ mod tests {
           },
           "sources": [],
           "roots": [
-            "file:///var/folders/n6/8743lq293tn0ky5ds10l_89w0000gn/T/.tmpMeeFXt"
+            "file:///test_project_path"
           ]
         }
         "###
