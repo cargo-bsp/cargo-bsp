@@ -4,7 +4,6 @@ use std::process::Command;
 
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Sender};
-use log::info;
 
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
@@ -28,12 +27,11 @@ where
     R::Params: CreateCommand + Send,
     R::Result: CargoResult,
 {
+    actor.report_root_task_start();
     let unit_graph_status_code = actor.run_unit_graph();
     // We don't run requested command, if request was cancelled during
     // unit graph command.
     if let UnitGraphStatusCode::Ok = unit_graph_status_code {
-        info!("Created command: {:?}", requested_cmd);
-
         match CargoHandle::spawn(requested_cmd) {
             Ok(cargo_handle) => {
                 actor.cargo_handle = Some(cargo_handle);
@@ -65,7 +63,6 @@ impl RequestHandle {
         R::Result: CargoResult,
     {
         let unit_graph_cmd = params.create_unit_graph_command(root_path.into());
-        info!("Created command: {:?}", unit_graph_cmd);
         let requested_cmd = params.create_requested_command(root_path.into());
 
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;

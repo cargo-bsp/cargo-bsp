@@ -66,6 +66,10 @@ where
         );
     }
 
+    pub(super) fn report_root_task_start(&self) {
+        self.report_task_start(self.state.root_task_id.clone(), None, None);
+    }
+
     pub(super) fn report_task_start(
         &self,
         task_id: TaskId,
