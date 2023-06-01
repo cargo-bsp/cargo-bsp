@@ -55,6 +55,8 @@ where
     ) {
         match message {
             CargoMessage::CargoStdout(msg) => {
+                // Unit graph command should produce only one message,
+                // that contains unit graph.
                 if *received_unit_graph {
                     warn!(
                         "Received other message than unit graph from unit graph command: {}",
