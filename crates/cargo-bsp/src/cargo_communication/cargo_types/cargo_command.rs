@@ -6,7 +6,9 @@ use bsp_types::requests::{CompileParams, RunParams, TestParams};
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn create_command(&self, root: PathBuf) -> Command;
+    fn create_unit_graph_command(&self, root: PathBuf) -> Command;
+
+    fn create_requested_command(&self, root: PathBuf) -> Command;
 }
 
 impl CreateCommand for CompileParams {
@@ -14,7 +16,20 @@ impl CreateCommand for CompileParams {
         self.origin_id.clone()
     }
 
-    fn create_command(&self, root: PathBuf) -> Command {
+    fn create_unit_graph_command(&self, root: PathBuf) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        cmd.current_dir(root).args([
+            "+nightly",
+            "build",
+            "--unit-graph",
+            "-Z",
+            "unstable-options",
+        ]);
+        cmd
+    }
+
+    fn create_requested_command(&self, root: PathBuf) -> Command {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)
@@ -33,7 +48,15 @@ impl CreateCommand for RunParams {
         self.origin_id.clone()
     }
 
-    fn create_command(&self, root: PathBuf) -> Command {
+    fn create_unit_graph_command(&self, root: PathBuf) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        cmd.current_dir(root)
+            .args(["+nightly", "run", "--unit-graph", "-Z", "unstable-options"]);
+        cmd
+    }
+
+    fn create_requested_command(&self, root: PathBuf) -> Command {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)
@@ -52,7 +75,15 @@ impl CreateCommand for TestParams {
         self.origin_id.clone()
     }
 
-    fn create_command(&self, root: PathBuf) -> Command {
+    fn create_unit_graph_command(&self, root: PathBuf) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        cmd.current_dir(root)
+            .args(["+nightly", "test", "--unit-graph", "-Z", "unstable-options"]);
+        cmd
+    }
+
+    fn create_requested_command(&self, root: PathBuf) -> Command {
         // TODO add appropriate build target to arguments
         let mut cmd = Command::new(toolchain::cargo());
         cmd.current_dir(root)

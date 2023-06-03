@@ -89,8 +89,9 @@ impl GlobalState {
         if let Some(response) = self.req_queue.incoming.cancel(request_id) {
             if let Some(handler) = self.handlers.get(&response.id) {
                 handler.cancel()
+            } else {
+                self.send(response.into());
             }
-            self.send(response.into());
         }
     }
 

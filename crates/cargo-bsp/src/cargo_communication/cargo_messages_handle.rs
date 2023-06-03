@@ -22,7 +22,7 @@ use crate::cargo_communication::cargo_types::test::{
     SuiteEvent, SuiteResults, TestEvent, TestResult, TestType,
 };
 use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
-use crate::cargo_communication::request_actor_state::TaskState;
+use crate::cargo_communication::request_actor_state::{SuiteTaskProgress, TaskState};
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
 
 impl<R, C> RequestActor<R, C>
@@ -59,13 +59,14 @@ where
         }
     }
 
-    fn report_compile_step(&self, msg: Option<String>) {
+    fn report_compile_step(&mut self, msg: Option<String>) {
+        self.state.compile_state.increase_compilation_step();
         self.report_task_progress(
             self.state.compile_state.task_id.clone(),
             msg,
-            None,
-            None,
-            None,
+            self.state.unit_graph_state.total_compilation_steps,
+            self.state.compile_state.compilation_step,
+            Some("compilation_steps".to_string()),
         );
     }
 
@@ -189,6 +190,7 @@ where
                     );
                 }
                 SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
+                    test_state.suite_task_progress = SuiteTaskProgress::default();
                     self.report_suite_finished(task_id, result)
                 }
             }
