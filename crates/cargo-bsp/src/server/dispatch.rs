@@ -82,7 +82,6 @@ impl<'a> RequestDispatcher<'a> {
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
             req.id.clone(),
             params,
-            self.global_state.config.root_path(),
             global_state_snapshot,
         );
         match request_handle {
