@@ -6,10 +6,20 @@ use std::process::Command;
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 
+const BUILD: &str = "build";
+const TEST: &str = "test";
+const RUN: &str = "run";
+
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn create_command(
+    fn create_requested_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> Command;
+
+    fn create_unit_graph_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
@@ -35,13 +45,14 @@ fn target_ids_to_args(
         args.push(t.package_name.clone());
         args.push(format!("--{}", t.kind));
         args.push(t.name.clone());
-        t.get_enabled_features_str()
-            .map(|features| args.push(features));
+        if let Some(features) = t.get_enabled_features_str() {
+            args.push(features);
+        }
     }
     args
 }
 
-fn create_exec_command(command_type: &str, root: &Path, targets_args: Vec<String>) -> Command {
+fn create_requested_command(command_type: &str, root: &Path, targets_args: Vec<String>) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
     cmd.arg(command_type);
@@ -55,13 +66,27 @@ impl CreateCommand for CompileParams {
         self.origin_id.clone()
     }
 
-    fn create_command(
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
+        cmd.current_dir(root)
+            .args(["+nightly", BUILD, "--unit-graph", "-Z", "unstable-options"])
+            .args(targets_args);
+        cmd
+    }
+
+    fn create_requested_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
-        let mut cmd = create_exec_command("build", root, targets_args);
+        let mut cmd = create_requested_command(BUILD, root, targets_args);
         cmd.args(self.arguments.clone());
         cmd
     }
@@ -72,13 +97,27 @@ impl CreateCommand for RunParams {
         self.origin_id.clone()
     }
 
-    fn create_command(
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        let targets_args = target_ids_to_args(vec![self.target.clone()], get_target_details);
+        cmd.current_dir(root)
+            .args(["+nightly", RUN, "--unit-graph", "-Z", "unstable-options"])
+            .args(targets_args);
+        cmd
+    }
+
+    fn create_requested_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let target_args = target_ids_to_args(vec![self.target.clone()], get_target_details);
-        let mut cmd = create_exec_command("run", root, target_args);
+        let mut cmd = create_requested_command(RUN, root, target_args);
         cmd.args(self.arguments.clone());
         cmd
     }
@@ -89,13 +128,27 @@ impl CreateCommand for TestParams {
         self.origin_id.clone()
     }
 
-    fn create_command(
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> Command {
+        // TODO add appropriate build target to arguments
+        let mut cmd = Command::new(toolchain::cargo());
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
+        cmd.current_dir(root)
+            .args(["+nightly", TEST, "--unit-graph", "-Z", "unstable-options"])
+            .args(targets_args);
+        cmd
+    }
+
+    fn create_requested_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
-        let mut cmd = create_exec_command("test", root, targets_args);
+        let mut cmd = create_requested_command(TEST, root, targets_args);
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
         cmd
@@ -166,7 +219,7 @@ mod tests {
     #[test]
     fn test_compile_params_create_command() {
         let compile_params = test_compile_params();
-        let cmd = compile_params.create_command(Path::new(TEST_ROOT), get_target_details);
+        let cmd = compile_params.create_requested_command(Path::new(TEST_ROOT), get_target_details);
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 
@@ -204,7 +257,7 @@ mod tests {
     #[test]
     fn test_run_params_create_command() {
         let run_params = test_run_params();
-        let cmd = run_params.create_command(Path::new(TEST_ROOT), get_target_details);
+        let cmd = run_params.create_requested_command(Path::new(TEST_ROOT), get_target_details);
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 
@@ -235,7 +288,7 @@ mod tests {
     #[test]
     fn test_test_params_create_command() {
         let test_params = test_test_params();
-        let cmd = test_params.create_command(Path::new(TEST_ROOT), get_target_details);
+        let cmd = test_params.create_requested_command(Path::new(TEST_ROOT), get_target_details);
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 

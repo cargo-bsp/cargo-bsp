@@ -277,11 +277,9 @@ mod tests {
 
             let binding = Default::default();
             let default_target_details = TargetDetails {
-                name: String::default(),
-                kind: CargoTargetKind::default(),
-                package_abs_path: Utf8PathBuf::default(),
                 default_features_disabled: false,
-                enabled_features: &binding,
+                enabled_features: binding,
+                ..Default::default()
             };
 
             let test_cases = vec![
@@ -334,8 +332,9 @@ mod tests {
             name: String::default(),
             kind: CargoTargetKind::Test,
             package_abs_path: Utf8PathBuf::from("/test_project_path"),
+            package_name: Default::default(),
             default_features_disabled: false,
-            enabled_features: &binding,
+            enabled_features: binding,
         };
 
         assert_json_snapshot!(

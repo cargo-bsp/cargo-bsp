@@ -1,5 +1,4 @@
 use std::io;
-use std::path::Path;
 use std::process::Command;
 
 use bsp_server::{Message, RequestId};
@@ -16,7 +15,7 @@ use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
 
 #[derive(Debug)]
-pub struct RequestHandle {
+pub(crate) struct RequestHandle {
     cancel_sender: Sender<Event>,
     _thread: jod_thread::JoinHandle,
 }
@@ -55,16 +54,20 @@ impl RequestHandle {
         sender_to_main: Box<dyn Fn(Message) + Send>,
         req_id: RequestId,
         params: R::Params,
-        root_path: &Path,
+        global_state: GlobalStateSnapshot,
     ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
         R::Params: CreateCommand + Send,
         R::Result: CargoResult,
     {
-        let unit_graph_cmd = params.create_unit_graph_command(root_path.into());
-        let requested_cmd = params.create_requested_command(root_path.into());
-
+        let root_path = global_state._config.root_path();
+        let unit_graph_cmd = params.create_unit_graph_command(root_path, {
+            |id| global_state.workspace.get_target_details(id)
+        });
+        let requested_cmd = params.create_requested_command(root_path, {
+            |id| global_state.workspace.get_target_details(id)
+        });
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let actor: RequestActor<R, CargoHandle> = RequestActor::new(
