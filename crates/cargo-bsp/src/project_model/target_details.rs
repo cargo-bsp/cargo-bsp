@@ -1,31 +1,20 @@
+use cargo_metadata::camino::Utf8PathBuf;
 use std::collections::BTreeSet;
 
-use cargo_metadata::camino::Utf8PathBuf;
+use crate::project_model::build_target_mappings::parent_path;
 use log::error;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
-use crate::project_model::build_target_mappings::parent_path;
 use crate::project_model::cargo_package::{CargoPackage, Feature};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TargetDetails {
     pub name: String,
     pub kind: CargoTargetKind,
     pub package_abs_path: Utf8PathBuf,
+    pub package_name: String,
     pub default_features_disabled: bool,
     pub enabled_features: BTreeSet<Feature>,
-}
-
-impl Default for TargetDetails {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            kind: CargoTargetKind::Lib,
-            package_name: String::new(),
-            default_features_disabled: false,
-            enabled_features: BTreeSet::new(),
-        }
-    }
 }
 
 impl<'a> TargetDetails {
@@ -34,6 +23,7 @@ impl<'a> TargetDetails {
             name: target_data.name.clone(),
             kind: TargetDetails::get_kind(target_data)?,
             package_abs_path: parent_path(&package.manifest_path),
+            package_name: package.name.to_string(),
             default_features_disabled: package.default_features_disabled,
             enabled_features: package.enabled_features.clone(),
         })
@@ -44,7 +34,7 @@ impl<'a> TargetDetails {
             .kind
             .get(0)
             .or_else(|| {
-                error!("Invalid `kind vector` for target: {:?}", target_data.name);
+                error!("Invalid kind vector for target: {:?}", target_data.name);
                 None
             })?
             .parse()
@@ -79,41 +69,23 @@ pub enum CargoTargetKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_case::test_case;
 
-    #[test]
-    fn test_get_enabled_features_string_empty() {
+    const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
+
+    #[test_case(BTreeSet::new(),"" ;"empty")]
+    #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
+    "--feature test_feature1, test_feature2, test_feature3" ;
+    "non_empty"
+    )]
+    fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
         let target_details = TargetDetails {
-            name: "test_target".to_string(),
-            kind: CargoTargetKind::Test,
-            package_name: "test_package".to_string(),
             default_features_disabled: false,
-            enabled_features: BTreeSet::new(),
+            enabled_features,
+            ..TargetDetails::default()
         };
 
         let enabled_features_string = target_details.get_enabled_features_str();
-        assert_eq!(enabled_features_string, "");
-    }
-
-    #[test]
-    fn test_get_enabled_features_string_non_empty() {
-        let target_details = TargetDetails {
-            name: "test_target".to_string(),
-            kind: CargoTargetKind::Test,
-            package_name: "test_package".to_string(),
-            default_features_disabled: false,
-            enabled_features: vec![
-                Feature("test_feature1".to_string()),
-                Feature("test_feature2".to_string()),
-                Feature("test_feature3".to_string()),
-            ]
-            .into_iter()
-            .collect(),
-        };
-
-        let enabled_features_str = target_details.get_enabled_features_str();
-        assert_eq!(
-            enabled_features_str,
-            "--feature test_feature1, test_feature2, test_feature3"
-        );
+        assert_eq!(enabled_features_string, expected);
     }
 }
