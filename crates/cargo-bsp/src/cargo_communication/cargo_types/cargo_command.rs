@@ -182,13 +182,11 @@ mod tests {
 
     fn test_run_params() -> RunParams {
         RunParams {
-            origin_id: None,
             target: BuildTargetIdentifier {
                 uri: TEST_URI_1.to_string(),
             },
             arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()],
-            data_kind: None,
-            data: None,
+            ..RunParams::default()
         }
     }
 
