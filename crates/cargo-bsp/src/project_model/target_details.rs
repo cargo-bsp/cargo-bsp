@@ -17,6 +17,8 @@ pub struct TargetDetails {
     pub enabled_features: BTreeSet<Feature>,
 }
 
+const FEATURE_FLAG: &str = "--feature ";
+
 impl<'a> TargetDetails {
     pub fn new(package: &'a CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
         Some(Self {
@@ -51,7 +53,7 @@ impl<'a> TargetDetails {
             .map(|f| f.0.clone())
             .collect::<Vec<String>>()
             .join(", ");
-        "--feature ".to_string() + enabled_features.as_str()
+        FEATURE_FLAG.to_string() + enabled_features.as_str()
     }
 }
 
