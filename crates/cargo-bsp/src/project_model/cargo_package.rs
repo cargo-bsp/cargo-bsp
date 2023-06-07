@@ -173,7 +173,7 @@ impl CargoPackage {
     }
 
     /// Returns list of dependencies taking into account optional ones and enabled features
-    pub fn _get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
+    pub fn get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
         self.dependencies
             .iter()
             .filter(|&d| self.is_dependency_enabled(d))

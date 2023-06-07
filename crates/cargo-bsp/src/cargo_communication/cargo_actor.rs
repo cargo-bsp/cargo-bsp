@@ -13,6 +13,7 @@ use stdx::process::streaming_output;
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 
+#[derive(Debug)]
 pub struct CargoActor {
     sender: Sender<CargoMessage>,
     stdout: ChildStdout,

@@ -19,31 +19,33 @@ pub trait CreateCommand {
 fn target_ids_to_args(
     target_id: Vec<BuildTargetIdentifier>,
     get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-) -> String {
-    let targets_details = target_id.iter().map(|id| {
-        get_target_details(id).unwrap_or_else(|| {
-            warn!("Target details not found for: {:?}", id);
-            TargetDetails::default()
+) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    let targets_details: Vec<TargetDetails> = target_id
+        .iter()
+        .map(|id| {
+            get_target_details(id).unwrap_or_else(|| {
+                warn!("Target details not found for: {:?}", id);
+                TargetDetails::default()
+            })
         })
-    });
-    targets_details
-        .map(|t| {
-            format!(
-                "--package {} --{} {} {}",
-                t.package_name.as_str(),
-                t.kind.to_string().as_str(),
-                t.name.as_str(),
-                t.get_enabled_features_str().as_str(),
-            )
-        })
-        .collect::<Vec<String>>()
-        .join(" ")
+        .collect();
+    for t in targets_details {
+        args.push("--package".to_string());
+        args.push(t.package_name.clone());
+        args.push(format!("--{}", t.kind));
+        args.push(t.name.clone());
+        args.push(t.get_enabled_features_str());
+    }
+    args
 }
 
-fn create_exec_command(exec_cmd: &str, root: &Path, targets_args: &str) -> Command {
+fn create_exec_command(command_type: &str, root: &Path, targets_args: Vec<String>) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
-    cmd.args([exec_cmd, "--message-format=json", targets_args, "--"]);
+    cmd.arg(command_type);
+    cmd.args(targets_args);
+    cmd.args(["--message-format=json", "--"]);
     cmd
 }
 
@@ -58,7 +60,7 @@ impl CreateCommand for CompileParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
-        let mut cmd = create_exec_command("build", root, targets_args.as_str());
+        let mut cmd = create_exec_command("build", root, targets_args);
         cmd.args(self.arguments.clone());
         cmd
     }
@@ -75,7 +77,7 @@ impl CreateCommand for RunParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let target_args = target_ids_to_args(vec![self.target.clone()], get_target_details);
-        let mut cmd = create_exec_command("run", root, target_args.as_str());
+        let mut cmd = create_exec_command("run", root, target_args);
         cmd.args(self.arguments.clone());
         cmd
     }
@@ -92,7 +94,7 @@ impl CreateCommand for TestParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> Command {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details);
-        let mut cmd = create_exec_command("test", root, targets_args.as_str());
+        let mut cmd = create_exec_command("test", root, targets_args);
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
         cmd
@@ -156,7 +158,7 @@ mod tests {
         CompileParams {
             origin_id: None,
             targets: default_targets(),
-            arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[0].to_string()],
+            arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()],
         }
     }
 
@@ -170,11 +172,20 @@ mod tests {
         assert_debug_snapshot!(args, @r###"
         [
             "build",
+            "--package",
+            "test_package1",
+            "--bin",
+            "test_bin1",
+            "",
+            "--package",
+            "test_package2",
+            "--lib",
+            "test_lib1",
+            "--feature test_feature1",
             "--message-format=json",
-            "--package test_package1 --bin test_bin1  --package test_package2 --lib test_lib1 --feature test_feature1",
             "--",
             "--arg1",
-            "--arg1",
+            "--arg2",
         ]
         "###);
         assert_eq!(cwd, Path::new(TEST_ROOT));
@@ -200,8 +211,12 @@ mod tests {
         assert_debug_snapshot!(args, @r###"
         [
             "run",
+            "--package",
+            "test_package1",
+            "--bin",
+            "test_bin1",
+            "",
             "--message-format=json",
-            "--package test_package1 --bin test_bin1 ",
             "--",
             "--arg1",
             "--arg2",
@@ -228,8 +243,17 @@ mod tests {
         assert_debug_snapshot!(args, @r###"
         [
             "test",
+            "--package",
+            "test_package1",
+            "--bin",
+            "test_bin1",
+            "",
+            "--package",
+            "test_package2",
+            "--lib",
+            "test_lib1",
+            "--feature test_feature1",
             "--message-format=json",
-            "--package test_package1 --bin test_bin1  --package test_package2 --lib test_lib1 --feature test_feature1",
             "--",
             "--show-output",
             "-Z",
