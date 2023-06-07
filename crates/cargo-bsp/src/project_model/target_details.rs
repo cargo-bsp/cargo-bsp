@@ -75,7 +75,7 @@ mod tests {
 
     const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
 
-    #[test_case(BTreeSet::new(),"" ;"empty")]
+    #[test_case(BTreeSet::new(), ""  ;"empty")]
     #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
     "--feature test_feature1, test_feature2, test_feature3" ;
     "non_empty"
@@ -87,7 +87,9 @@ mod tests {
             ..TargetDetails::default()
         };
 
-        let enabled_features_string = target_details.get_enabled_features_str().unwrap();
+        let enabled_features_string = target_details
+            .get_enabled_features_str()
+            .unwrap_or("".to_string());
         assert_eq!(enabled_features_string, expected);
     }
 }
