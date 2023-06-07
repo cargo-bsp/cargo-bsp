@@ -43,9 +43,9 @@ impl<'a> TargetDetails {
             .ok()
     }
 
-    pub fn get_enabled_features_str(&self) -> String {
+    pub fn get_enabled_features_str(&self) -> Option<String> {
         if self.enabled_features.is_empty() {
-            return String::new();
+            return None;
         }
         let enabled_features = self
             .enabled_features
@@ -53,7 +53,7 @@ impl<'a> TargetDetails {
             .map(|f| f.0.clone())
             .collect::<Vec<String>>()
             .join(", ");
-        FEATURE_FLAG.to_string() + enabled_features.as_str()
+        Some(FEATURE_FLAG.to_string() + enabled_features.as_str())
     }
 }
 
@@ -87,7 +87,7 @@ mod tests {
             ..TargetDetails::default()
         };
 
-        let enabled_features_string = target_details.get_enabled_features_str();
+        let enabled_features_string = target_details.get_enabled_features_str().unwrap();
         assert_eq!(enabled_features_string, expected);
     }
 }

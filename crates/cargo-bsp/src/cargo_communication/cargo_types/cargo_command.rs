@@ -35,7 +35,8 @@ fn target_ids_to_args(
         args.push(t.package_name.clone());
         args.push(format!("--{}", t.kind));
         args.push(t.name.clone());
-        args.push(t.get_enabled_features_str());
+        t.get_enabled_features_str()
+            .map(|features| args.push(features));
     }
     args
 }
@@ -176,7 +177,6 @@ mod tests {
             "test_package1",
             "--bin",
             "test_bin1",
-            "",
             "--package",
             "test_package2",
             "--lib",
@@ -215,7 +215,6 @@ mod tests {
             "test_package1",
             "--bin",
             "test_bin1",
-            "",
             "--message-format=json",
             "--",
             "--arg1",
@@ -247,7 +246,6 @@ mod tests {
             "test_package1",
             "--bin",
             "test_bin1",
-            "",
             "--package",
             "test_package2",
             "--lib",
