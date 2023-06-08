@@ -13,8 +13,8 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
+use crate::server::global_state::GlobalStateSnapshot;
 
-#[derive(Debug)]
 pub(crate) struct RequestHandle {
     cancel_sender: Sender<Event>,
     _thread: jod_thread::JoinHandle,

@@ -27,6 +27,88 @@ pub trait CreateCommand {
     ) -> io::Result<Command>;
 }
 
+impl CreateCommand for CompileParams {
+    fn origin_id(&self) -> Option<String> {
+        self.origin_id.clone()
+    }
+
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
+        let cmd = cargo_command_with_unit_graph(BUILD, root, targets_args);
+        Ok(cmd)
+    }
+
+    fn create_requested_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
+        let mut cmd = create_requested_command(BUILD, root, targets_args);
+        cmd.args(self.arguments.clone());
+        Ok(cmd)
+    }
+}
+
+impl CreateCommand for RunParams {
+    fn origin_id(&self) -> Option<String> {
+        self.origin_id.clone()
+    }
+
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let targets_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
+        let cmd = cargo_command_with_unit_graph(RUN, root, targets_args);
+        Ok(cmd)
+    }
+
+    fn create_requested_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let target_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
+        let mut cmd = create_requested_command(RUN, root, target_args);
+        cmd.args(self.arguments.clone());
+        Ok(cmd)
+    }
+}
+
+impl CreateCommand for TestParams {
+    fn origin_id(&self) -> Option<String> {
+        self.origin_id.clone()
+    }
+
+    fn create_unit_graph_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
+        let cmd = cargo_command_with_unit_graph(TEST, root, targets_args);
+        Ok(cmd)
+    }
+
+    fn create_requested_command(
+        &self,
+        root: &Path,
+        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
+    ) -> io::Result<Command> {
+        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
+        let mut cmd = create_requested_command(TEST, root, targets_args);
+        cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
+            .args(self.arguments.clone());
+        Ok(cmd)
+    }
+}
+
 fn target_ids_to_args(
     target_id: Vec<BuildTargetIdentifier>,
     get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
@@ -71,95 +153,22 @@ fn create_requested_command(command_type: &str, root: &Path, targets_args: Vec<S
     cmd
 }
 
-impl CreateCommand for CompileParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let mut cmd = Command::new(toolchain::cargo());
-        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        cmd.current_dir(root)
-            .args(["+nightly", BUILD, "--unit-graph", "-Z", "unstable-options"])
-            .args(targets_args);
-        Ok(cmd)
-    }
-
-    fn create_requested_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let mut cmd = create_requested_command(BUILD, root, targets_args);
-        cmd.args(self.arguments.clone());
-        Ok(cmd)
-    }
-}
-
-impl CreateCommand for RunParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let mut cmd = Command::new(toolchain::cargo());
-        let targets_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
-        cmd.current_dir(root)
-            .args(["+nightly", RUN, "--unit-graph", "-Z", "unstable-options"])
-            .args(targets_args);
-        Ok(cmd)
-    }
-
-    fn create_requested_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let target_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
-        let mut cmd = create_requested_command(RUN, root, target_args);
-        cmd.args(self.arguments.clone());
-        Ok(cmd)
-    }
-}
-
-impl CreateCommand for TestParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let mut cmd = Command::new(toolchain::cargo());
-        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        cmd.current_dir(root)
-            .args(["+nightly", TEST, "--unit-graph", "-Z", "unstable-options"])
-            .args(targets_args);
-        Ok(cmd)
-    }
-
-    fn create_requested_command(
-        &self,
-        root: &Path,
-        get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
-    ) -> io::Result<Command> {
-        let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let mut cmd = create_requested_command(TEST, root, targets_args);
-        cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
-            .args(self.arguments.clone());
-        Ok(cmd)
-    }
+fn cargo_command_with_unit_graph(
+    command_type: &str,
+    root: &Path,
+    targets_args: Vec<String>,
+) -> Command {
+    let mut cmd = Command::new(toolchain::cargo());
+    cmd.current_dir(root)
+        .args([
+            "+nightly",
+            command_type,
+            "--unit-graph",
+            "-Z",
+            "unstable-options",
+        ])
+        .args(targets_args);
+    cmd
 }
 
 #[cfg(test)]

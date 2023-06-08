@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-#[derive(Debug)]
 pub enum Event {
     Cancel,
     CargoEvent(CargoMessage),
