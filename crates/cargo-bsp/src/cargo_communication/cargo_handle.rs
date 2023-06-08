@@ -10,6 +10,7 @@ pub use cargo_metadata::diagnostic::{
 };
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{unbounded, Receiver};
+use log::info;
 
 use crate::cargo_communication::cargo_actor::CargoActor;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
@@ -53,6 +54,7 @@ impl CargoHandler<CargoMessage> for CargoHandle {
 
 impl CargoHandle {
     pub fn spawn(mut command: Command) -> io::Result<CargoHandle> {
+        info!("Created command: {:?}", command);
         command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

@@ -7,10 +7,8 @@ pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use cargo_metadata::Message;
 use crossbeam_channel::Sender;
 use log::warn;
-use serde::Deserialize;
 use stdx::process::streaming_output;
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
@@ -52,13 +50,8 @@ impl CargoActor {
             self.stderr,
             &mut |line| {
                 read_at_least_one_message = true;
-
-                // Try to deserialize a message from Cargo.
-                let mut deserializer = serde_json::Deserializer::from_str(line);
-                let message = Message::deserialize(&mut deserializer)
-                    .unwrap_or(Message::TextLine(line.to_string()));
                 self.sender
-                    .send(CargoMessage::CargoStdout(message))
+                    .send(CargoMessage::CargoStdout(line.to_string()))
                     .unwrap_or_else(|e| {
                         warn!("Could not send a message from cargo: {}", e.to_string());
                     });

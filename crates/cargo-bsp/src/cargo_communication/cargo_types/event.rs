@@ -1,4 +1,3 @@
-use cargo_metadata::Message;
 use serde::Serialize;
 
 pub enum Event {
@@ -9,6 +8,6 @@ pub enum Event {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub enum CargoMessage {
-    CargoStdout(Message),
+    CargoStdout(String),
     CargoStderr(String),
 }
