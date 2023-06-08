@@ -10,17 +10,18 @@ use bsp_types::requests::{CompileParams, RunParams, TestParams};
 const BUILD: &str = "build";
 const TEST: &str = "test";
 const RUN: &str = "run";
+const FEATURE_FLAG: &str = "--feature ";
 
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn create_requested_command(
+    fn create_unit_graph_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command>;
 
-    fn create_unit_graph_command(
+    fn create_requested_command(
         &self,
         root: &Path,
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
@@ -106,6 +107,21 @@ impl CreateCommand for TestParams {
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
         Ok(cmd)
+    }
+}
+
+impl TargetDetails {
+    pub fn get_enabled_features_str(&self) -> Option<String> {
+        if self.enabled_features.is_empty() {
+            return None;
+        }
+        let enabled_features = self
+            .enabled_features
+            .iter()
+            .map(|f| f.0.clone())
+            .collect::<Vec<String>>()
+            .join(", ");
+        Some(FEATURE_FLAG.to_string() + enabled_features.as_str())
     }
 }
 

@@ -17,8 +17,6 @@ pub struct TargetDetails {
     pub enabled_features: BTreeSet<Feature>,
 }
 
-const FEATURE_FLAG: &str = "--feature ";
-
 impl TargetDetails {
     pub fn new(package: &CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
         Some(Self {
@@ -41,19 +39,6 @@ impl TargetDetails {
             })?
             .parse()
             .ok()
-    }
-
-    pub fn get_enabled_features_str(&self) -> Option<String> {
-        if self.enabled_features.is_empty() {
-            return None;
-        }
-        let enabled_features = self
-            .enabled_features
-            .iter()
-            .map(|f| f.0.clone())
-            .collect::<Vec<String>>()
-            .join(", ");
-        Some(FEATURE_FLAG.to_string() + enabled_features.as_str())
     }
 }
 
