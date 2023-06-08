@@ -30,7 +30,7 @@ fn list_target_sources(target_details: TargetDetails) -> Vec<SourceItem> {
             .collect()
     }
 
-    let package_path = target_details.package_abs_path.clone();
+    let package_path = target_details.package_abs_path;
 
     let mut src_sources: Vec<SourceItem> = list_source_files_in_path(package_path.join("src"));
 
@@ -93,18 +93,11 @@ mod tests {
             .iter()
             .map(|name| dir.join(name))
             .collect::<Vec<PathBuf>>();
-        let _ = files_paths
-            .iter()
-            .map(|path| File::create(path.clone()).unwrap())
-            .collect::<Vec<File>>();
+        files_paths.iter().for_each(|path| {
+            File::create(path.clone()).unwrap();
+        });
 
         files_paths.into_iter().collect()
-    }
-
-    fn create_files_in_dirs(files_names: &[&str], dirs: Vec<&PathBuf>) -> Vec<HashSet<PathBuf>> {
-        dirs.iter()
-            .map(|dir| create_files(files_names, dir.as_path()))
-            .collect()
     }
 
     mod create_source_item {
@@ -154,16 +147,31 @@ mod tests {
     }
 
     mod get_all_rs_files_in_dir_test {
-        use std::collections::HashSet;
+        use std::collections::{HashMap, HashSet};
         use std::fs;
+
+        use tempfile::TempDir;
 
         use crate::project_model::sources::get_all_rs_files_in_dir;
 
         use super::*;
 
-        struct TestCase<'a> {
-            dir_path: &'a PathBuf,
-            expected: HashSet<PathBuf>,
+        struct TestCase {
+            dir_path: PathBuf,
+            files: HashSet<PathBuf>,
+        }
+
+        impl TestCase {
+            pub fn new(path: &PathBuf, files: Vec<&HashSet<PathBuf>>) -> Self {
+                TestCase {
+                    dir_path: path.to_owned(),
+                    files: files
+                        .into_iter()
+                        .flatten()
+                        .map(|path| path.to_owned())
+                        .collect::<HashSet<PathBuf>>(),
+                }
+            }
         }
 
         fn make_dir(dir_path: &Path, name: &str) -> PathBuf {
@@ -172,10 +180,17 @@ mod tests {
             new_dir_path
         }
 
-        #[test]
-        fn test() {
-            let dir_root = tempdir().unwrap();
-            let dir_root_path = dir_root.into_path();
+        fn create_files_in_dirs(
+            files_names: &[&str],
+            dirs: Vec<&PathBuf>,
+        ) -> HashMap<PathBuf, HashSet<PathBuf>> {
+            dirs.iter()
+                .map(|&dir| (dir.clone(), create_files(files_names, dir.as_path())))
+                .collect()
+        }
+
+        fn create_test_cases(dir_root: &TempDir) -> Vec<TestCase> {
+            let dir_root_path: PathBuf = dir_root.path().into();
             let dir_root_a = make_dir(&dir_root_path, "a");
             let dir_root_a_b = make_dir(&dir_root_a, "b");
             let dir_root_b = make_dir(&dir_root_path, "b");
@@ -187,43 +202,43 @@ mod tests {
             );
             let _ = create_files_in_dirs(&NOT_RUST_FILE_NAMES, vec![&dir_root_b, &dir_root_b_b]);
 
-            let test_cases = vec![
-                TestCase {
-                    dir_path: &dir_root_path,
-                    expected: vec![
-                        rust_files_paths[0].clone(),
-                        rust_files_paths[1].clone(),
-                        rust_files_paths[2].clone(),
-                        rust_files_paths[3].clone(),
-                    ]
-                    .into_iter()
-                    .flatten()
-                    .collect::<HashSet<PathBuf>>(),
-                },
-                TestCase {
-                    dir_path: &dir_root_a,
-                    expected: vec![rust_files_paths[1].clone(), rust_files_paths[2].clone()]
-                        .into_iter()
-                        .flatten()
-                        .collect::<HashSet<PathBuf>>(),
-                },
-                TestCase {
-                    dir_path: &dir_root_a_b,
-                    expected: rust_files_paths[2].clone(),
-                },
-                TestCase {
-                    dir_path: &dir_root_b,
-                    expected: rust_files_paths[3].clone(),
-                },
-                TestCase {
-                    dir_path: &dir_root_b_b,
-                    expected: HashSet::new(),
-                },
-            ];
+            vec![
+                TestCase::new(
+                    &dir_root_path,
+                    vec![
+                        rust_files_paths.get(&dir_root_path).unwrap(),
+                        rust_files_paths.get(&dir_root_a).unwrap(),
+                        rust_files_paths.get(&dir_root_a_b).unwrap(),
+                        rust_files_paths.get(&dir_root_b).unwrap(),
+                    ],
+                ),
+                TestCase::new(
+                    &dir_root_a,
+                    vec![
+                        rust_files_paths.get(&dir_root_a).unwrap(),
+                        rust_files_paths.get(&dir_root_a_b).unwrap(),
+                    ],
+                ),
+                TestCase::new(
+                    &dir_root_a_b,
+                    vec![rust_files_paths.get(&dir_root_a_b).unwrap()],
+                ),
+                TestCase::new(
+                    &dir_root_b,
+                    vec![rust_files_paths.get(&dir_root_b).unwrap()],
+                ),
+                TestCase::new(&dir_root_b_b, vec![]),
+            ]
+        }
+
+        #[test]
+        fn test() {
+            let dir_root = tempdir().unwrap();
+            let test_cases = create_test_cases(&dir_root);
 
             for case in test_cases {
                 let source_item = get_all_rs_files_in_dir(case.dir_path.to_str().unwrap());
-                assert!(source_item.iter().all(|item| case.expected.contains(item)));
+                assert!(source_item.iter().all(|item| case.files.contains(item)));
             }
         }
     }
@@ -233,6 +248,7 @@ mod tests {
         use std::fs;
 
         use cargo_metadata::camino::Utf8PathBuf;
+        use tempfile::TempDir;
 
         use bsp_types::requests::SourceItem;
 
@@ -241,57 +257,66 @@ mod tests {
 
         use super::*;
 
+        struct TestDirInfo {
+            _root_temp_dir: TempDir,
+            root_dir_path_str: Utf8PathBuf,
+            src_dir_path: PathBuf,
+            tests_dir_path: PathBuf,
+        }
+
+        impl TestDirInfo {
+            pub fn new() -> Self {
+                let _root_temp_dir = tempdir().unwrap();
+                let root_dir_path = _root_temp_dir.path();
+                let root_dir_path_str = Utf8PathBuf::try_from(root_dir_path.to_path_buf()).unwrap();
+
+                let src_dir_path = root_dir_path.join("src");
+                fs::create_dir(src_dir_path.clone()).unwrap();
+                let tests_dir_path = root_dir_path.join("tests");
+                fs::create_dir(tests_dir_path.clone()).unwrap();
+
+                TestDirInfo {
+                    _root_temp_dir,
+                    root_dir_path_str,
+                    src_dir_path,
+                    tests_dir_path,
+                }
+            }
+        }
+
         struct TestCase<'a> {
             test_target_kind: CargoTargetKind,
             expected: &'a HashSet<SourceItem>,
         }
 
+        fn create_source_items(dir: &Path) -> HashSet<SourceItem> {
+            create_files(&RUST_FILE_NAMES, dir)
+                .into_iter()
+                .map(create_source_item)
+                .collect()
+        }
+
         #[test]
         fn test() {
-            let root_dir1 = tempdir().unwrap();
-            let root_dir1_path = root_dir1.path();
-            let root_dir1_path_str = Utf8PathBuf::try_from(root_dir1_path.to_path_buf()).unwrap();
+            let test_dir1 = TestDirInfo::new();
+            let test_dir2 = TestDirInfo::new();
 
-            let root_dir2 = tempdir().unwrap();
-            let root_dir2_path = root_dir2.path();
-            let root_dir2_path_str = Utf8PathBuf::try_from(root_dir2_path.to_path_buf()).unwrap();
+            let src_files = create_source_items(&test_dir1.src_dir_path);
+            let tests_files = create_source_items(&test_dir1.tests_dir_path);
 
-            let src_dir_path = root_dir1_path.join("src");
-            fs::create_dir(src_dir_path.clone()).unwrap();
-            let tests_dir_path = root_dir1_path.join("tests");
-            fs::create_dir(tests_dir_path.clone()).unwrap();
-
-            let rust_source_files: Vec<HashSet<SourceItem>> =
-                create_files_in_dirs(&RUST_FILE_NAMES, vec![&src_dir_path, &tests_dir_path])
-                    .into_iter()
-                    .map(|paths| {
-                        paths
-                            .iter()
-                            .map(|path| create_source_item(path.clone()))
-                            .collect()
-                    })
-                    .collect();
-
-            let all_rust_source_files: HashSet<SourceItem> =
-                rust_source_files.clone().into_iter().flatten().collect();
-
-            let binding = Default::default();
-            let default_target_details = TargetDetails {
-                name: String::default(),
-                kind: CargoTargetKind::default(),
-                package_abs_path: Utf8PathBuf::default(),
-                default_features_disabled: false,
-                enabled_features: &binding,
-            };
+            let all_rust_source_files: HashSet<SourceItem> = vec![src_files.clone(), tests_files]
+                .into_iter()
+                .flatten()
+                .collect();
 
             let test_cases = vec![
                 TestCase {
                     test_target_kind: CargoTargetKind::Bin,
-                    expected: &rust_source_files[0],
+                    expected: &src_files,
                 },
                 TestCase {
                     test_target_kind: CargoTargetKind::Lib,
-                    expected: &rust_source_files[0],
+                    expected: &src_files,
                 },
                 TestCase {
                     test_target_kind: CargoTargetKind::Test,
@@ -309,15 +334,15 @@ mod tests {
 
             for case in test_cases {
                 let mut test_target_details = TargetDetails {
-                    package_abs_path: root_dir1_path_str.clone(),
+                    package_abs_path: test_dir1.root_dir_path_str.clone(),
                     kind: case.test_target_kind.clone(),
-                    ..default_target_details.clone()
+                    ..TargetDetails::default()
                 };
 
                 let source_item = list_target_sources(test_target_details.clone());
                 assert!(source_item.iter().all(|item| case.expected.contains(item)));
 
-                test_target_details.package_abs_path = root_dir2_path_str.clone();
+                test_target_details.package_abs_path = test_dir2.root_dir_path_str.clone();
                 let source_item = list_target_sources(test_target_details);
                 assert_eq!(source_item.len(), 0);
             }
@@ -329,13 +354,10 @@ mod tests {
         let test_id = BuildTargetIdentifier {
             uri: "testId".to_string(),
         };
-        let binding = Default::default();
         let test_target_details = TargetDetails {
-            name: String::default(),
             kind: CargoTargetKind::Test,
             package_abs_path: Utf8PathBuf::from("/test_project_path"),
-            default_features_disabled: false,
-            enabled_features: &binding,
+            ..TargetDetails::default()
         };
 
         assert_json_snapshot!(
