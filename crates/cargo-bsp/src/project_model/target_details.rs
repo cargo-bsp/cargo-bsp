@@ -19,8 +19,8 @@ pub struct TargetDetails {
 
 const FEATURE_FLAG: &str = "--feature ";
 
-impl<'a> TargetDetails {
-    pub fn new(package: &'a CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
+impl TargetDetails {
+    pub fn new(package: &CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
         Some(Self {
             name: target_data.name.clone(),
             kind: TargetDetails::get_kind(target_data)?,
