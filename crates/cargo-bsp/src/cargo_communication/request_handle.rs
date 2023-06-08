@@ -32,7 +32,7 @@ impl RequestHandle {
         R::Params: CreateCommand + Send,
         R::Result: CargoResult,
     {
-        let root_path = global_state._config.root_path();
+        let root_path = global_state.config.root_path();
         let unit_graph_cmd = params.create_unit_graph_command(root_path, {
             |id| global_state.workspace.get_target_details(id)
         })?;
