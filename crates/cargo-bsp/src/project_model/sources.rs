@@ -30,7 +30,7 @@ fn list_target_sources(target_details: TargetDetails) -> Vec<SourceItem> {
             .collect()
     }
 
-    let package_path = target_details.package_abs_path;
+    let package_path = target_details.package_abs_path.clone();
 
     let mut src_sources: Vec<SourceItem> = list_source_files_in_path(package_path.join("src"));
 
