@@ -162,15 +162,16 @@ mod tests {
         }
 
         impl TestCase {
-            pub fn new(path: &PathBuf, files: Vec<&HashSet<PathBuf>>) -> Self {
+            pub fn new(path: &PathBuf, root_files: &HashSet<PathBuf>) -> Self {
                 TestCase {
                     dir_path: path.to_owned(),
-                    files: files
-                        .into_iter()
-                        .flatten()
-                        .map(|path| path.to_owned())
-                        .collect::<HashSet<PathBuf>>(),
+                    files: root_files.to_owned(),
                 }
+            }
+
+            pub fn add_descendant_files(mut self, files: &HashSet<PathBuf>) -> Self {
+                self.files.extend(files.to_owned());
+                self
             }
         }
 
@@ -205,29 +206,16 @@ mod tests {
             vec![
                 TestCase::new(
                     &dir_root_path,
-                    vec![
-                        rust_files_paths.get(&dir_root_path).unwrap(),
-                        rust_files_paths.get(&dir_root_a).unwrap(),
-                        rust_files_paths.get(&dir_root_a_b).unwrap(),
-                        rust_files_paths.get(&dir_root_b).unwrap(),
-                    ],
-                ),
-                TestCase::new(
-                    &dir_root_a,
-                    vec![
-                        rust_files_paths.get(&dir_root_a).unwrap(),
-                        rust_files_paths.get(&dir_root_a_b).unwrap(),
-                    ],
-                ),
-                TestCase::new(
-                    &dir_root_a_b,
-                    vec![rust_files_paths.get(&dir_root_a_b).unwrap()],
-                ),
-                TestCase::new(
-                    &dir_root_b,
-                    vec![rust_files_paths.get(&dir_root_b).unwrap()],
-                ),
-                TestCase::new(&dir_root_b_b, vec![]),
+                    rust_files_paths.get(&dir_root_path).unwrap(),
+                )
+                .add_descendant_files(rust_files_paths.get(&dir_root_a).unwrap())
+                .add_descendant_files(rust_files_paths.get(&dir_root_a_b).unwrap())
+                .add_descendant_files(rust_files_paths.get(&dir_root_b).unwrap()),
+                TestCase::new(&dir_root_a, rust_files_paths.get(&dir_root_a).unwrap())
+                    .add_descendant_files(rust_files_paths.get(&dir_root_a_b).unwrap()),
+                TestCase::new(&dir_root_a_b, rust_files_paths.get(&dir_root_a_b).unwrap()),
+                TestCase::new(&dir_root_b, rust_files_paths.get(&dir_root_b).unwrap()),
+                TestCase::new(&dir_root_b_b, &HashSet::new()),
             ]
         }
 
@@ -258,7 +246,7 @@ mod tests {
         use super::*;
 
         struct TestDirInfo {
-            _root_temp_dir: TempDir,
+            _root_temp_dir: TempDir, // required to be stored here, we can't lose it as temp directory is deleted on drop
             root_dir_path_str: Utf8PathBuf,
             src_dir_path: PathBuf,
             tests_dir_path: PathBuf,
