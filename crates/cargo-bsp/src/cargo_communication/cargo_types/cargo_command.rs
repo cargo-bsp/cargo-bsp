@@ -10,7 +10,7 @@ use bsp_types::requests::{CompileParams, RunParams, TestParams};
 const BUILD: &str = "build";
 const TEST: &str = "test";
 const RUN: &str = "run";
-const FEATURE_FLAG: &str = "--feature ";
+const FEATURE_FLAG: &str = "--feature";
 
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
@@ -121,7 +121,7 @@ impl TargetDetails {
             .map(|f| f.0.clone())
             .collect::<Vec<String>>()
             .join(", ");
-        Some(FEATURE_FLAG.to_string() + enabled_features.as_str())
+        Some(enabled_features)
     }
 }
 
@@ -145,15 +145,20 @@ fn target_ids_to_args(
     let args: Vec<String> = targets_details
         .iter()
         .flat_map(|t| {
-            let mut args = Vec::new();
-            args.push("--package".to_string());
-            args.push(t.package_name.clone());
-            args.push(format!("--{}", t.kind));
-            args.push(t.name.clone());
-            if let Some(features) = t.get_enabled_features_str() {
-                args.push(features);
+            let mut loc_args = Vec::new();
+            loc_args.push("--package".to_string());
+            loc_args.push(t.package_name.clone());
+            if t.kind.to_string() == "lib" {
+                loc_args.push("--lib".to_string());
+            } else {
+                loc_args.push(format!("--{}", t.kind));
+                loc_args.push(t.name.clone());
             }
-            args
+            if let Some(features) = t.get_enabled_features_str() {
+                loc_args.push(FEATURE_FLAG.to_string());
+                loc_args.push(features);
+            }
+            loc_args
         })
         .collect();
 
@@ -212,10 +217,8 @@ mod tests {
             TEST_URI_1 => Some(TargetDetails {
                 name: TEST_BIN_NAME.to_string(),
                 kind: CargoTargetKind::Bin,
-                package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[0].to_string(),
-                default_features_disabled: false,
-                enabled_features: Default::default(),
+                ..Default::default()
             }),
             TEST_URI_2 => Some(TargetDetails {
                 name: TEST_LIB_NAME.to_string(),
@@ -267,8 +270,8 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "test_lib1",
-            "--feature test_feature1",
+            "--feature",
+            "test_feature1",
             "--message-format=json",
             "--",
             "--arg1",
@@ -340,8 +343,8 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "test_lib1",
-            "--feature test_feature1",
+            "--feature",
+            "test_feature1",
             "--message-format=json",
             "--",
             "--show-output",

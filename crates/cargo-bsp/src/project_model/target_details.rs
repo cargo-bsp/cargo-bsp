@@ -42,7 +42,7 @@ impl TargetDetails {
     }
 }
 
-#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone)]
+#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum CargoTargetKind {
     #[default]
@@ -62,7 +62,7 @@ mod tests {
 
     #[test_case(BTreeSet::new(), ""  ;"empty")]
     #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
-    "--feature test_feature1, test_feature2, test_feature3" ;
+    "test_feature1, test_feature2, test_feature3" ;
     "non_empty"
     )]
     fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
