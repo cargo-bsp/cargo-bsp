@@ -52,29 +52,3 @@ pub enum CargoTargetKind {
     Test,
     Bench,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_case::test_case;
-
-    const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
-
-    #[test_case(BTreeSet::new(), ""  ;"empty")]
-    #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
-    "test_feature1, test_feature2, test_feature3" ;
-    "non_empty"
-    )]
-    fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
-        let target_details = TargetDetails {
-            default_features_disabled: false,
-            enabled_features,
-            ..TargetDetails::default()
-        };
-
-        let enabled_features_string = target_details
-            .get_enabled_features_str()
-            .unwrap_or("".to_string());
-        assert_eq!(enabled_features_string, expected);
-    }
-}

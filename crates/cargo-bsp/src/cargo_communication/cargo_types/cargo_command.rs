@@ -112,16 +112,16 @@ impl CreateCommand for TestParams {
 
 impl TargetDetails {
     pub fn get_enabled_features_str(&self) -> Option<String> {
-        if self.enabled_features.is_empty() {
-            return None;
+        match self.enabled_features.is_empty() {
+            true => None,
+            false => Some(
+                self.enabled_features
+                    .iter()
+                    .map(|f| f.0.clone())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            ),
         }
-        let enabled_features = self
-            .enabled_features
-            .iter()
-            .map(|f| f.0.clone())
-            .collect::<Vec<String>>()
-            .join(", ");
-        Some(enabled_features)
     }
 }
 
@@ -356,5 +356,33 @@ mod tests {
         ]
         "###);
         assert_eq!(cwd, Path::new(TEST_ROOT));
+    }
+}
+
+#[cfg(test)]
+mod feature_tests {
+    use super::*;
+    use crate::project_model::cargo_package::Feature;
+    use std::collections::BTreeSet;
+    use test_case::test_case;
+
+    const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
+
+    #[test_case(BTreeSet::new(), ""  ;"empty")]
+    #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
+    "test_feature1, test_feature2, test_feature3" ;
+    "non_empty"
+    )]
+    fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
+        let target_details = TargetDetails {
+            default_features_disabled: false,
+            enabled_features,
+            ..TargetDetails::default()
+        };
+
+        let enabled_features_string = target_details
+            .get_enabled_features_str()
+            .unwrap_or("".to_string());
+        assert_eq!(enabled_features_string, expected);
     }
 }
