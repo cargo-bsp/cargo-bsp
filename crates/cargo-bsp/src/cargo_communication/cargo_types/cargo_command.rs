@@ -117,7 +117,7 @@ impl TargetDetails {
             false => Some(
                 self.enabled_features
                     .iter()
-                    .map(|f| f.0.clone())
+                    .cloned()
                     .collect::<Vec<String>>()
                     .join(", "),
             ),
