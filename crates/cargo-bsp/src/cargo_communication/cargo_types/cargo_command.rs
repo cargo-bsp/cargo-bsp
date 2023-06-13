@@ -1,15 +1,22 @@
 use bsp_types::BuildTargetIdentifier;
 use log::warn;
+use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::io;
 use std::path::Path;
-use std::process::Command;
 
+use crate::project_model::target_details::CargoTargetKind::Lib;
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
+use std::process::Command;
 
-const BUILD: &str = "build";
-const TEST: &str = "test";
-const RUN: &str = "run";
+#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Clone)]
+#[serde(rename_all = "camelCase")]
+enum CommandType {
+    Build,
+    Test,
+    Run,
+}
+
 const FEATURE_FLAG: &str = "--feature";
 
 pub trait CreateCommand {
@@ -39,7 +46,7 @@ impl CreateCommand for CompileParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let cmd = cargo_command_with_unit_graph(BUILD, root, targets_args);
+        let cmd = cargo_command_with_unit_graph(CommandType::Build, root, targets_args);
         Ok(cmd)
     }
 
@@ -49,7 +56,7 @@ impl CreateCommand for CompileParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let mut cmd = create_requested_command(BUILD, root, targets_args);
+        let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
         cmd.args(self.arguments.clone());
         Ok(cmd)
     }
@@ -66,7 +73,7 @@ impl CreateCommand for RunParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let targets_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
-        let cmd = cargo_command_with_unit_graph(RUN, root, targets_args);
+        let cmd = cargo_command_with_unit_graph(CommandType::Run, root, targets_args);
         Ok(cmd)
     }
 
@@ -76,7 +83,7 @@ impl CreateCommand for RunParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let target_args = target_ids_to_args(vec![self.target.clone()], get_target_details)?;
-        let mut cmd = create_requested_command(RUN, root, target_args);
+        let mut cmd = create_requested_command(CommandType::Run, root, target_args);
         cmd.args(self.arguments.clone());
         Ok(cmd)
     }
@@ -93,7 +100,7 @@ impl CreateCommand for TestParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let cmd = cargo_command_with_unit_graph(TEST, root, targets_args);
+        let cmd = cargo_command_with_unit_graph(CommandType::Test, root, targets_args);
         Ok(cmd)
     }
 
@@ -103,7 +110,7 @@ impl CreateCommand for TestParams {
         get_target_details: impl Fn(&BuildTargetIdentifier) -> Option<TargetDetails>,
     ) -> io::Result<Command> {
         let targets_args = target_ids_to_args(self.targets.clone(), get_target_details)?;
-        let mut cmd = create_requested_command(TEST, root, targets_args);
+        let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
         Ok(cmd)
@@ -117,7 +124,7 @@ impl TargetDetails {
             false => Some(
                 self.enabled_features
                     .iter()
-                    .cloned()
+                    .map(|f| f.0.clone())
                     .collect::<Vec<String>>()
                     .join(", "),
             ),
@@ -148,7 +155,7 @@ fn target_ids_to_args(
             let mut loc_args = Vec::new();
             loc_args.push("--package".to_string());
             loc_args.push(t.package_name.clone());
-            if t.kind.to_string() == "lib" {
+            if t.kind == Lib {
                 loc_args.push("--lib".to_string());
             } else {
                 loc_args.push(format!("--{}", t.kind));
@@ -165,17 +172,21 @@ fn target_ids_to_args(
     Ok(args)
 }
 
-fn create_requested_command(command_type: &str, root: &Path, targets_args: Vec<String>) -> Command {
+fn create_requested_command(
+    command_type: CommandType,
+    root: &Path,
+    targets_args: Vec<String>,
+) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
-    cmd.arg(command_type);
+    cmd.arg(command_type.to_string());
     cmd.args(targets_args);
     cmd.args(["--message-format=json", "--"]);
     cmd
 }
 
 fn cargo_command_with_unit_graph(
-    command_type: &str,
+    command_type: CommandType,
     root: &Path,
     targets_args: Vec<String>,
 ) -> Command {
@@ -183,7 +194,7 @@ fn cargo_command_with_unit_graph(
     cmd.current_dir(root)
         .args([
             "+nightly",
-            command_type,
+            command_type.to_string().as_str(),
             "--unit-graph",
             "-Z",
             "unstable-options",
