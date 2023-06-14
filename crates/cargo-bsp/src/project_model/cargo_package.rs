@@ -1,23 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
-use std::hash::Hash;
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
+use bsp_types::requests::cargo_extension::Feature;
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::bsp_build_target_from_cargo_target;
 use crate::project_model::package_dependency::PackageDependency;
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Feature(String);
-
-impl From<&str> for Feature {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
 
 #[derive(Default, Debug)]
 pub struct CargoPackage {

@@ -19,6 +19,7 @@ pub use test::*;
 pub use workspace_build_targets::*;
 
 mod build_target_sources;
+pub mod cargo_extension;
 mod clean_cache;
 mod compile;
 mod debug;
