@@ -1,11 +1,12 @@
-use cargo_metadata::camino::Utf8PathBuf;
 use std::collections::BTreeSet;
 
-use crate::project_model::build_target_mappings::parent_path;
+use bsp_types::requests::cargo_extension::Feature;
+use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
-use crate::project_model::cargo_package::{CargoPackage, Feature};
+use crate::project_model::build_target_mappings::parent_path;
+use crate::project_model::cargo_package::CargoPackage;
 
 #[derive(Debug, Clone, Default)]
 pub struct TargetDetails {
