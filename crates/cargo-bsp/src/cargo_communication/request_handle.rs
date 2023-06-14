@@ -3,9 +3,10 @@ use std::process::Command;
 
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Sender};
+use log::warn;
 
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{BuildTargetIdentifier, StatusCode};
 
 use crate::cargo_communication::cargo_handle::CargoHandle;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
@@ -13,6 +14,7 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
+use crate::project_model::target_details::TargetDetails;
 use crate::server::global_state::GlobalStateSnapshot;
 
 pub(crate) struct RequestHandle {
@@ -33,12 +35,10 @@ impl RequestHandle {
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
-        let unit_graph_cmd = params.create_unit_graph_command(root_path, {
-            |id| global_state.workspace.get_target_details(id)
-        })?;
-        let requested_cmd = params.create_requested_command(root_path, {
-            |id| global_state.workspace.get_target_details(id)
-        })?;
+        let targets_details =
+            targets_ids_to_targets_details(params.get_targets_ids(), &global_state)?;
+        let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
+        let requested_cmd = params.create_requested_command(root_path, &targets_details);
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let actor: RequestActor<R, CargoHandle> = RequestActor::new(
@@ -60,6 +60,28 @@ impl RequestHandle {
     pub fn cancel(&self) {
         self.cancel_sender.send(Event::Cancel).unwrap();
     }
+}
+
+fn targets_ids_to_targets_details(
+    targets_ids: Vec<BuildTargetIdentifier>,
+    global_state: &GlobalStateSnapshot,
+) -> io::Result<Vec<TargetDetails>> {
+    let targets_details: Vec<TargetDetails> = targets_ids
+        .iter()
+        .map(|id| {
+            global_state
+                .workspace
+                .get_target_details(id)
+                .ok_or_else(|| {
+                    warn!("Target {:?} not found", id);
+                    io::Error::new(
+                        io::ErrorKind::NotFound,
+                        format!("Target {:?} not found", id),
+                    )
+                })
+        })
+        .collect::<io::Result<Vec<TargetDetails>>>()?;
+    Ok(targets_details)
 }
 
 fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: Command)
