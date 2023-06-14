@@ -3,10 +3,9 @@ use std::process::Command;
 
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::{unbounded, Sender};
-use log::warn;
 
 use bsp_types::requests::Request;
-use bsp_types::{BuildTargetIdentifier, StatusCode};
+use bsp_types::StatusCode;
 
 use crate::cargo_communication::cargo_handle::CargoHandle;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
@@ -14,7 +13,7 @@ use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
-use crate::project_model::target_details::TargetDetails;
+use crate::cargo_communication::utils::targets_ids_to_targets_details;
 use crate::server::global_state::GlobalStateSnapshot;
 
 pub(crate) struct RequestHandle {
@@ -60,28 +59,6 @@ impl RequestHandle {
     pub fn cancel(&self) {
         self.cancel_sender.send(Event::Cancel).unwrap();
     }
-}
-
-fn targets_ids_to_targets_details(
-    targets_ids: Vec<BuildTargetIdentifier>,
-    global_state: &GlobalStateSnapshot,
-) -> io::Result<Vec<TargetDetails>> {
-    let targets_details: Vec<TargetDetails> = targets_ids
-        .iter()
-        .map(|id| {
-            global_state
-                .workspace
-                .get_target_details(id)
-                .ok_or_else(|| {
-                    warn!("Target {:?} not found", id);
-                    io::Error::new(
-                        io::ErrorKind::NotFound,
-                        format!("Target {:?} not found", id),
-                    )
-                })
-        })
-        .collect::<io::Result<Vec<TargetDetails>>>()?;
-    Ok(targets_details)
 }
 
 fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: Command)
