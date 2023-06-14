@@ -37,12 +37,12 @@ impl CreateCommand for CompileParams {
     }
 
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = target_ids_to_args(targets_details);
+        let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Build, root, targets_args)
     }
 
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = target_ids_to_args(targets_details);
+        let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
         cmd.args(self.arguments.clone());
         cmd
@@ -59,12 +59,12 @@ impl CreateCommand for RunParams {
     }
 
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = target_ids_to_args(targets_details);
+        let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Run, root, targets_args)
     }
 
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let target_args = target_ids_to_args(targets_details);
+        let target_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Run, root, target_args);
         cmd.args(self.arguments.clone());
         cmd
@@ -81,12 +81,12 @@ impl CreateCommand for TestParams {
     }
 
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = target_ids_to_args(targets_details);
+        let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Test, root, targets_args)
     }
 
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = target_ids_to_args(targets_details);
+        let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
@@ -96,8 +96,6 @@ impl CreateCommand for TestParams {
 
 impl TargetDetails {
     pub fn get_enabled_features_str(&self) -> Option<String> {
-        //TODO no default features
-
         match self.enabled_features.is_empty() {
             true => None,
             false => Some(
@@ -111,7 +109,7 @@ impl TargetDetails {
     }
 }
 
-fn target_ids_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
+fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
     targets_details
         .iter()
         .flat_map(|t| {
