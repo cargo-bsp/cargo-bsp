@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-pub use disable_rust_features::*;
-pub use enable_rust_features::*;
-pub use rust_features_state::*;
+pub use disable_cargo_features::*;
+pub use enable_cargo_features::*;
+pub use rust_cargo_state::*;
 
-mod disable_rust_features;
-mod enable_rust_features;
-mod rust_features_state;
+mod disable_cargo_features;
+mod enable_cargo_features;
+mod rust_cargo_state;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Feature(pub String);

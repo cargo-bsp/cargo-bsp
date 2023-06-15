@@ -4,24 +4,24 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 
 #[derive(Debug)]
-pub enum DisableRustFeatures {}
+pub enum DisableCargoFeatures {}
 
-impl Request for DisableRustFeatures {
-    type Params = DisableRustFeaturesParams;
-    type Result = DisableRustFeaturesResult;
-    const METHOD: &'static str = "buildTarget/disableRustFeatures";
+impl Request for DisableCargoFeatures {
+    type Params = DisableCargoFeaturesParams;
+    type Result = DisableCargoFeaturesResult;
+    const METHOD: &'static str = "buildTarget/disableCargoFeatures";
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct DisableRustFeaturesParams {
+pub struct DisableCargoFeaturesParams {
     pub package_id: String,
     pub features: Vec<Feature>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct DisableRustFeaturesResult {}
+pub struct DisableCargoFeaturesResult {}
 
 #[cfg(test)]
 mod tests {
@@ -32,34 +32,34 @@ mod tests {
     use super::*;
 
     const PACKAGE_ID: &str = "package_id";
-    const FEATURE: &str = "example_feature";
+    const FEATURE: &str = "feature";
 
     #[test]
-    fn disable_rust_features_method() {
+    fn disable_cargo_features_method() {
         assert_eq!(
-            DisableRustFeatures::METHOD,
-            "buildTarget/disableRustFeatures"
+            DisableCargoFeatures::METHOD,
+            "buildTarget/disableCargoFeatures"
         );
     }
 
     #[test]
-    fn enable_rust_features_params() {
+    fn enable_cargo_features_params() {
         test_deserialization(
-            r#"{"packageId": "package_id", "features":["example_feature"]}"#,
-            &DisableRustFeaturesParams {
+            r#"{"packageId": "package_id", "features":["feature"]}"#,
+            &DisableCargoFeaturesParams {
                 package_id: PACKAGE_ID.into(),
                 features: vec![FEATURE.into()],
             },
         );
         test_deserialization(
             r#"{"packageId": "","features":[]}"#,
-            &DisableRustFeaturesParams::default(),
+            &DisableCargoFeaturesParams::default(),
         );
     }
 
     #[test]
-    fn disable_rust_features_result() {
-        let test_data = DisableRustFeaturesResult {};
+    fn disable_cargo_features_result() {
+        let test_data = DisableCargoFeaturesResult {};
         assert_json_snapshot!(test_data, @"{}");
     }
 }
