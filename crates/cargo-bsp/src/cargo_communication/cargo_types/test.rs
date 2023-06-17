@@ -37,10 +37,9 @@ pub struct SuiteResults {
 }
 
 impl SuiteResults {
-    pub fn to_test_report(&self) -> TaskDataWithKind {
+    pub fn to_test_report(&self, target: BuildTargetIdentifier) -> TaskDataWithKind {
         TaskDataWithKind::TestReport(TestReportData {
-            // TODO change target to actual BuildTargetIdentifier
-            target: BuildTargetIdentifier::default(),
+            target,
             passed: self.passed,
             failed: self.failed,
             ignored: self.ignored,

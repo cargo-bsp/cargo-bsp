@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use cargo_metadata::camino::Utf8PathBuf;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use log::error;
+use unzip_n::unzip_n;
 
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
@@ -13,6 +15,9 @@ use crate::project_model::target_details::TargetDetails;
 
 pub type TargetIdToPackageName = HashMap<BuildTargetIdentifier, String>;
 pub type TargetIdToTargetData = HashMap<BuildTargetIdentifier, Rc<cargo_metadata::Target>>;
+pub type SrcPathToTargetId = HashMap<Utf8PathBuf, BuildTargetIdentifier>;
+
+unzip_n!(3);
 
 #[derive(Default, Debug)]
 pub struct ProjectWorkspace {
@@ -24,6 +29,9 @@ pub struct ProjectWorkspace {
 
     /// Map creating an easy access from BuildTargetIdentifier of a target to its details
     pub target_id_to_target_data: TargetIdToTargetData,
+
+    /// Map creating an easy access from src path of a target to its BuildTargetIdentifier
+    pub src_path_to_target_id: SrcPathToTargetId,
 }
 
 impl ProjectWorkspace {
@@ -47,19 +55,24 @@ impl ProjectWorkspace {
             .map(|p| CargoPackage::new(p, &metadata.packages))
             .collect();
 
-        let (target_id_to_package_name, target_id_to_target_data) =
+        let (target_id_to_package_name, target_id_to_target_data, src_path_to_target_id) =
             ProjectWorkspace::create_hashmaps(&bsp_packages);
 
         Ok(ProjectWorkspace {
             packages: bsp_packages,
             target_id_to_package_name,
             target_id_to_target_data,
+            src_path_to_target_id,
         })
     }
 
     fn create_hashmaps(
         bsp_packages: &[CargoPackage],
-    ) -> (TargetIdToPackageName, TargetIdToTargetData) {
+    ) -> (
+        TargetIdToPackageName,
+        TargetIdToTargetData,
+        SrcPathToTargetId,
+    ) {
         bsp_packages
             .iter()
             .flat_map(|p| {
@@ -69,11 +82,13 @@ impl ProjectWorkspace {
                         // BuildTargetIdentifier to package name map (key, value)
                         (target_id.clone(), p.name.clone()),
                         // BuildTargetIdentifier to target_details map (key, value)
-                        (target_id, Rc::clone(tr)),
+                        (target_id.clone(), Rc::clone(tr)),
+                        // Src path of a build target to its id (key, value)
+                        (tr.src_path.clone(), target_id),
                     )
                 })
             })
-            .unzip()
+            .unzip_n()
     }
 
     fn get_package_related_to_target(

@@ -10,11 +10,12 @@ use bsp_types::notifications::{
     PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
 };
 use bsp_types::requests::Request;
-use bsp_types::{BuildTargetIdentifier, StatusCode};
+use bsp_types::StatusCode;
 
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
+use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::cargo_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
@@ -28,7 +29,7 @@ use crate::cargo_communication::utils::{generate_random_id, generate_task_id, ge
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand,
+    R::Params: CreateCommand + ParamsTarget,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -78,11 +79,19 @@ where
                 return;
             }
         };
+        let build_target_id = self.src_path_to_target_id.get(&msg.target.src_path);
+        if build_target_id.is_none() {
+            warn!(
+                "Target with path {} not found. Cannot publish diagnostic",
+                msg.target.src_path
+            );
+            return;
+        }
+        let build_target_id = build_target_id.unwrap().clone();
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
             self.params.origin_id(),
-            // TODO change to actual BuildTargetIdentifier
-            &BuildTargetIdentifier::default(),
+            &build_target_id,
             AbsPath::assert(&abs_root_path),
         );
         match diagnostic_msg {
@@ -127,20 +136,29 @@ where
     }
 
     fn finish_compile(&mut self, msg: BuildFinished) {
-        let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
-            // TODO change to actual BuildTargetIdentifier
-            target: BuildTargetIdentifier::default(),
-            origin_id: self.params.origin_id(),
-            errors: self.state.compile_state.errors,
-            warnings: self.state.compile_state.warnings,
-            time: Some((get_current_time() - self.state.compile_state.start_time) as i32),
-            no_op: None,
+        self.build_targets.iter().for_each(|id| {
+            // We can unwrap here, as for all iterated ids, the target state was created.
+            let compile_target_state = self.state.compile_state.target_states.get(id).unwrap();
+            let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
+                target: id.clone(),
+                origin_id: self.params.origin_id(),
+                errors: self.state.compile_state.errors,
+                warnings: self.state.compile_state.warnings,
+                time: Some((get_current_time() - compile_target_state.start_time) as i32),
+                no_op: None,
+            });
+            self.report_task_finish(
+                compile_target_state.task_id.clone(),
+                StatusCode::Ok,
+                None,
+                Some(compile_report),
+            );
         });
         self.report_task_finish(
             self.state.compile_state.task_id.clone(),
             StatusCode::Ok,
+            Some("Finished compilation".to_string()),
             None,
-            Some(compile_report),
         );
         // Start execution task if compile finished with success.
         if msg.success {
@@ -182,11 +200,18 @@ where
                     task_id.id = new_id.clone();
                     test_state.suite_task_id.id = new_id;
                     test_state.suite_task_progress.total = s.test_count as i64;
+                    test_state.suite_task_progress.progress = 0;
+                    // Because the targets are sorted, we know which one is currently tested.
+                    test_state.current_build_target = self.build_targets.pop();
+                    if test_state.current_build_target.is_none() {
+                        warn!("Test suite generated for unknown build target");
+                        return;
+                    }
+                    let target = test_state.current_build_target.clone().unwrap();
                     self.report_task_start(
                         task_id,
                         None,
-                        // TODO change target to actual BuildTargetIdentifier
-                        Some(TaskDataWithKind::TestTask(TestTaskData::default())),
+                        Some(TaskDataWithKind::TestTask(TestTaskData { target })),
                     );
                 }
                 SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
@@ -198,7 +223,19 @@ where
     }
 
     fn report_suite_finished(&self, task_id: TaskId, result: SuiteResults) {
-        self.report_task_finish(task_id, StatusCode::Ok, None, Some(result.to_test_report()))
+        if let TaskState::Test(test_state) = &self.state.task_state {
+            let tested_target = test_state.current_build_target.clone();
+            if tested_target.is_none() {
+                warn!("No target is currently tested");
+                return;
+            }
+            self.report_task_finish(
+                task_id,
+                StatusCode::Ok,
+                None,
+                Some(result.to_test_report(tested_target.unwrap())),
+            )
+        }
     }
 
     fn handle_single_test(&mut self, event: TestEvent) {

@@ -1,9 +1,10 @@
+use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
 
 use bsp_types::notifications::TaskId;
 use bsp_types::requests::{Request, Run, Test};
 
-use crate::cargo_communication::utils::{generate_random_id, generate_task_id};
+use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
 
 pub struct RequestActorState {
     pub(super) root_task_id: TaskId,
@@ -28,18 +29,26 @@ pub struct CompileState {
     pub(super) task_id: TaskId,
     pub(super) errors: i32,
     pub(super) warnings: i32,
-    pub(super) start_time: i64,
     pub(super) compilation_step: Option<i64>,
+    pub(super) target_states: HashMap<BuildTargetIdentifier, CompileTargetState>,
+}
+
+#[derive(Default)]
+pub struct CompileTargetState {
+    pub(super) task_id: TaskId,
+    pub(super) start_time: i64,
 }
 
 pub struct RunState {
     pub(super) task_id: TaskId,
 }
 
+#[derive(Default)]
 pub struct TestState {
     pub(super) task_id: TaskId,
     pub(super) suite_task_id: TaskId,
     pub(super) suite_task_progress: SuiteTaskProgress,
+    pub(super) current_build_target: Option<BuildTargetIdentifier>,
     pub(super) single_test_task_ids: HashMap<String, TaskId>,
 }
 
@@ -53,6 +62,16 @@ impl CompileState {
     pub fn increase_compilation_step(&mut self) {
         self.compilation_step = self.compilation_step.map(|s| s + 1);
     }
+
+    pub fn set_start_time(&mut self, build_target_id: &BuildTargetIdentifier) {
+        let compile_target_state = self.target_states.get_mut(build_target_id).unwrap();
+        compile_target_state.start_time = get_current_time();
+    }
+
+    pub fn get_target_task_id(&self, build_target_id: &BuildTargetIdentifier) -> TaskId {
+        let compile_target_state = self.target_states.get(build_target_id).unwrap();
+        compile_target_state.task_id.clone()
+    }
 }
 
 impl TaskState {
@@ -65,9 +84,8 @@ impl TaskState {
                 let test_task_id = generate_task_id(&root_task_id);
                 TaskState::Test(TestState {
                     suite_task_id: generate_task_id(&test_task_id),
-                    suite_task_progress: SuiteTaskProgress::default(),
                     task_id: test_task_id,
-                    single_test_task_ids: HashMap::new(),
+                    ..TestState::default()
                 })
             }
             _ => TaskState::Compile,
@@ -76,7 +94,10 @@ impl TaskState {
 }
 
 impl RequestActorState {
-    pub fn new<R: Request>(origin_id: Option<String>) -> RequestActorState {
+    pub fn new<R: Request>(
+        origin_id: Option<String>,
+        build_targets: &[BuildTargetIdentifier],
+    ) -> RequestActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(generate_random_id()),
             parents: vec![],
@@ -87,11 +108,32 @@ impl RequestActorState {
                 task_id: generate_task_id(&root_task_id),
                 total_compilation_steps: None,
             },
-            compile_state: CompileState {
-                task_id: generate_task_id(&root_task_id),
-                ..CompileState::default()
-            },
+            compile_state: Self::new_compile_state(&root_task_id, build_targets),
             task_state: TaskState::new::<R>(root_task_id),
+        }
+    }
+
+    fn new_compile_state(
+        root_task_id: &TaskId,
+        build_targets: &[BuildTargetIdentifier],
+    ) -> CompileState {
+        let compile_task_id = generate_task_id(root_task_id);
+        let target_states: HashMap<BuildTargetIdentifier, CompileTargetState> = build_targets
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    CompileTargetState {
+                        task_id: generate_task_id(&compile_task_id),
+                        ..CompileTargetState::default()
+                    },
+                )
+            })
+            .collect();
+        CompileState {
+            task_id: compile_task_id,
+            target_states,
+            ..CompileState::default()
         }
     }
 
