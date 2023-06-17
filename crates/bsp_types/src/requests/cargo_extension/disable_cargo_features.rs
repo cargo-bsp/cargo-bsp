@@ -8,7 +8,7 @@ pub enum DisableCargoFeatures {}
 
 impl Request for DisableCargoFeatures {
     type Params = DisableCargoFeaturesParams;
-    type Result = DisableCargoFeaturesResult;
+    type Result = ();
     const METHOD: &'static str = "buildTarget/disableCargoFeatures";
 }
 
@@ -19,14 +19,8 @@ pub struct DisableCargoFeaturesParams {
     pub features: Vec<Feature>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct DisableCargoFeaturesResult {}
-
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
-
     use crate::tests::test_deserialization;
 
     use super::*;
@@ -55,11 +49,5 @@ mod tests {
             r#"{"packageId": "","features":[]}"#,
             &DisableCargoFeaturesParams::default(),
         );
-    }
-
-    #[test]
-    fn disable_cargo_features_result() {
-        let test_data = DisableCargoFeaturesResult {};
-        assert_json_snapshot!(test_data, @"{}");
     }
 }

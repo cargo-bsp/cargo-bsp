@@ -4,16 +4,21 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::requests::cargo_extension::Feature;
+use bsp_types::requests::cargo_extension::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
-use crate::project_model::build_target_mappings::bsp_build_target_from_cargo_target;
+use crate::project_model::build_target_mappings::{
+    bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
+};
 use crate::project_model::package_dependency::PackageDependency;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct CargoPackage {
     /// Name of the package
     pub name: String,
+
+    /// Unique identifier of the package
+    pub id: String,
 
     /// Path to the package's manifest
     pub manifest_path: Utf8PathBuf,
@@ -51,6 +56,7 @@ impl CargoPackage {
 
         Self {
             name: metadata_package.name.clone(),
+            id: metadata_package.id.repr.clone(),
             manifest_path: metadata_package.manifest_path.clone(),
             dependencies: PackageDependency::create_package_dependencies_from_metadata(
                 &metadata_package.dependencies,
@@ -170,12 +176,21 @@ impl CargoPackage {
             .filter(|&d| self.is_dependency_enabled(d))
             .collect()
     }
+
+    pub fn get_enabled_features(&self) -> PackageFeatures {
+        PackageFeatures {
+            package_id: self.id.clone(),
+            targets: build_target_ids_from_cargo_targets(&self.targets),
+            enabled_features: self.enabled_features.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
+    use bsp_types::requests::cargo_extension::PackageFeatures;
     use test_case::test_case;
 
     use crate::project_model::cargo_package::{CargoPackage, Feature};
@@ -298,6 +313,22 @@ mod tests {
         }
 
         assert_eq!(test_package.enabled_features, expected);
+    }
+
+    #[test]
+    fn test_get_enabled_features() {
+        let test_features_slice = &[F1, F2, F3];
+        let test_package_id = "test-package-id".to_string();
+        let mut test_package = default_cargo_package_with_features(&[], Some(test_features_slice));
+        test_package.id = test_package_id.clone();
+
+        let expected = PackageFeatures {
+            package_id: test_package_id,
+            targets: vec![],
+            enabled_features: create_feature_set_from_slices(test_features_slice),
+        };
+
+        assert_eq!(test_package.get_enabled_features(), expected);
     }
 
     mod test_is_dependency_enabled {
