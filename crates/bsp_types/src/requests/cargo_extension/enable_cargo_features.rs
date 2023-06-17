@@ -8,7 +8,7 @@ pub enum EnableCargoFeatures {}
 
 impl Request for EnableCargoFeatures {
     type Params = EnableCargoFeaturesParams;
-    type Result = EnableCargoFeaturesResult;
+    type Result = ();
     const METHOD: &'static str = "buildTarget/enableCargoFeatures";
 }
 
@@ -19,14 +19,8 @@ pub struct EnableCargoFeaturesParams {
     pub features: Vec<Feature>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct EnableCargoFeaturesResult {}
-
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
-
     use crate::tests::test_deserialization;
 
     use super::*;
@@ -55,11 +49,5 @@ mod tests {
             r#"{"packageId": "","features":[]}"#,
             &EnableCargoFeaturesParams::default(),
         );
-    }
-
-    #[test]
-    fn enable_cargo_features_result() {
-        let test_data = EnableCargoFeaturesResult {};
-        assert_json_snapshot!(test_data, @"{}");
     }
 }

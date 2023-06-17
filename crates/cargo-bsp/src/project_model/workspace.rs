@@ -5,6 +5,7 @@ use std::rc::Rc;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use log::error;
 
+use bsp_types::requests::cargo_extension::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
@@ -14,7 +15,7 @@ use crate::project_model::target_details::TargetDetails;
 pub type TargetIdToPackageName = HashMap<BuildTargetIdentifier, String>;
 pub type TargetIdToTargetData = HashMap<BuildTargetIdentifier, Rc<cargo_metadata::Target>>;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ProjectWorkspace {
     /// List of all packages in a workspace
     pub packages: Vec<CargoPackage>,
@@ -117,5 +118,40 @@ impl ProjectWorkspace {
         let package = self.get_package_related_to_target(id)?;
         let target_data = self.get_target_data(id)?;
         TargetDetails::new(package, target_data)
+    }
+
+    /// Returns a list of all packages with corresponding
+    /// to them targets (as build target ids) and features
+    pub fn get_cargo_features_state(&self) -> Vec<PackageFeatures> {
+        self.packages
+            .iter()
+            .map(|p| p.get_enabled_features())
+            .collect()
+    }
+
+    /// Enables features for a given package
+    pub fn enable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+        let package = self.packages.iter_mut().find(|p| p.id == package_id);
+        if let Some(package) = package {
+            package.enable_features(features);
+        } else {
+            error!(
+                "Couldn't enable features, package not found for id: {:?}",
+                package_id
+            );
+        }
+    }
+
+    /// Disables features for a given package
+    pub fn disable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+        let package = self.packages.iter_mut().find(|p| p.id == package_id);
+        if let Some(package) = package {
+            package.disable_features(features);
+        } else {
+            error!(
+                "Couldn't disable features, package not found for id: {:?}",
+                package_id
+            );
+        }
     }
 }

@@ -9,14 +9,10 @@ use crate::requests::Request;
 pub enum CargoFeaturesState {}
 
 impl Request for CargoFeaturesState {
-    type Params = CargoFeaturesStateParams;
+    type Params = ();
     type Result = CargoFeaturesStateResult;
     const METHOD: &'static str = "buildTarget/CargoFeaturesState";
 }
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct CargoFeaturesStateParams {}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -35,8 +31,6 @@ pub struct PackageFeatures {
 #[cfg(test)]
 mod tests {
     use insta::assert_json_snapshot;
-
-    use crate::tests::test_deserialization;
 
     use super::*;
 
@@ -65,11 +59,6 @@ mod tests {
     #[test]
     fn cargo_features_state_method() {
         assert_eq!(CargoFeaturesState::METHOD, "buildTarget/CargoFeaturesState");
-    }
-
-    #[test]
-    fn cargo_features_state_params() {
-        test_deserialization(r#"{}"#, &CargoFeaturesStateParams {});
     }
 
     #[test]
