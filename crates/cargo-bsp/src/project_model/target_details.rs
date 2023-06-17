@@ -7,6 +7,8 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 use crate::project_model::cargo_package::{CargoPackage, Feature};
 
+/// The order resembles Cargo's target structure.
+/// Specifically, package_name, kind and name are in the same order as it is in Cargo.
 #[derive(Debug, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TargetDetails {
     pub package_name: String,
@@ -42,6 +44,7 @@ impl TargetDetails {
     }
 }
 
+/// The order in enum is the same as it is in Cargo.
 #[derive(
     Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, Ord, PartialOrd, Eq, PartialEq,
 )]

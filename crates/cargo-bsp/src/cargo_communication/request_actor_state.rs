@@ -59,18 +59,44 @@ pub struct SuiteTaskProgress {
 }
 
 impl CompileState {
+    fn new(root_task_id: &TaskId, build_targets: &[BuildTargetIdentifier]) -> CompileState {
+        let compile_task_id = generate_task_id(root_task_id);
+        let target_states: HashMap<BuildTargetIdentifier, CompileTargetState> = build_targets
+            .iter()
+            .map(|id| {
+                (
+                    id.clone(),
+                    CompileTargetState {
+                        task_id: generate_task_id(&compile_task_id),
+                        ..CompileTargetState::default()
+                    },
+                )
+            })
+            .collect();
+        CompileState {
+            task_id: compile_task_id,
+            target_states,
+            ..CompileState::default()
+        }
+    }
+
     pub fn increase_compilation_step(&mut self) {
         self.compilation_step = self.compilation_step.map(|s| s + 1);
     }
 
     pub fn set_start_time(&mut self, build_target_id: &BuildTargetIdentifier) {
-        let compile_target_state = self.target_states.get_mut(build_target_id).unwrap();
-        compile_target_state.start_time = get_current_time();
+        self.target_states
+            .get_mut(build_target_id)
+            .unwrap()
+            .start_time = get_current_time();
     }
 
     pub fn get_target_task_id(&self, build_target_id: &BuildTargetIdentifier) -> TaskId {
-        let compile_target_state = self.target_states.get(build_target_id).unwrap();
-        compile_target_state.task_id.clone()
+        self.target_states
+            .get(build_target_id)
+            .unwrap()
+            .task_id
+            .clone()
     }
 }
 
@@ -108,32 +134,8 @@ impl RequestActorState {
                 task_id: generate_task_id(&root_task_id),
                 total_compilation_steps: None,
             },
-            compile_state: Self::new_compile_state(&root_task_id, build_targets),
+            compile_state: CompileState::new(&root_task_id, build_targets),
             task_state: TaskState::new::<R>(root_task_id),
-        }
-    }
-
-    fn new_compile_state(
-        root_task_id: &TaskId,
-        build_targets: &[BuildTargetIdentifier],
-    ) -> CompileState {
-        let compile_task_id = generate_task_id(root_task_id);
-        let target_states: HashMap<BuildTargetIdentifier, CompileTargetState> = build_targets
-            .iter()
-            .map(|id| {
-                (
-                    id.clone(),
-                    CompileTargetState {
-                        task_id: generate_task_id(&compile_task_id),
-                        ..CompileTargetState::default()
-                    },
-                )
-            })
-            .collect();
-        CompileState {
-            task_id: compile_task_id,
-            target_states,
-            ..CompileState::default()
         }
     }
 
