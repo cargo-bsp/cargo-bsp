@@ -4,7 +4,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::requests::cargo_extension::{Feature, PackageFeatures};
+use bsp_types::requests::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
@@ -190,10 +190,10 @@ impl CargoPackage {
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
-    use bsp_types::requests::cargo_extension::PackageFeatures;
+    use bsp_types::requests::PackageFeatures;
     use test_case::test_case;
 
-    use crate::project_model::cargo_package::{CargoPackage, Feature};
+    use super::*;
 
     const DEP_NAME: &str = "dependency-name";
     const F1: &str = "feature1";
@@ -317,15 +317,15 @@ mod tests {
 
     #[test]
     fn test_get_enabled_features() {
-        let test_features_slice = &[F1, F2, F3];
-        let test_package_id = "test-package-id".to_string();
-        let mut test_package = default_cargo_package_with_features(&[], Some(test_features_slice));
-        test_package.id = test_package_id.clone();
+        const TEST_FEATURES_SLICE: &[&str] = &[F1, F2, F3];
+        const TEST_PACKAGE_ID: &str = "test-package-id";
+        let mut test_package = default_cargo_package_with_features(&[], Some(TEST_FEATURES_SLICE));
+        test_package.id = TEST_PACKAGE_ID.into();
 
         let expected = PackageFeatures {
-            package_id: test_package_id,
+            package_id: TEST_PACKAGE_ID.into(),
             targets: vec![],
-            enabled_features: create_feature_set_from_slices(test_features_slice),
+            enabled_features: create_feature_set_from_slices(TEST_FEATURES_SLICE),
         };
 
         assert_eq!(test_package.get_enabled_features(), expected);
