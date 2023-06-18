@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use bsp_types::requests::cargo_extension::Feature;
+use bsp_types::requests::Feature;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};

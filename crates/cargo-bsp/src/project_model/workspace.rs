@@ -5,7 +5,7 @@ use std::rc::Rc;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use log::error;
 
-use bsp_types::requests::cargo_extension::{Feature, PackageFeatures};
+use bsp_types::requests::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
@@ -129,29 +129,35 @@ impl ProjectWorkspace {
             .collect()
     }
 
-    /// Enables features for a given package
-    pub fn enable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+    /// Changes features state for a given package with a given closure
+    pub fn change_features_state_for_package(
+        &mut self,
+        package_id: String,
+        features: &[Feature],
+        state_change: fn(&mut CargoPackage, &[Feature]),
+    ) {
         let package = self.packages.iter_mut().find(|p| p.id == package_id);
         if let Some(package) = package {
-            package.enable_features(features);
+            state_change(package, features);
         } else {
             error!(
-                "Couldn't enable features, package not found for id: {:?}",
+                "Couldn't change features state, package not found for id: {:?}",
                 package_id
             );
         }
     }
 
+    /// Enables features for a given package
+    pub fn enable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+        self.change_features_state_for_package(package_id, features, CargoPackage::enable_features);
+    }
+
     /// Disables features for a given package
     pub fn disable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
-        let package = self.packages.iter_mut().find(|p| p.id == package_id);
-        if let Some(package) = package {
-            package.disable_features(features);
-        } else {
-            error!(
-                "Couldn't disable features, package not found for id: {:?}",
-                package_id
-            );
-        }
+        self.change_features_state_for_package(
+            package_id,
+            features,
+            CargoPackage::disable_features,
+        );
     }
 }

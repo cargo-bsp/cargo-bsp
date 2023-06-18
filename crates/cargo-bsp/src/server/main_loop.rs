@@ -105,10 +105,10 @@ impl GlobalState {
 
         dispatcher
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
-            .on_sync_mut::<bsp_types::requests::cargo_extension::EnableCargoFeatures>(
+            .on_sync_mut::<bsp_types::requests::EnableCargoFeatures>(
                 handlers::handle_enable_cargo_features,
             )
-            .on_sync_mut::<bsp_types::requests::cargo_extension::DisableCargoFeatures>(
+            .on_sync_mut::<bsp_types::requests::DisableCargoFeatures>(
                 handlers::handle_disable_cargo_features,
             )
             .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
@@ -122,7 +122,7 @@ impl GlobalState {
             .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
             .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
             .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
-            .on_sync::<bsp_types::requests::cargo_extension::CargoFeaturesState>(
+            .on_sync::<bsp_types::requests::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
             .on_cargo_run::<bsp_types::requests::Compile>()
