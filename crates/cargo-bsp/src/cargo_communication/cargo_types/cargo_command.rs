@@ -179,6 +179,9 @@ fn create_requested_command(
 ) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
+    if let CommandType::Test = command_type {
+        cmd.arg("+nightly");
+    }
     cmd.arg(command_type.to_string());
     cmd.args(targets_args);
     cmd.args(["--message-format=json", "--"]);
@@ -346,6 +349,7 @@ mod tests {
 
         assert_debug_snapshot!(args, @r###"
         [
+            "+nightly",
             "test",
             "--package",
             "test_package1",
