@@ -80,7 +80,15 @@ pub mod tests {
         }
     }
 
-    fn test_params() -> TestParams {
+    fn test_params(targets: Vec<BuildTargetIdentifier>) -> TestParams {
+        TestParams {
+            targets,
+            ..TestParams::default()
+        }
+    }
+
+    #[test]
+    fn test_sorting_targets() {
         let unsorted_test_targets = vec![
             test_target_id(BIN_TARGET1),
             test_target_id(BIN_TARGET2),
@@ -88,14 +96,6 @@ pub mod tests {
             test_target_id(TEST_TARGET1),
             test_target_id(TEST_TARGET2),
         ];
-        TestParams {
-            targets: unsorted_test_targets,
-            ..TestParams::default()
-        }
-    }
-
-    #[test]
-    fn test_sorting_targets() {
         let sorted_test_targets = vec![
             test_target_id(TEST_TARGET2),
             test_target_id(BIN_TARGET2),
@@ -103,7 +103,7 @@ pub mod tests {
             test_target_id(BIN_TARGET1),
             test_target_id(LIB_TARGET),
         ];
-        let result = test_params().get_targets(&test_workspace());
+        let result = test_params(unsorted_test_targets).get_targets(&test_workspace());
         assert_eq!(result, sorted_test_targets);
     }
 }

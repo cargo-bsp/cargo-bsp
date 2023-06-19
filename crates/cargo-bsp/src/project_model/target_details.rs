@@ -9,6 +9,7 @@ use crate::project_model::cargo_package::{CargoPackage, Feature};
 
 /// The order resembles Cargo's target structure.
 /// Specifically, package_name, kind and name are in the same order as it is in Cargo.
+/// This order should not be changed and new fields should be added at the end.
 #[derive(Debug, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TargetDetails {
     pub package_name: String,
@@ -45,6 +46,7 @@ impl TargetDetails {
 }
 
 /// The order in enum is the same as it is in Cargo.
+/// This order should not be changed and new fields should be added to match the structure in Cargo.
 #[derive(
     Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, Ord, PartialOrd, Eq, PartialEq,
 )]

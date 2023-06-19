@@ -79,19 +79,20 @@ where
                 return;
             }
         };
-        let build_target_id = self.src_path_to_target_id.get(&msg.target.src_path);
-        if build_target_id.is_none() {
-            warn!(
-                "Target with path {} not found. Cannot publish diagnostic",
-                msg.target.src_path
-            );
-            return;
-        }
-        let build_target_id = build_target_id.unwrap().clone();
+        let build_target_id = match self.src_path_to_target_id.get(&msg.target.src_path) {
+            Some(id) => id,
+            None => {
+                warn!(
+                    "Target with path {} not found. Cannot publish diagnostic",
+                    msg.target.src_path
+                );
+                return;
+            }
+        };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
             self.params.origin_id(),
-            &build_target_id,
+            build_target_id,
             AbsPath::assert(&abs_root_path),
         );
         match diagnostic_msg {
@@ -203,11 +204,13 @@ where
                     test_state.suite_task_progress.progress = 0;
                     // Because the targets are sorted, we know which one is currently tested.
                     test_state.current_build_target = self.build_targets.pop();
-                    if test_state.current_build_target.is_none() {
-                        warn!("Test suite generated for unknown build target");
-                        return;
-                    }
-                    let target = test_state.current_build_target.clone().unwrap();
+                    let target = match test_state.current_build_target.clone() {
+                        Some(t) => t,
+                        None => {
+                            warn!("Test suite generated for unknown build target");
+                            return;
+                        }
+                    };
                     self.report_task_start(
                         task_id,
                         None,
@@ -224,16 +227,18 @@ where
 
     fn report_suite_finished(&self, task_id: TaskId, result: SuiteResults) {
         if let TaskState::Test(test_state) = &self.state.task_state {
-            let tested_target = test_state.current_build_target.clone();
-            if tested_target.is_none() {
-                warn!("No target is currently tested");
-                return;
-            }
+            let tested_target = match test_state.current_build_target.clone() {
+                Some(t) => t,
+                None => {
+                    warn!("No target is currently tested");
+                    return;
+                }
+            };
             self.report_task_finish(
                 task_id,
                 StatusCode::Ok,
                 None,
-                Some(result.to_test_report(tested_target.unwrap())),
+                Some(result.to_test_report(tested_target)),
             )
         }
     }
