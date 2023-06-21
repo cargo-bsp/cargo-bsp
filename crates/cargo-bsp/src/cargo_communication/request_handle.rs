@@ -35,8 +35,10 @@ impl RequestHandle {
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
-        let targets_details =
-            targets_ids_to_targets_details(params.get_targets_ids(), &global_state)?;
+        let targets_details = targets_ids_to_targets_details(
+            params.get_targets(&global_state.workspace),
+            &global_state,
+        )?;
         let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
         let requested_cmd = params.create_requested_command(root_path, &targets_details);
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;

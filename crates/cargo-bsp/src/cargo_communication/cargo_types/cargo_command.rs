@@ -1,4 +1,3 @@
-use bsp_types::BuildTargetIdentifier;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::path::Path;
 
@@ -20,8 +19,6 @@ const FEATURE_FLAG: &str = "--feature";
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn get_targets_ids(&self) -> Vec<BuildTargetIdentifier>;
-
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
 
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
@@ -30,10 +27,6 @@ pub trait CreateCommand {
 impl CreateCommand for CompileParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
-    }
-
-    fn get_targets_ids(&self) -> Vec<BuildTargetIdentifier> {
-        self.targets.clone()
     }
 
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
@@ -54,10 +47,6 @@ impl CreateCommand for RunParams {
         self.origin_id.clone()
     }
 
-    fn get_targets_ids(&self) -> Vec<BuildTargetIdentifier> {
-        vec![self.target.clone()]
-    }
-
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Run, root, targets_args)
@@ -74,10 +63,6 @@ impl CreateCommand for RunParams {
 impl CreateCommand for TestParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
-    }
-
-    fn get_targets_ids(&self) -> Vec<BuildTargetIdentifier> {
-        self.targets.clone()
     }
 
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
