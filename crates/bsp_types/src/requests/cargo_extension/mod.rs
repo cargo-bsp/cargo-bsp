@@ -1,0 +1,18 @@
+use serde::{Deserialize, Serialize};
+
+pub use cargo_features_state::*;
+pub use disable_cargo_features::*;
+pub use enable_cargo_features::*;
+
+mod cargo_features_state;
+mod disable_cargo_features;
+mod enable_cargo_features;
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct Feature(pub String);
+
+impl From<&str> for Feature {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
