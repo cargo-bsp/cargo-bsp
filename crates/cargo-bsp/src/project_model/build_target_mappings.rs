@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
@@ -93,4 +94,13 @@ pub fn bsp_build_target_from_cargo_target(
         dependencies: Vec::from(target_dependencies),
         data: Some(rust_specific_data),
     }
+}
+
+pub fn build_target_ids_from_cargo_targets(
+    cargo_targets: &[Rc<cargo_metadata::Target>],
+) -> Vec<BuildTargetIdentifier> {
+    cargo_targets
+        .iter()
+        .map(|target| build_target_id_from_name_and_path(&target.name, &target.src_path))
+        .collect()
 }

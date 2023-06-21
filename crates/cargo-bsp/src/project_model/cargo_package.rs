@@ -1,28 +1,24 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
-use std::hash::Hash;
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
+pub use bsp_types::requests::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
-use crate::project_model::build_target_mappings::bsp_build_target_from_cargo_target;
+use crate::project_model::build_target_mappings::{
+    bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
+};
 use crate::project_model::package_dependency::PackageDependency;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Feature(pub(crate) String);
-
-impl From<&str> for Feature {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
-
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct CargoPackage {
     /// Name of the package
     pub name: String,
+
+    /// Unique identifier of the package
+    pub id: String,
 
     /// Path to the package's manifest
     pub manifest_path: Utf8PathBuf,
@@ -60,6 +56,7 @@ impl CargoPackage {
 
         Self {
             name: metadata_package.name.clone(),
+            id: metadata_package.id.repr.clone(),
             manifest_path: metadata_package.manifest_path.clone(),
             dependencies: PackageDependency::create_package_dependencies_from_metadata(
                 &metadata_package.dependencies,
@@ -179,15 +176,24 @@ impl CargoPackage {
             .filter(|&d| self.is_dependency_enabled(d))
             .collect()
     }
+
+    pub fn get_enabled_features(&self) -> PackageFeatures {
+        PackageFeatures {
+            package_id: self.id.clone(),
+            targets: build_target_ids_from_cargo_targets(&self.targets),
+            enabled_features: self.enabled_features.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
+    use bsp_types::requests::PackageFeatures;
     use test_case::test_case;
 
-    use crate::project_model::cargo_package::{CargoPackage, Feature};
+    use super::*;
 
     const DEP_NAME: &str = "dependency-name";
     const F1: &str = "feature1";
@@ -307,6 +313,22 @@ mod tests {
         }
 
         assert_eq!(test_package.enabled_features, expected);
+    }
+
+    #[test]
+    fn test_get_enabled_features() {
+        const TEST_FEATURES_SLICE: &[&str] = &[F1, F2, F3];
+        const TEST_PACKAGE_ID: &str = "test-package-id";
+        let mut test_package = default_cargo_package_with_features(&[], Some(TEST_FEATURES_SLICE));
+        test_package.id = TEST_PACKAGE_ID.into();
+
+        let expected = PackageFeatures {
+            package_id: TEST_PACKAGE_ID.into(),
+            targets: vec![],
+            enabled_features: create_feature_set_from_slices(TEST_FEATURES_SLICE),
+        };
+
+        assert_eq!(test_package.get_enabled_features(), expected);
     }
 
     mod test_is_dependency_enabled {

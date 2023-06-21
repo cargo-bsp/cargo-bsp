@@ -156,8 +156,8 @@ fn cargo_command_with_unit_graph(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::project_model::cargo_package::Feature;
     use crate::project_model::target_details::CargoTargetKind::Bin;
+    use bsp_types::requests::Feature;
     use bsp_types::requests::{CompileParams, RunParams, TestParams};
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;
@@ -304,7 +304,7 @@ mod tests {
 #[cfg(test)]
 mod feature_tests {
     use super::*;
-    use crate::project_model::cargo_package::Feature;
+    use bsp_types::requests::Feature;
     use std::collections::BTreeSet;
     use test_case::test_case;
 
