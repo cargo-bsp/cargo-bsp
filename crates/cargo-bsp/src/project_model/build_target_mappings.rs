@@ -45,11 +45,9 @@ fn tags_and_capabilities_from_cargo_kind(
                 tags.push(BuildTargetTag::Library);
                 capabilities.can_debug = false;
                 capabilities.can_run = false;
-                capabilities.can_test = false;
             }
             "bin" => {
                 tags.push(BuildTargetTag::Application);
-                capabilities.can_test = false;
             }
             "example" => {
                 tags.push(BuildTargetTag::Application);
