@@ -1,7 +1,7 @@
-use log::warn;
-use std::io;
 #[cfg(test)]
 use cargo_metadata::{Target, TargetBuilder};
+use log::warn;
+use std::io;
 #[cfg(test)]
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
