@@ -14,6 +14,7 @@ use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
+use crate::cargo_communication::utils::targets_ids_to_targets_details;
 use crate::server::global_state::GlobalStateSnapshot;
 
 pub(crate) struct RequestHandle {
@@ -34,12 +35,10 @@ impl RequestHandle {
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
-        let unit_graph_cmd = params.create_unit_graph_command(root_path, {
-            |id| global_state.workspace.get_target_details(id)
-        })?;
-        let requested_cmd = params.create_requested_command(root_path, {
-            |id| global_state.workspace.get_target_details(id)
-        })?;
+        let targets_details =
+            targets_ids_to_targets_details(params.get_targets_ids(), &global_state)?;
+        let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
+        let requested_cmd = params.create_requested_command(root_path, &targets_details);
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let actor: RequestActor<R, CargoHandle> = RequestActor::new(
