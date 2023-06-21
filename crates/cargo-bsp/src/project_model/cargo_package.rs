@@ -4,7 +4,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::requests::{Feature, PackageFeatures};
+pub use bsp_types::requests::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
@@ -170,7 +170,7 @@ impl CargoPackage {
     }
 
     /// Returns list of dependencies taking into account optional ones and enabled features
-    pub fn _get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
+    pub fn get_enabled_dependencies(&self) -> Vec<&PackageDependency> {
         self.dependencies
             .iter()
             .filter(|&d| self.is_dependency_enabled(d))
