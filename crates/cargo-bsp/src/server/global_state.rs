@@ -29,7 +29,7 @@ pub(crate) struct GlobalState {
 
 /// snapshot of server state for request handlers
 pub(crate) struct GlobalStateSnapshot {
-    pub(crate) _config: Arc<Config>,
+    pub(crate) config: Arc<Config>,
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
@@ -63,7 +63,7 @@ impl GlobalState {
 
     pub(crate) fn snapshot(&self) -> GlobalStateSnapshot {
         GlobalStateSnapshot {
-            _config: Arc::clone(&self.config),
+            config: Arc::clone(&self.config),
             workspace: Arc::clone(&self.workspace),
         }
     }
