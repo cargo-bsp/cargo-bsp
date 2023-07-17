@@ -11,7 +11,7 @@ pub enum CargoFeaturesState {}
 impl Request for CargoFeaturesState {
     type Params = ();
     type Result = CargoFeaturesStateResult;
-    const METHOD: &'static str = "buildTarget/CargoFeaturesState";
+    const METHOD: &'static str = "workspace/CargoFeaturesState";
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn cargo_features_state_method() {
-        assert_eq!(CargoFeaturesState::METHOD, "buildTarget/CargoFeaturesState");
+        assert_eq!(CargoFeaturesState::METHOD, "workspace/CargoFeaturesState");
     }
 
     #[test]
