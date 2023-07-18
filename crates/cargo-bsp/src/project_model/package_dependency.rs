@@ -7,7 +7,7 @@ use bsp_types::BuildTargetIdentifier;
 
 use crate::utils::uri::file_uri;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct PackageDependency {
     /// Dependency name
     pub name: String,

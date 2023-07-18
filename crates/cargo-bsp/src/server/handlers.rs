@@ -1,4 +1,5 @@
 use log::warn;
+use std::sync::Arc;
 
 use bsp_types;
 
@@ -93,4 +94,33 @@ pub(crate) fn handle_output_paths(
 pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()> {
     global_state.update_workspace_data();
     Ok(())
+}
+
+// Cargo Extension handlers
+
+pub(crate) fn handle_disable_cargo_features(
+    state: &mut GlobalState,
+    params: bsp_types::requests::DisableCargoFeaturesParams,
+) -> Result<()> {
+    let mutable_workspace = Arc::make_mut(&mut state.workspace);
+    mutable_workspace.disable_features_for_package(params.package_id, &params.features);
+    Ok(())
+}
+
+pub(crate) fn handle_enable_cargo_features(
+    state: &mut GlobalState,
+    params: bsp_types::requests::EnableCargoFeaturesParams,
+) -> Result<()> {
+    let mutable_workspace = Arc::make_mut(&mut state.workspace);
+    mutable_workspace.enable_features_for_package(params.package_id, &params.features);
+    Ok(())
+}
+
+pub(crate) fn handle_cargo_features_state(
+    state: GlobalStateSnapshot,
+    _: (),
+) -> Result<bsp_types::requests::CargoFeaturesStateResult> {
+    let packages_features = state.workspace.get_cargo_features_state();
+
+    Ok(bsp_types::requests::CargoFeaturesStateResult { packages_features })
 }
