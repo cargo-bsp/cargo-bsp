@@ -9,7 +9,7 @@ pub enum DisableCargoFeatures {}
 impl Request for DisableCargoFeatures {
     type Params = DisableCargoFeaturesParams;
     type Result = ();
-    const METHOD: &'static str = "buildTarget/disableCargoFeatures";
+    const METHOD: &'static str = "workspace/disableCargoFeatures";
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -32,7 +32,7 @@ mod tests {
     fn disable_cargo_features_method() {
         assert_eq!(
             DisableCargoFeatures::METHOD,
-            "buildTarget/disableCargoFeatures"
+            "workspace/disableCargoFeatures"
         );
     }
 

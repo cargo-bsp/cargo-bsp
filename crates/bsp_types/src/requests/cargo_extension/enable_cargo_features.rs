@@ -9,7 +9,7 @@ pub enum EnableCargoFeatures {}
 impl Request for EnableCargoFeatures {
     type Params = EnableCargoFeaturesParams;
     type Result = ();
-    const METHOD: &'static str = "buildTarget/enableCargoFeatures";
+    const METHOD: &'static str = "workspace/enableCargoFeatures";
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -30,10 +30,7 @@ mod tests {
 
     #[test]
     fn enable_cargo_features_method() {
-        assert_eq!(
-            EnableCargoFeatures::METHOD,
-            "buildTarget/enableCargoFeatures"
-        );
+        assert_eq!(EnableCargoFeatures::METHOD, "workspace/enableCargoFeatures");
     }
 
     #[test]

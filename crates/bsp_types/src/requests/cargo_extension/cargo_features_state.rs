@@ -11,7 +11,7 @@ pub enum CargoFeaturesState {}
 impl Request for CargoFeaturesState {
     type Params = ();
     type Result = CargoFeaturesStateResult;
-    const METHOD: &'static str = "buildTarget/CargoFeaturesState";
+    const METHOD: &'static str = "workspace/cargoFeaturesState";
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -26,6 +26,7 @@ pub struct PackageFeatures {
     pub package_id: String,
     pub targets: Vec<BuildTargetIdentifier>,
     pub enabled_features: BTreeSet<Feature>,
+    pub available_features: BTreeSet<Feature>,
 }
 
 #[cfg(test)]
@@ -45,6 +46,7 @@ mod tests {
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
+            available_features: vec![f1.into()].into_iter().collect(),
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),
@@ -58,7 +60,7 @@ mod tests {
 
     #[test]
     fn cargo_features_state_method() {
-        assert_eq!(CargoFeaturesState::METHOD, "buildTarget/CargoFeaturesState");
+        assert_eq!(CargoFeaturesState::METHOD, "workspace/cargoFeaturesState");
     }
 
     #[test]
@@ -69,7 +71,8 @@ mod tests {
         {
           "packageId": "",
           "targets": [],
-          "enabledFeatures": []
+          "enabledFeatures": [],
+          "availableFeatures": []
         }
         "###);
         assert_json_snapshot!(test_data, @r###"
@@ -84,6 +87,9 @@ mod tests {
             }
           ],
           "enabledFeatures": [
+            "feature"
+          ],
+          "availableFeatures": [
             "feature"
           ]
         }
@@ -119,6 +125,9 @@ mod tests {
               ],
               "enabledFeatures": [
                 "feature"
+              ],
+              "availableFeatures": [
+                "feature"
               ]
             },
             {
@@ -132,6 +141,9 @@ mod tests {
                 }
               ],
               "enabledFeatures": [
+                "feature2"
+              ],
+              "availableFeatures": [
                 "feature2"
               ]
             }

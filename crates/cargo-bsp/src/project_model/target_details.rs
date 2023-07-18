@@ -38,7 +38,7 @@ impl TargetDetails {
             .kind
             .get(0)
             .or_else(|| {
-                error!("Invalid `kind vector` for target: {:?}", target_data.name);
+                error!("Invalid kind vector for target: {:?}", target_data.name);
                 None
             })?
             .parse()
