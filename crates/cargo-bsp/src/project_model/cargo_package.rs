@@ -182,6 +182,7 @@ impl CargoPackage {
             package_id: self.id.clone(),
             targets: build_target_ids_from_cargo_targets(&self.targets),
             enabled_features: self.enabled_features.clone(),
+            available_features: self.package_features.keys().cloned().collect(),
         }
     }
 }
@@ -326,6 +327,7 @@ mod tests {
             package_id: TEST_PACKAGE_ID.into(),
             targets: vec![],
             enabled_features: create_feature_set_from_slices(TEST_FEATURES_SLICE),
+            available_features: Default::default(),
         };
 
         assert_eq!(test_package.get_enabled_features(), expected);
