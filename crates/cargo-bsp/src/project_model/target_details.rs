@@ -8,12 +8,15 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use crate::project_model::build_target_mappings::parent_path;
 use crate::project_model::cargo_package::CargoPackage;
 
-#[derive(Debug, Clone, Default)]
+/// The order resembles Cargo's target structure.
+/// Specifically, package_name, kind and name are in the same order as it is in Cargo.
+/// This order should not be changed and new fields should be added at the end.
+#[derive(Debug, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TargetDetails {
-    pub name: String,
-    pub kind: CargoTargetKind,
-    pub package_abs_path: Utf8PathBuf,
     pub package_name: String,
+    pub kind: CargoTargetKind,
+    pub name: String,
+    pub package_abs_path: Utf8PathBuf,
     pub default_features_disabled: bool,
     pub enabled_features: BTreeSet<Feature>,
 }
@@ -21,10 +24,10 @@ pub struct TargetDetails {
 impl TargetDetails {
     pub fn new(package: &CargoPackage, target_data: &cargo_metadata::Target) -> Option<Self> {
         Some(Self {
-            name: target_data.name.clone(),
-            kind: TargetDetails::get_kind(target_data)?,
-            package_abs_path: parent_path(&package.manifest_path),
             package_name: package.name.to_string(),
+            kind: TargetDetails::get_kind(target_data)?,
+            name: target_data.name.clone(),
+            package_abs_path: parent_path(&package.manifest_path),
             default_features_disabled: package.default_features_disabled,
             enabled_features: package.enabled_features.clone(),
         })
@@ -43,13 +46,17 @@ impl TargetDetails {
     }
 }
 
-#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, PartialEq)]
+/// The order in enum is the same as it is in Cargo.
+/// This order should not be changed and new fields should be added to match the structure in Cargo.
+#[derive(
+    Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, Ord, PartialOrd, Eq, PartialEq,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum CargoTargetKind {
     #[default]
     Lib,
     Bin,
-    Example,
     Test,
     Bench,
+    Example,
 }

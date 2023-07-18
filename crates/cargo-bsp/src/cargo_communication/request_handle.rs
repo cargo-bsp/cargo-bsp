@@ -11,6 +11,7 @@ use crate::cargo_communication::cargo_handle::CargoHandle;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
+use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_actor::RequestActor;
 use crate::cargo_communication::request_actor_unit_graph::UnitGraphStatusCode;
 use crate::cargo_communication::utils::targets_ids_to_targets_details;
@@ -30,12 +31,14 @@ impl RequestHandle {
     ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
-        R::Params: CreateCommand + Send,
+        R::Params: CreateCommand + ParamsTarget + Send,
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
-        let targets_details =
-            targets_ids_to_targets_details(params.get_targets_ids(), &global_state)?;
+        let targets_details = targets_ids_to_targets_details(
+            params.get_targets(&global_state.workspace),
+            &global_state,
+        )?;
         let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
         let requested_cmd = params.create_requested_command(root_path, &targets_details);
         let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;
@@ -47,6 +50,7 @@ impl RequestHandle {
             root_path,
             cargo_handle,
             cancel_receiver,
+            &global_state.workspace,
         );
         let thread =
             jod_thread::Builder::new().spawn(move || run_commands(actor, requested_cmd))?;
@@ -64,7 +68,7 @@ impl RequestHandle {
 fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: Command)
 where
     R: Request + 'static,
-    R::Params: CreateCommand + Send,
+    R::Params: CreateCommand + ParamsTarget + Send,
     R::Result: CargoResult,
 {
     actor.report_root_task_start();

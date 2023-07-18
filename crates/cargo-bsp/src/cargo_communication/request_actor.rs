@@ -1,6 +1,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
+use std::sync::Arc;
 
 use bsp_server::Message;
 use bsp_server::RequestId;
@@ -17,13 +18,14 @@ use serde::Deserialize;
 use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
+use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
-use crate::cargo_communication::utils::get_current_time;
+use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
 use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{BuildTargetIdentifier, StatusCode};
 
-pub struct RequestActor<R, C>
+pub(crate) struct RequestActor<R, C>
 where
     R: Request,
     R::Params: CreateCommand,
@@ -41,13 +43,15 @@ where
     pub(super) req_id: RequestId,
     pub(super) params: R::Params,
     pub(super) root_path: PathBuf,
+    pub(super) build_targets: Vec<BuildTargetIdentifier>,
+    pub(super) src_path_to_target_id: SrcPathToTargetId,
     pub(super) state: RequestActorState,
 }
 
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand,
+    R::Params: CreateCommand + ParamsTarget,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -58,15 +62,19 @@ where
         root_path: &Path,
         cargo_handle: C,
         cancel_receiver: Receiver<Event>,
+        workspace: &Arc<ProjectWorkspace>,
     ) -> RequestActor<R, C> {
+        let build_targets = params.get_targets(workspace);
         RequestActor {
             sender,
             cargo_handle: Some(cargo_handle),
             cancel_receiver,
             req_id,
-            state: RequestActorState::new::<R>(params.origin_id()),
+            state: RequestActorState::new::<R>(params.origin_id(), &build_targets),
+            build_targets,
             params,
             root_path: root_path.to_path_buf(),
+            src_path_to_target_id: workspace.src_path_to_target_id.clone(),
         }
     }
 
@@ -110,13 +118,23 @@ where
     }
 
     fn start_compile_task(&mut self) {
-        self.state.compile_state.start_time = get_current_time();
         self.report_task_start(
             self.state.compile_state.task_id.clone(),
+            Some("Started compilation".to_string()),
             None,
-            // TODO change to actual BuildTargetIdentifier
-            Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
         );
+        self.build_targets.iter().for_each(|id| {
+            self.state.compile_state.set_start_time(id);
+        });
+        self.build_targets.iter().for_each(|id| {
+            self.report_task_start(
+                self.state.compile_state.get_target_task_id(id),
+                None,
+                Some(TaskDataWithKind::CompileTask(CompileTaskData {
+                    target: id.clone(),
+                })),
+            );
+        });
     }
 
     fn deserialize_and_handle_cargo_information(&mut self, msg: String) {
@@ -177,22 +195,35 @@ pub trait CargoHandler<T> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::cargo_communication::utils::{test_package, test_target, test_target_id};
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
     use bsp_types::requests::{Compile, CompileParams};
     use bsp_types::BuildTargetIdentifier;
+    use cargo_metadata::camino::Utf8PathBuf;
     use cargo_metadata::Message::BuildFinished as BuildFinishedEnum;
     use cargo_metadata::{BuildFinished, BuildFinishedBuilder};
     use crossbeam_channel::{unbounded, Sender};
     use insta::{assert_json_snapshot, Settings};
+    use std::collections::HashMap;
 
     const TEST_ORIGIN_ID: &str = "test_origin_id";
     const TEST_TARGET: &str = "test_target";
+    const TEST_TARGET2: &str = "test_target2";
     const TEST_REQ_ID: &str = "test_req_id";
     const RANDOM_TASK_ID: &str = "random_task_id";
     const TIMESTAMP: &str = "timestamp";
     const TEST_ARGUMENTS: &str = "test_arguments";
     const TEST_ROOT_PATH: &str = "/test_root_path";
+    const TEST_PACKAGE: &str = "test_package";
+    const BIN_KIND: &str = "bin";
+    const LIB_KIND: &str = "lib";
+    const TEST_SRC_PATH: &str = "test_src_path";
+
+    enum TestCase {
+        OneTarget,
+        MultipleTargets,
+    }
 
     // Struct that contains all the endpoints needed for testing
     struct TestEndpoints<R>
@@ -209,15 +240,20 @@ pub mod tests {
     fn default_req_actor<R>(
         cargo_handle: MockCargoHandler<CargoMessage>,
         params: R::Params,
+        test_case: TestCase,
     ) -> TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateCommand,
+        R::Params: CreateCommand + ParamsTarget,
         R::Result: CargoResult,
     {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
         // Cancel sender needs to be referenced to avoid closing the channel
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
+        let workspace = match test_case {
+            TestCase::OneTarget => test_simple_workspace(),
+            TestCase::MultipleTargets => test_complex_workspace(),
+        };
         TestEndpoints {
             req_actor: RequestActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
@@ -226,6 +262,7 @@ pub mod tests {
                 Path::new(TEST_ROOT_PATH),
                 cargo_handle,
                 cancel_receiver,
+                &Arc::new(workspace),
             ),
             receiver_from_actor,
             _cancel_sender: cancel_sender,
@@ -239,14 +276,50 @@ pub mod tests {
             .unwrap()
     }
 
+    fn test_simple_workspace() -> ProjectWorkspace {
+        let packages = vec![test_package(TEST_PACKAGE)];
+        let test_target_id = test_target_id(TEST_TARGET);
+
+        let target_id_to_package_name =
+            HashMap::from([(test_target_id.clone(), TEST_PACKAGE.to_string())]);
+        let target_id_to_target_data =
+            HashMap::from([(test_target_id.clone(), test_target(TEST_TARGET, BIN_KIND))]);
+        let src_path_to_target_id =
+            HashMap::from([(Utf8PathBuf::from(TEST_SRC_PATH), test_target_id)]);
+        ProjectWorkspace {
+            packages,
+            target_id_to_package_name,
+            target_id_to_target_data,
+            src_path_to_target_id,
+        }
+    }
+
+    fn test_complex_workspace() -> ProjectWorkspace {
+        let mut workspace = test_simple_workspace();
+        let test_target_id = test_target_id(TEST_TARGET2);
+        workspace
+            .target_id_to_package_name
+            .insert(test_target_id.clone(), TEST_PACKAGE.to_string());
+        workspace
+            .target_id_to_target_data
+            .insert(test_target_id.clone(), test_target(TEST_TARGET2, LIB_KIND));
+        workspace
+            .src_path_to_target_id
+            .insert(Utf8PathBuf::from(TEST_SRC_PATH), test_target_id);
+        workspace
+    }
+
     mod compile_request_tests {
         use super::*;
+        use crate::cargo_communication::utils::test_target_id;
 
-        fn default_compile_params() -> CompileParams {
+        fn default_compile_params(test_case: TestCase) -> CompileParams {
+            let mut targets = vec![test_target_id(TEST_TARGET)];
+            if let TestCase::MultipleTargets = test_case {
+                targets.push(test_target_id(TEST_TARGET2));
+            }
             CompileParams {
-                targets: vec![BuildTargetIdentifier {
-                    uri: TEST_TARGET.into(),
-                }],
+                targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: vec![TEST_ARGUMENTS.into()],
             }
@@ -264,7 +337,11 @@ pub mod tests {
             mock_cargo_handle
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
-            default_req_actor::<Compile>(mock_cargo_handle, default_compile_params())
+            default_req_actor::<Compile>(
+                mock_cargo_handle,
+                default_compile_params(TestCase::MultipleTargets),
+                TestCase::MultipleTargets,
+            )
         }
 
         mod unit_graph_tests {
@@ -408,18 +485,55 @@ pub mod tests {
                 {
                   "method": "build/taskStart",
                   "params": {
+                    "eventTime": "timestamp",
+                    "message": "Started compilation",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": [
+                        "test_origin_id"
+                      ]
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                }
+                ,@r###"
+                {
+                  "method": "build/taskStart",
+                  "params": {
                     "data": {
                       "target": {
-                        "uri": ""
+                        "uri": "test_target"
                       }
                     },
                     "dataKind": "compile-task",
                     "eventTime": "timestamp",
                     "taskId": {
                       "id": "random_task_id",
-                      "parents": [
-                        "test_origin_id"
-                      ]
+                      "parents": "[random_task_id]"
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                }
+                ,@r###"
+                {
+                  "method": "build/taskStart",
+                  "params": {
+                    "data": {
+                      "target": {
+                        "uri": "test_target2"
+                      }
+                    },
+                    "dataKind": "compile-task",
+                    "eventTime": "timestamp",
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
                     }
                   }
                 }
@@ -459,7 +573,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+            } = default_req_actor::<Compile>(
+                mock_cargo_handle,
+                default_compile_params(TestCase::OneTarget),
+                TestCase::OneTarget,
+            );
 
             req_actor.cancel();
 
@@ -502,7 +620,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(mock_cargo_handle, default_compile_params());
+            } = default_req_actor::<Compile>(
+                mock_cargo_handle,
+                default_compile_params(TestCase::OneTarget),
+                TestCase::OneTarget,
+            );
 
             req_actor.cancel();
             req_actor.cancel();
@@ -529,7 +651,6 @@ pub mod tests {
             const TEST_KIND: &str = "test_kind";
             const TEST_MESSAGE: &str = "test_message";
             const TEST_CRATE_TYPE: &str = "test_crate_type";
-            const TEST_SRC_PATH: &str = "test_src_path";
             const TEST_OPT_LEVEL: &str = "test_opt_level";
             const TEST_PKG_ID: &str = "test_pkg_id";
             const TEST_MANIFEST_PATH: &str = "test_manifest_path";
@@ -549,7 +670,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                } = default_req_actor::<Compile>(
+                    MockCargoHandler::new(),
+                    default_compile_params(TestCase::OneTarget),
+                    TestCase::OneTarget,
+                );
 
                 req_actor.handle_cargo_information(CompilerArtifact(default_compiler_artifact()));
 
@@ -584,7 +709,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                } = default_req_actor::<Compile>(
+                    MockCargoHandler::new(),
+                    default_compile_params(TestCase::OneTarget),
+                    TestCase::OneTarget,
+                );
 
                 req_actor.handle_cargo_information(BuildScriptExecuted(default_build_script()));
 
@@ -617,7 +746,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                } = default_req_actor::<Compile>(
+                    MockCargoHandler::new(),
+                    default_compile_params(TestCase::OneTarget),
+                    TestCase::OneTarget,
+                );
 
                 req_actor.handle_cargo_information(CompilerMessageEnum(default_compiler_message(
                     DiagnosticLevel::Error,
@@ -630,7 +763,7 @@ pub mod tests {
                   "method": "build/publishDiagnostics",
                   "params": {
                     "buildTarget": {
-                      "uri": ""
+                      "uri": "test_target"
                     },
                     "diagnostics": [
                       {
@@ -667,7 +800,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                } = default_req_actor::<Compile>(
+                    MockCargoHandler::new(),
+                    default_compile_params(TestCase::MultipleTargets),
+                    TestCase::MultipleTargets,
+                );
 
                 req_actor.handle_cargo_information(BuildFinishedEnum(default_build_finished()));
 
@@ -675,6 +812,7 @@ pub mod tests {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
                     ".params.data.time" => 0,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 },@r###"
                 {
                   "method": "build/taskFinish",
@@ -683,13 +821,58 @@ pub mod tests {
                       "errors": 0,
                       "originId": "test_origin_id",
                       "target": {
-                        "uri": ""
+                        "uri": "test_target"
                       },
                       "time": 0,
                       "warnings": 0
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                    ".params.data.time" => 0,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
+                },@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "data": {
+                      "errors": 0,
+                      "originId": "test_origin_id",
+                      "target": {
+                        "uri": "test_target2"
+                      },
+                      "time": 0,
+                      "warnings": 0
+                    },
+                    "dataKind": "compile-report",
+                    "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                },@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "Finished compilation",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -712,7 +895,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(MockCargoHandler::new(), default_compile_params());
+                } = default_req_actor::<Compile>(
+                    MockCargoHandler::new(),
+                    default_compile_params(TestCase::OneTarget),
+                    TestCase::OneTarget,
+                );
 
                 req_actor.handle_cargo_information(CompilerMessageEnum(default_compiler_message(
                     DiagnosticLevel::Error,
@@ -730,6 +917,7 @@ pub mod tests {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
                     ".params.data.time" => 0,
+                    ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 },@r###"
                 {
                   "method": "build/taskFinish",
@@ -738,13 +926,30 @@ pub mod tests {
                       "errors": 1,
                       "originId": "test_origin_id",
                       "target": {
-                        "uri": ""
+                        "uri": "test_target"
                       },
                       "time": 0,
                       "warnings": 1
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "status": 1,
+                    "taskId": {
+                      "id": "random_task_id",
+                      "parents": "[random_task_id]"
+                    }
+                  }
+                }
+                "###);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
+                    ".params.eventTime" => TIMESTAMP,
+                    ".params.taskId.id" => RANDOM_TASK_ID,
+                },@r###"
+                {
+                  "method": "build/taskFinish",
+                  "params": {
+                    "eventTime": "timestamp",
+                    "message": "Finished compilation",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -893,14 +1098,19 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(mock_cargo_handle, default_run_params());
+            } = default_req_actor::<Run>(
+                mock_cargo_handle,
+                default_run_params(),
+                TestCase::OneTarget,
+            );
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
                 .expect("failed to spawn thread")
                 .detach();
 
-            let _ = receiver_from_actor.recv(); // compilation task started
+            let _ = receiver_from_actor.recv(); // main compilation task started
+            let _ = receiver_from_actor.recv(); // target compilation task started
 
             sender_to_actor
                 .send(CargoStdout(
@@ -908,7 +1118,8 @@ pub mod tests {
                 ))
                 .unwrap();
 
-            let _ = receiver_from_actor.recv(); // compilation task finished
+            let _ = receiver_from_actor.recv(); // main compilation task finished
+            let _ = receiver_from_actor.recv(); // target compilation task finished
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
                 ".params.taskId.id" => RANDOM_TASK_ID,
@@ -987,7 +1198,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
+            } = default_req_actor::<Run>(
+                MockCargoHandler::new(),
+                default_run_params(),
+                TestCase::OneTarget,
+            );
 
             req_actor.handle_cargo_information(TextLine(TEST_STDOUT.to_string()));
 
@@ -1019,7 +1234,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(MockCargoHandler::new(), default_run_params());
+            } = default_req_actor::<Run>(
+                MockCargoHandler::new(),
+                default_run_params(),
+                TestCase::OneTarget,
+            );
 
             req_actor.handle_cargo_event(CargoStderr(TEST_STDERR.to_string()));
 
@@ -1054,6 +1273,7 @@ pub mod tests {
             TestResult as TestResultEnum, TestType,
         };
         use crate::cargo_communication::request_actor::CargoMessage::CargoStdout;
+        use crate::cargo_communication::utils::test_target_id;
         use bsp_types::requests::{Test, TestParams};
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
@@ -1061,11 +1281,13 @@ pub mod tests {
 
         const TEST_NAME: &str = "test_name";
 
-        fn default_test_params() -> TestParams {
+        fn default_test_params(test_case: TestCase) -> TestParams {
+            let mut targets = vec![test_target_id(TEST_TARGET)];
+            if let TestCase::MultipleTargets = test_case {
+                targets.push(test_target_id(TEST_TARGET2));
+            }
             TestParams {
-                targets: vec![BuildTargetIdentifier {
-                    uri: TEST_TARGET.into(),
-                }],
+                targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: vec![TEST_ARGUMENTS.into()],
                 data_kind: None,
@@ -1089,21 +1311,28 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(mock_cargo_handle, default_test_params());
+            } = default_req_actor::<Test>(
+                mock_cargo_handle,
+                default_test_params(TestCase::OneTarget),
+                TestCase::OneTarget,
+            );
 
             let _ = jod_thread::Builder::new()
                 .spawn(move || req_actor.run())
                 .expect("failed to spawn thread")
                 .detach();
 
-            let _ = receiver_from_actor.recv(); // compilation task started
+            let _ = receiver_from_actor.recv(); // main compilation task started
+            let _ = receiver_from_actor.recv(); // target compilation task started
+
             sender_to_actor
                 .send(CargoStdout(
                     to_string(&BuildFinishedEnum(default_build_finished())).unwrap(),
                 ))
                 .unwrap();
 
-            let _ = receiver_from_actor.recv(); // compilation task finished
+            let _ = receiver_from_actor.recv(); // main compilation task finished
+            let _ = receiver_from_actor.recv(); // target compilation task finished
 
             // tests started
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
@@ -1187,7 +1416,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            } = default_req_actor::<Test>(
+                MockCargoHandler::new(),
+                default_test_params(TestCase::MultipleTargets),
+                TestCase::MultipleTargets,
+            );
 
             let suite_started = SuiteStarted { test_count: 1 };
 
@@ -1205,7 +1438,7 @@ pub mod tests {
               "params": {
                 "data": {
                   "target": {
-                    "uri": ""
+                    "uri": "test_target2"
                   }
                 },
                 "dataKind": "test-task",
@@ -1238,7 +1471,17 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            } = default_req_actor::<Test>(
+                MockCargoHandler::new(),
+                default_test_params(TestCase::MultipleTargets),
+                TestCase::MultipleTargets,
+            );
+
+            if let TaskState::Test(ref mut test_state) = req_actor.state.task_state {
+                test_state.current_build_target = Some(BuildTargetIdentifier {
+                    uri: TEST_TARGET2.to_string(),
+                })
+            }
 
             req_actor.handle_cargo_information(TextLine(
                 to_string(&TestType::Suite(SuiteEvent::Ok(default_suite_results()))).unwrap(),
@@ -1259,7 +1502,7 @@ pub mod tests {
                   "passed": 1,
                   "skipped": 5,
                   "target": {
-                    "uri": ""
+                    "uri": "test_target2"
                   },
                   "time": 6600
                 },
@@ -1283,7 +1526,11 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+            } = default_req_actor::<Test>(
+                MockCargoHandler::new(),
+                default_test_params(TestCase::OneTarget),
+                TestCase::OneTarget,
+            );
 
             let test_started = Started(TestName {
                 name: TEST_NAME.into(),
@@ -1327,7 +1574,11 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Test>(MockCargoHandler::new(), default_test_params());
+                } = default_req_actor::<Test>(
+                    MockCargoHandler::new(),
+                    default_test_params(TestCase::OneTarget),
+                    TestCase::OneTarget,
+                );
 
                 let test_started = Started(TestName {
                     name: TEST_NAME.into(),
