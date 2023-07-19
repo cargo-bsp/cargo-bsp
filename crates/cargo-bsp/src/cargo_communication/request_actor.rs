@@ -1552,7 +1552,6 @@ pub mod tests {
                 },
                 "dataKind": "test-start",
                 "eventTime": "timestamp",
-                "message": "Test started",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1608,7 +1607,6 @@ pub mod tests {
                       },
                       "dataKind": "test-finish",
                       "eventTime": "timestamp",
-                      "message": "Test finished",
                       "status": 1,
                       "taskId": {
                         "id": "random_task_id",
