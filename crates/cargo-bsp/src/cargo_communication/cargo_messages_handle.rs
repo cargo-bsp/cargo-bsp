@@ -253,8 +253,7 @@ where
                         .insert(started.name.clone(), test_task_id.clone());
                     self.report_task_start(
                         test_task_id,
-                        // TODO to be deleted, when client allows empty message
-                        Some("Test started".to_string()),
+                        None,
                         Some(TaskDataWithKind::TestStart(TestStartData {
                             display_name: started.name,
                             // TODO add location of build target
@@ -283,8 +282,7 @@ where
                 self.report_task_finish(
                     id,
                     StatusCode::Ok,
-                    // TODO to be deleted, when client allows empty message
-                    Some("Test finished".to_string()),
+                    None,
                     Some(TaskDataWithKind::TestFinish(
                         test_result.map_to_test_notification(status),
                     )),
