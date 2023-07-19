@@ -4,7 +4,7 @@ An implementation of the [Build Server Protocol](https://github.com/build-server
 
 ## Status
 
-Currently, the server handles the most crucial requests and is functional with the [Build Server Protocol plugin](https://lp.jetbrains.com/new-bazel-plugin/#install) in IntelliJ IDEA.
+Currently, the server handles the most crucial requests and is functional with the [Build Server Protocol plugin](https://plugins.jetbrains.com/plugin/20329-build-server-protocol) in IntelliJ IDEA (compatible with version 2023.2.0-nightly.53-50b007f).
 
 The server supports the following actions:
 
@@ -25,30 +25,7 @@ The ```cargo-bsp``` crate contains the implementation of the Cargo BSP server it
 ## Installation
 
 1. Have [Rust toolchain](https://rustup.rs) installed
-2. Clone this repository and run in its directory:
-
-```shell
-cargo build
-```
-
-3. In the directory of the desired Rust project run this script (fill in the SERVER_PATH variable with the directory to the cloned repository):
-
-```shell
-SERVER_PATH="" 
-mkdir .bsp
-cat >> .bsp/cargo-bsp.json << EOF
-{
-  "name": "cargobsp",
-  "argv": [
-    "$SERVER_PATH/target/debug/server"
-  ],
-  "version": "0.1.0",
-  "bspVersion": "2.1.0-M4",
-  "languages": [
-    "rust"
-  ]
-}
-```
+2. Clone this repository and run the [configuration_script](configuration_script.sh). The script can be used for any new Rust project that will be imported with BSP, so you will be prompted to enter the directory to the project
 
 4. Open the Rust project in IntelliJ IDEA with enabled [Build Server Protocol plugin](https://lp.jetbrains.com/new-bazel-plugin/#install) and disabled Rust plugin (if installed)
 
