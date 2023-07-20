@@ -1,5 +1,6 @@
 use crate::requests::cargo_extension::Feature;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use crate::requests::Request;
 
@@ -16,7 +17,7 @@ impl Request for DisableCargoFeatures {
 #[serde(rename_all = "camelCase")]
 pub struct DisableCargoFeaturesParams {
     pub package_id: String,
-    pub features: Vec<Feature>,
+    pub features: BTreeSet<Feature>,
 }
 
 #[cfg(test)]
@@ -42,7 +43,7 @@ mod tests {
             r#"{"packageId": "package_id", "features":["feature"]}"#,
             &DisableCargoFeaturesParams {
                 package_id: PACKAGE_ID.into(),
-                features: vec![FEATURE.into()],
+                features: BTreeSet::from([FEATURE.into()]),
             },
         );
         test_deserialization(

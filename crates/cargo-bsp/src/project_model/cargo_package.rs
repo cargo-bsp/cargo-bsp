@@ -148,7 +148,7 @@ impl CargoPackage {
     }
 
     /// Enables a list of features if they exist and are not already enabled
-    pub fn enable_features(&mut self, features: &[Feature]) {
+    pub fn enable_features(&mut self, features: &BTreeSet<Feature>) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() {
                 warn!("Can't enable feature {:?}. It doesn't exist.", f);
@@ -159,7 +159,7 @@ impl CargoPackage {
     }
 
     /// Disables a list of features if they exist and are enabled
-    pub fn disable_features(&mut self, features: &[Feature]) {
+    pub fn disable_features(&mut self, features: &BTreeSet<Feature>) {
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() {
                 warn!("Can't disable feature {:?}. It doesn't exist.", f);
@@ -301,8 +301,7 @@ mod tests {
         );
 
         let expected = create_feature_set_from_slices(expected);
-        let features_to_toggle: Vec<Feature> =
-            features_to_toggle.iter().map(|&f| f.into()).collect();
+        let features_to_toggle = create_feature_set_from_slices(features_to_toggle);
 
         if test_enabling {
             test_package.enable_features(&features_to_toggle);
