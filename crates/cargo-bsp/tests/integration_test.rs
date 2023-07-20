@@ -112,7 +112,7 @@ mod feature_protocol_extension_integration_test {
         }
     }
 
-    fn _test_enable_feature_request(
+    fn test_enable_feature_request(
         package_id: &str,
         features_to_enable: &[&str],
     ) -> bsp_server::Request {
@@ -182,18 +182,6 @@ mod feature_protocol_extension_integration_test {
         overwrite_cargo_toml_with_features(features_slice);
     }
 
-    fn remove_absolute_paths_from_response(resp: &str) -> String {
-        // Remove absolute path from package ids
-        const REG_PACKAGE_ID: &str = r#"\(path\+[^)]*\)"#;
-        let mut re = Regex::new(REG_PACKAGE_ID).unwrap();
-        let resp = re.replace(resp, "").to_string();
-
-        // Remove absolute path from build target ids
-        const REG_BUILD_TARGET: &str = r#"targetId:[\w\/\\-]*[\/\\]"#;
-        re = Regex::new(REG_BUILD_TARGET).unwrap();
-        re.replace(&resp, "targetId:").to_string()
-    }
-
     fn run_test(features_slice: &[(&str, &[&str])], test: fn(&mut Client)) {
         create_mock_rust_project_with_features_and_set_it_as_current_dir(features_slice);
 
@@ -201,16 +189,47 @@ mod feature_protocol_extension_integration_test {
 
         // Do the cleaning
         std::env::set_current_dir("..").unwrap();
-        remove_dir_all(TEST_PROJECT_NAME).unwrap();
+        // remove_dir_all(TEST_PROJECT_NAME).unwrap();
+    }
+    // Returns pair of available and enabled features from CargoFeatureState response
+    fn features_state_from_response(resp: &str) -> (BTreeSet<Feature>, BTreeSet<Feature>) {
+        let resp: Response = serde_json::from_str(resp).unwrap();
+        let mut current_state: CargoFeaturesStateResult =
+            serde_json::from_value(resp.result.unwrap()).unwrap();
+        assert_eq!(current_state.packages_features.len(), 1);
+        let package = current_state.packages_features.pop().unwrap();
+        (package.available_features, package.enabled_features)
+    }
+
+    fn check_state(resp: &str, expected_available: &[&str], expected_enabled: &[&str]) {
+        let (available_features, enabled_features) = features_state_from_response(resp);
+        assert_eq!(
+            available_features,
+            create_feature_set_from_slices(expected_available)
+        );
+        assert_eq!(
+            enabled_features,
+            create_feature_set_from_slices(expected_enabled)
+        );
     }
 
     #[test]
     #[serial]
     fn cargo_features_state() {
         let test_fn = |cl: &mut Client| {
+            let expected_available: &[&str] = &[F[0], F[1], F[3], F[4]];
+            let mut expected_enabled: Vec<&str> = vec![];
             cl.send(&to_string(&test_cargo_feature_state_request()).unwrap());
-            let resp = cl.recv_resp();
-            assert_snapshot!(remove_absolute_paths_from_response(&resp), @r###"{"jsonrpc":"2.0","id":123,"result":{"packagesFeatures":[{"availableFeatures":["f0","f1","f3","f4"],"enabledFeatures":[],"packageId":"tmp_test_project 0.0.1 ","targets":[{"uri":"targetId:main.rs:tmp_test_project"}]}]}}"###);
+            check_state(&cl.recv_resp(), expected_available, &expected_enabled);
+
+            let toggle_features: &[&str] = &[F[1], F[2]];
+            expected_enabled.append(&mut toggle_features.to_vec());
+            cl.send(&to_string(&test_enable_feature_request(
+                "tmp_test_project 0.0.1 (path+file:///home/tomek/studia/ZPP/cargo-projects/cargo-bsp-dev/crates/cargo-bsp/tmp_test_project)",
+                toggle_features)).unwrap());
+
+            cl.send(&to_string(&test_cargo_feature_state_request()).unwrap());
+            check_state(&cl.recv_resp(), expected_available, &expected_enabled);
         };
 
         run_test(
@@ -222,6 +241,51 @@ mod feature_protocol_extension_integration_test {
             ],
             test_fn,
         );
+    }
+
+    // #[test]
+    // #[serial]
+    // fn enable_cargo_features() {
+    //     let test_fn = |_cl: &mut Client| {
+    //         // cl.send(
+    //         //     &to_string(&test_enable_feature_request(
+    //         //         "tmp_test_project 0.0.1 ",
+    //         //         &[F[2]],
+    //         //     ))
+    //         //     .unwrap(),
+    //         // );
+    //         // let resp = cl.recv_resp();
+    //         // assert_snapshot!(remove_absolute_paths_from_response(&resp), @"");
+    //         //
+    //         // let current_state = current_state_from_response(&resp);
+    //         // let (available_features, enabled_features) = features_state(&current_state.packages_features, "tmp_test_project 0.0.1 ".into());
+    //         // assert_eq!(available_features, create_feature_set_from_slices(&[F[0], F[1], F[2], F[3], F[4]]));
+    //         // //todo make it without the snapshots
+    //     };
+    //
+    //     run_test(
+    //         &[
+    //             (F[0], &[F[1]]),
+    //             (F[1], &[F[3], F[4]]),
+    //             (F[3], &[F[4]]),
+    //             (F[4], &[]),
+    //         ],
+    //         test_fn,
+    //     );
+    // }
+
+    // _______________________________________________________________________________
+
+    fn _remove_absolute_paths_from_response(resp: &str) -> String {
+        // Remove absolute path from package ids
+        const REG_PACKAGE_ID: &str = r#"\(path\+[^)]*\)"#;
+        let mut re = Regex::new(REG_PACKAGE_ID).unwrap();
+        let resp = re.replace(resp, "").to_string();
+
+        // Remove absolute path from build target ids
+        const REG_BUILD_TARGET: &str = r#"targetId:[\w\/\\-]*[\/\\]"#;
+        re = Regex::new(REG_BUILD_TARGET).unwrap();
+        re.replace(&resp, "targetId:").to_string()
     }
 
     fn _current_state_from_response(resp: &str) -> CargoFeaturesStateResult {
@@ -239,36 +303,5 @@ mod feature_protocol_extension_integration_test {
             .find(|&p| p.package_id == package_id)
             .map(|p| (p.available_features.clone(), p.enabled_features.clone()))
             .unwrap()
-    }
-
-    #[test]
-    #[serial]
-    fn enable_cargo_features() {
-        let test_fn = |_cl: &mut Client| {
-            // cl.send(
-            //     &to_string(&test_enable_feature_request(
-            //         "tmp_test_project 0.0.1 ",
-            //         &[F[2]],
-            //     ))
-            //     .unwrap(),
-            // );
-            // let resp = cl.recv_resp();
-            // assert_snapshot!(remove_absolute_paths_from_response(&resp), @"");
-            //
-            // let current_state = current_state_from_response(&resp);
-            // let (available_features, enabled_features) = features_state(&current_state.packages_features, "tmp_test_project 0.0.1 ".into());
-            // assert_eq!(available_features, create_feature_set_from_slices(&[F[0], F[1], F[2], F[3], F[4]]));
-            // //todo make it without the snapshots
-        };
-
-        run_test(
-            &[
-                (F[0], &[F[1]]),
-                (F[1], &[F[3], F[4]]),
-                (F[3], &[F[4]]),
-                (F[4], &[]),
-            ],
-            test_fn,
-        );
     }
 }
