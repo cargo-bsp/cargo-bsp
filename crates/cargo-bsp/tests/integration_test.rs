@@ -91,8 +91,6 @@ mod feature_protocol_extension_integration_test {
         PackageFeatures, Request,
     };
     use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
-    use regex::Regex;
-    use serial_test::serial;
     use std::collections::BTreeSet;
     use std::fs::{remove_dir_all, File};
     use std::io::Write;
@@ -229,7 +227,6 @@ mod feature_protocol_extension_integration_test {
     }
 
     #[test]
-    #[serial]
     fn cargo_features_state() {
         let test_fn = |cl: &mut Client| {
             let expected_available: &[&str] = &[F[0], F[1], F[2], F[3]];
@@ -280,67 +277,5 @@ mod feature_protocol_extension_integration_test {
             ],
             test_fn,
         );
-    }
-
-    // #[test]
-    // #[serial]
-    // fn enable_cargo_features() {
-    //     let test_fn = |_cl: &mut Client| {
-    //         // cl.send(
-    //         //     &to_string(&test_enable_feature_request(
-    //         //         "tmp_test_project 0.0.1 ",
-    //         //         &[F[2]],
-    //         //     ))
-    //         //     .unwrap(),
-    //         // );
-    //         // let resp = cl.recv_resp();
-    //         // assert_snapshot!(remove_absolute_paths_from_response(&resp), @"");
-    //         //
-    //         // let current_state = current_state_from_response(&resp);
-    //         // let (available_features, enabled_features) = features_state(&current_state.packages_features, "tmp_test_project 0.0.1 ".into());
-    //         // assert_eq!(available_features, create_feature_set_from_slices(&[F[0], F[1], F[2], F[3], F[4]]));
-    //         // //todo make it without the snapshots
-    //     };
-    //
-    //     run_test(
-    //         &[
-    //             (F[0], &[F[1]]),
-    //             (F[1], &[F[3], F[4]]),
-    //             (F[3], &[F[4]]),
-    //             (F[4], &[]),
-    //         ],
-    //         test_fn,
-    //     );
-    // }
-
-    // _______________________________________________________________________________
-
-    fn _remove_absolute_paths_from_response(resp: &str) -> String {
-        // Remove absolute path from package ids
-        const REG_PACKAGE_ID: &str = r#"\(path\+[^)]*\)"#;
-        let mut re = Regex::new(REG_PACKAGE_ID).unwrap();
-        let resp = re.replace(resp, "").to_string();
-
-        // Remove absolute path from build target ids
-        const REG_BUILD_TARGET: &str = r#"targetId:[\w\/\\-]*[\/\\]"#;
-        re = Regex::new(REG_BUILD_TARGET).unwrap();
-        re.replace(&resp, "targetId:").to_string()
-    }
-
-    fn _current_state_from_response(resp: &str) -> CargoFeaturesStateResult {
-        let resp: Response = serde_json::from_str(resp).unwrap();
-        serde_json::from_value(resp.result.unwrap()).unwrap()
-    }
-
-    // Returns pair of available and enabled features for packageId
-    fn _features_state(
-        packages_features: &[PackageFeatures],
-        package_id: String,
-    ) -> (BTreeSet<Feature>, BTreeSet<Feature>) {
-        packages_features
-            .iter()
-            .find(|&p| p.package_id == package_id)
-            .map(|p| (p.available_features.clone(), p.enabled_features.clone()))
-            .unwrap()
     }
 }
