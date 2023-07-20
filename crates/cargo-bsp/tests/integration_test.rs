@@ -104,19 +104,22 @@ mod feature_protocol_extension_integration_test {
     // Features test cases
     const F: [&str; 6] = ["f0", "f1", "f2", "f3", "f4", "f5"];
 
-    fn test_cargo_feature_state_request() -> bsp_server::Request {
-        bsp_server::Request {
+    fn send_cargo_feature_state_request(cl: &mut Client) {
+        let req = bsp_server::Request {
             id: TEST_REQUEST_ID.into(),
             method: CargoFeaturesState::METHOD.into(),
             params: Default::default(),
-        }
+        };
+        cl.send(&to_string(&req).unwrap());
     }
 
-    fn test_enable_feature_request(
+    fn send_enable_features_request(
+        cl: &mut Client,
         package_id: &str,
         features_to_enable: &[&str],
-    ) -> bsp_server::Request {
-        bsp_server::Request {
+    ) {
+        println!("Sending request: {:?}", features_to_enable);
+        let req = bsp_server::Request {
             id: TEST_REQUEST_ID.into(),
             method: EnableCargoFeatures::METHOD.into(),
             params: serde_json::to_value(EnableCargoFeaturesParams {
@@ -124,14 +127,16 @@ mod feature_protocol_extension_integration_test {
                 features: features_to_enable.iter().map(|&s| s.into()).collect(),
             })
             .unwrap(),
-        }
+        };
+        cl.send(&to_string(&req).unwrap());
     }
 
-    fn _test_disable_feature_request(
+    fn send_disable_features_request(
+        cl: &mut Client,
         package_id: &str,
         features_to_disable: &[&str],
-    ) -> bsp_server::Request {
-        bsp_server::Request {
+    ) {
+        let req = bsp_server::Request {
             id: TEST_REQUEST_ID.into(),
             method: DisableCargoFeatures::METHOD.into(),
             params: serde_json::to_value(DisableCargoFeaturesParams {
@@ -139,7 +144,8 @@ mod feature_protocol_extension_integration_test {
                 features: features_to_disable.iter().map(|&s| s.into()).collect(),
             })
             .unwrap(),
-        }
+        };
+        cl.send(&to_string(&req).unwrap());
     }
 
     fn overwrite_cargo_toml_with_features(features_slice: &[(&str, &[&str])]) {
@@ -189,15 +195,24 @@ mod feature_protocol_extension_integration_test {
 
         // Do the cleaning
         std::env::set_current_dir("..").unwrap();
-        // remove_dir_all(TEST_PROJECT_NAME).unwrap();
+        remove_dir_all(TEST_PROJECT_NAME).unwrap();
     }
-    // Returns pair of available and enabled features from CargoFeatureState response
-    fn features_state_from_response(resp: &str) -> (BTreeSet<Feature>, BTreeSet<Feature>) {
+
+    fn package_from_response(resp: &str) -> PackageFeatures {
         let resp: Response = serde_json::from_str(resp).unwrap();
         let mut current_state: CargoFeaturesStateResult =
             serde_json::from_value(resp.result.unwrap()).unwrap();
         assert_eq!(current_state.packages_features.len(), 1);
-        let package = current_state.packages_features.pop().unwrap();
+        current_state.packages_features.pop().unwrap()
+    }
+
+    fn package_id_from_response(resp: &str) -> String {
+        package_from_response(resp).package_id
+    }
+
+    // Returns pair of available and enabled features from CargoFeatureState response
+    fn features_state_from_response(resp: &str) -> (BTreeSet<Feature>, BTreeSet<Feature>) {
+        let package = package_from_response(resp);
         (package.available_features, package.enabled_features)
     }
 
@@ -217,27 +232,51 @@ mod feature_protocol_extension_integration_test {
     #[serial]
     fn cargo_features_state() {
         let test_fn = |cl: &mut Client| {
-            let expected_available: &[&str] = &[F[0], F[1], F[3], F[4]];
+            let expected_available: &[&str] = &[F[0], F[1], F[2], F[3]];
             let mut expected_enabled: Vec<&str> = vec![];
-            cl.send(&to_string(&test_cargo_feature_state_request()).unwrap());
+            let mut toggle_features: Vec<&str> = vec![];
+
+            send_cargo_feature_state_request(cl);
+            let resp = cl.recv_resp();
+            let package_id = package_id_from_response(&resp);
+            check_state(&resp, expected_available, &expected_enabled);
+
+            // Enable f1, f2
+            toggle_features.extend(&[F[1], F[2]]);
+            expected_enabled.extend(&toggle_features);
+            send_enable_features_request(cl, &package_id, &toggle_features);
+            cl.recv_resp();
+            // Enabled: [f1, f2]
+            send_cargo_feature_state_request(cl);
             check_state(&cl.recv_resp(), expected_available, &expected_enabled);
 
-            let toggle_features: &[&str] = &[F[1], F[2]];
-            expected_enabled.append(&mut toggle_features.to_vec());
-            cl.send(&to_string(&test_enable_feature_request(
-                "tmp_test_project 0.0.1 (path+file:///home/tomek/studia/ZPP/cargo-projects/cargo-bsp-dev/crates/cargo-bsp/tmp_test_project)",
-                toggle_features)).unwrap());
+            // Disable f1
+            toggle_features.clear();
+            toggle_features.extend(&[F[1]]);
+            expected_enabled.retain(|&f| !toggle_features.contains(&f));
+            send_disable_features_request(cl, &package_id, &toggle_features);
+            cl.recv_resp();
+            // Enabled: [f2]
+            send_cargo_feature_state_request(cl);
+            check_state(&cl.recv_resp(), expected_available, &expected_enabled);
 
-            cl.send(&to_string(&test_cargo_feature_state_request()).unwrap());
+            // Enable f0, f3
+            toggle_features.clear();
+            toggle_features.extend(&[F[0], F[3]]);
+            expected_enabled.extend(&toggle_features); // Enabled: [f0, f2, f3]
+            send_enable_features_request(cl, &package_id, &toggle_features);
+            cl.recv_resp();
+            // Enabled: [f0, f2, f3]
+            send_cargo_feature_state_request(cl);
             check_state(&cl.recv_resp(), expected_available, &expected_enabled);
         };
 
         run_test(
             &[
                 (F[0], &[F[1]]),
-                (F[1], &[F[3], F[4]]),
-                (F[3], &[F[4]]),
-                (F[4], &[]),
+                (F[1], &[F[3], F[2]]),
+                (F[2], &[F[3]]),
+                (F[3], &[]),
             ],
             test_fn,
         );
