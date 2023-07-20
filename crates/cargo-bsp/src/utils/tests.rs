@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::time::Duration;
 
 use bsp_server;
@@ -7,8 +8,8 @@ use serde_json::to_value;
 
 use bsp_types::notifications::{ExitBuild, InitializedBuild, InitializedBuildParams, Notification};
 use bsp_types::requests::{
-    InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request, ShutdownBuild, Sources,
-    SourcesParams, SourcesResult,
+    Feature, InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request, ShutdownBuild,
+    Sources, SourcesParams, SourcesResult,
 };
 
 use crate::server::Result;
@@ -74,6 +75,10 @@ impl ConnectionTestCase {
         }
         assert!(client.receiver.is_empty());
     }
+}
+
+pub fn create_feature_set_from_slices(slices: &[&str]) -> BTreeSet<Feature> {
+    slices.iter().map(|&f| Feature::from(f)).collect()
 }
 
 pub fn no_more_msg<T>(receiver: Receiver<T>) {

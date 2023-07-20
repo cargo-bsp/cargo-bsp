@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum EnableCargoFeatures {}
 
 impl Request for EnableCargoFeatures {
