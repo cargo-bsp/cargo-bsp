@@ -92,9 +92,11 @@ mod feature_protocol_extension_integration_test {
     };
     use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
     use std::collections::BTreeSet;
-    use std::fs::{remove_dir_all, File};
+    use std::env::{current_dir, set_current_dir};
+    use std::fs::File;
     use std::io::Write;
     use std::process::Command;
+    use tempfile::tempdir;
 
     const TEST_REQUEST_ID: i32 = 123;
     const TEST_PROJECT_NAME: &str = "tmp_test_project";
@@ -116,7 +118,6 @@ mod feature_protocol_extension_integration_test {
         package_id: &str,
         features_to_enable: &[&str],
     ) {
-        println!("Sending request: {:?}", features_to_enable);
         let req = bsp_server::Request {
             id: TEST_REQUEST_ID.into(),
             method: EnableCargoFeatures::METHOD.into(),
@@ -173,27 +174,23 @@ mod feature_protocol_extension_integration_test {
 
     // Function that creates new temporary project with Cargo.toml with features
     // and sets it as current directory. The newly created directory has to be deleted.
-    fn create_mock_rust_project_with_features_and_set_it_as_current_dir(
-        features_slice: &[(&str, &[&str])],
-    ) {
+    fn create_mock_rust_project(features_slice: &[(&str, &[&str])]) {
         Command::new(toolchain::cargo())
-            .args(["init", TEST_PROJECT_NAME])
+            .args(["init", ".", "--name", TEST_PROJECT_NAME])
             .output()
             .expect("Failed to create new temporary project for testing.");
-
-        std::env::set_current_dir(TEST_PROJECT_NAME).unwrap();
 
         overwrite_cargo_toml_with_features(features_slice);
     }
 
     fn run_test(features_slice: &[(&str, &[&str])], test: fn(&mut Client)) {
-        create_mock_rust_project_with_features_and_set_it_as_current_dir(features_slice);
+        let starting_path = current_dir().unwrap();
+        let tmp_dir = tempdir().unwrap();
+        set_current_dir(tmp_dir.path()).unwrap();
+        create_mock_rust_project(features_slice);
 
         spawn_server_with_proper_life_time(test);
-
-        // Do the cleaning
-        std::env::set_current_dir("..").unwrap();
-        remove_dir_all(TEST_PROJECT_NAME).unwrap();
+        set_current_dir(starting_path).unwrap();
     }
 
     fn package_from_response(resp: &str) -> PackageFeatures {

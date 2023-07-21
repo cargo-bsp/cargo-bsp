@@ -1,3 +1,2 @@
 [workspace]
 members = ["crates/*"]
-exclude = ["crates/cargo-bsp/tmp_test_project"]
