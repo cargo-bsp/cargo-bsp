@@ -1,3 +1,5 @@
+//! Stores package dependencies.
+
 use std::path::PathBuf;
 
 use cargo_metadata::{Dependency, Package};

@@ -1,3 +1,5 @@
+//! [`ProjectModel`] obtains and stores information about the Rust project.
+
 mod _unit_tests_discovery;
 pub(crate) mod build_target_mappings;
 pub(crate) mod cargo_package;

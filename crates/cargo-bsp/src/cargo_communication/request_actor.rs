@@ -1,3 +1,25 @@
+//! Handles messages from Cargo command, parsing them and preparing appropriate
+//! notifications and responses. Also handles information about the finish of
+//! Cargo command and the cancel request from the client.
+//!
+//! The hierarchy of tasks:
+//! - for every request there is a root task with no `data-kind` and its subtask
+//! (or subtasks if there are more than one build targets) informing about the compilation
+//! process with `data-kind` `compile-task` and `compile-report` (for `taskStart` and `taskFinish`)
+//! - for every task, before running the requested command, the unit graph command is
+//! executed, which starts a subtask (to root task) with no `data-kind`. This subtask finishes
+//! before the execution of the requested command, and therefore, before starting any other subtasks
+//! - for `run` and `test` requests there is an additional subtask (to root task) for
+//! execution process (with no `data-kind`) (started after the compilation subtask/s)
+//! - additionally for `test` requests there can be subtasks (to execution task) for each
+//! test suite with `test-task` and `test-report` `data-kind`. These subtasks may have additional
+//! subtasks for each single test with `test-start` and `test-finish` `data-kind`.
+//! Additionally, for each requests there may be `logMessage` notifications for stdout/stderr
+//! messages from Cargo and `publishDiagnostic` notifications.
+//!
+//! We assume that test suites are executed one after another in specific order,
+//! see [`cargo_types/test.rs`].
+
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
@@ -32,12 +54,8 @@ where
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
+    // sender for notifications and responses to main loop
     pub(super) sender: Box<dyn Fn(Message) + Send>,
-    /// CargoHandle exists to wrap around the communication needed to be able to
-    /// run `cargo build/run/test` without blocking. Currently the Rust standard library
-    /// doesn't provide a way to read sub-process output without blocking, so we
-    /// have to wrap sub-processes output handling in a thread and pass messages
-    /// back over a channel.
     pub(super) cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
     pub(super) req_id: RequestId,
@@ -97,6 +115,7 @@ where
         }
     }
 
+    /// Main function of RequestActor, invoked for every new compile/run/test request.
     pub fn run(mut self) {
         self.start_compile_task();
 
@@ -170,6 +189,7 @@ where
         }
     }
 
+    // Cancel should cancel all started tasks, not only the root task.
     pub fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             cargo_handle.cancel();
@@ -183,6 +203,7 @@ where
     }
 }
 
+/// The trait was created for easier mocking in tests. It is implemented only by CargoHandle.
 #[automock]
 pub trait CargoHandler<T> {
     fn receiver(&self) -> &Receiver<T>;

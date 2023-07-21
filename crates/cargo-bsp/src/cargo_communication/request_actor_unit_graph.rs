@@ -1,3 +1,7 @@
+//! Implementation of [`RequestActor`]. Handles messages from Cargo command with
+//! `--unit-graph` flag. If the command executes successfully, sets the total compilation
+//! steps in [`RequestActorState`].
+
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 use log::warn;
@@ -10,6 +14,10 @@ use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::cargo_types::unit_graph::UnitGraph;
 use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
 
+// There is no Err StatusCode, as even if the unit graph command did not end up
+// successfully, it does not change the execution of the requested command.
+// However, if total compilation steps information was not obtained,
+// the subtask for unit graph ends with an Error status.
 pub enum UnitGraphStatusCode {
     Ok,
     Cancelled,

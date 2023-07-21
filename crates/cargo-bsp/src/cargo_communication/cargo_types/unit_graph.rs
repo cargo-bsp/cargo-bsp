@@ -1,3 +1,9 @@
+//! Unit graph structure, used to store results of cargo command with
+//! `--unit-graph` flag.
+//!
+//! The only information we need from unit graph is the number of units, so
+//! we do not have to store the whole structure that we obtain from the Cargo command.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Debug)]

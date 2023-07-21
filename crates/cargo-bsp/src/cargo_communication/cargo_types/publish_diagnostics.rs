@@ -1,4 +1,4 @@
-// Parts copied from rust-analyzer
+//! Maps diagnostics messages from Cargo to the BSP ones.
 
 use std::collections::HashMap;
 
@@ -11,6 +11,8 @@ use paths::AbsPath;
 use bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
 use bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
 
+/// Diagnostics are sent to the client as `publishDiagnostic` notification.
+/// GlobalMessage is sent to the client as `logMessage` notification.
 pub enum DiagnosticMessage {
     Diagnostics(Vec<PublishDiagnosticsParams>),
     GlobalMessage(GlobalMessage),
@@ -26,16 +28,16 @@ enum MappedRustChildDiagnostic {
     MessageLine(String),
 }
 
-/// Converts a Rust root diagnostic to LSP form
+/// Converts a Rust root diagnostic to BSP form
 ///
 /// This flattens the Rust diagnostic by:
 ///
-/// 1. Creating a LSP diagnostic with the root message and primary span.
+/// 1. Creating a BSP diagnostic with the root message and primary span.
 /// 2. Adding any labelled secondary spans to `relatedInformation`
 /// 3. Categorising child diagnostics as either `SuggestedFix`es,
 ///    `relatedInformation` or additional message lines.
 ///
-/// If the diagnostic has no primary span this will return `None`
+/// If the diagnostic has no primary span it will be classified as `GlobalMessage`.
 pub fn map_cargo_diagnostic_to_bsp(
     diagnostic: &MetadataDiagnostic,
     origin_id: Option<String>,

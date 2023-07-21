@@ -1,3 +1,8 @@
+//! Stores information necessary for [`RequestActor`] that need to be accessible
+//! while parsing messages from Cargo command. The information is later used in
+//! creation of notifications and responses for the client (especially the state
+//! sets and stores TaskIds of all tasks that may potentially be started).
+
 use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
 
@@ -48,7 +53,10 @@ pub struct TestState {
     pub(super) task_id: TaskId,
     pub(super) suite_task_id: TaskId,
     pub(super) suite_task_progress: SuiteTaskProgress,
+    // Currently tested build target.
     pub(super) current_build_target: Option<BuildTargetIdentifier>,
+    // Maps single tests name (by which they are recognized by Cargo) to the TaskId
+    // of the task that they started.
     pub(super) single_test_task_ids: HashMap<String, TaskId>,
 }
 

@@ -1,3 +1,5 @@
+//! Discovers Cargo project manifest.
+
 use std::path::{Path, PathBuf};
 use std::{
     fs::{self, read_dir, ReadDir},

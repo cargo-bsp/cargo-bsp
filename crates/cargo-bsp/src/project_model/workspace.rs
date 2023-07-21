@@ -1,3 +1,6 @@
+//! Discovers project's workspace based on `cargo metadata` command.
+//! Creates hashmaps for easy access to the project's information.
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;

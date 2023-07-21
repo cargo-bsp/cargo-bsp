@@ -1,3 +1,24 @@
+//! CreateCommand trait implementation for the Compile/Run/TestParams.
+//! The trait allows getting origin id and creating commands regardless if it is the compile,
+//! run or test request.
+//!
+//! There are two types of commands:
+//! - requested: standard `cargo build`, `cargo run` and `cargo test` to compile,
+//! run and test the project,
+//! - unit graph: the same as before but with `--unit-graph -Z unstable-options` flags
+//! (only available with `+nightly`). These commands are used to get the amount of steps
+//! during the compilation for the command executed without this flag.
+//!
+//! The requested commands may have additional flags:
+//!
+//! `--message-format=json` for all commands. This flag formats information to JSON and
+//! provides [additional information about build](https://doc.rust-lang.org/cargo/reference/external-tools.html)
+//!
+//! `--show-output -Z unstable-options --format=json` for `cargo test`
+//! (only with `+nightly`). These flags format information about the tests to JSON and
+//! allows additional information, such as when each single tests started and finished,
+//! their stdout and stderr.
+
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::path::Path;
 
@@ -94,6 +115,7 @@ impl TargetDetails {
     }
 }
 
+/// Creates additional flags for the command to specify the packages, targets and features.
 fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
     targets_details
         .iter()

@@ -1,3 +1,6 @@
+//! Implementation of [`RequestActor`]. Sends responses and notifications back to
+//! [`GlobalState`] that sends it back to the client.
+
 use std::io;
 use std::process::ExitStatus;
 
