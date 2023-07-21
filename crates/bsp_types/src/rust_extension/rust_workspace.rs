@@ -1,6 +1,7 @@
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, Uri};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum RustWorkspace {}
@@ -21,14 +22,13 @@ pub struct RustWorkspaceParams {
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
-    pub raw_dependencies: Vec<RustRawDependency>, //suma dependencji pakietów targetów
-    pub dependencies: Vec<RustDependency>, //zmapowane RustRawDependency na RustDependency
+    pub raw_dependencies: HashMap<String, RustRawDependency>, //suma dependencji pakietów targetów
+    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustRawDependency {
-    pub package_id: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
@@ -36,8 +36,10 @@ pub struct RustRawDependency {
     pub kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
-    pub optional: bool,
-    pub uses_default_features: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub optional: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uses_default_features: Option<bool>,
     pub features: Vec<String>,
 }
 
@@ -47,47 +49,52 @@ pub struct RustTarget {
     pub name: String,
     pub crate_root_url: String,
     pub package_root_url: String,
-    pub kind: String,
+    pub kind: RustTargetKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edition: Option<String>,
-    pub doctest: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doctest: Option<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_features: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+// todo check serialization
+pub enum RustTargetKind {
+    #[default]
+    Bin,
+    Test,
+    Example,
+    Bench,
+    CustomBuild,
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustFeature {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub deps: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RustEnvData {
-    pub name: String,
-    pub value: String,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RustKeyValueMapper {
-    pub key: String,
-    pub value: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct RustCfgOptions {
-    pub key_value_options: Vec<RustKeyValueMapper>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub key_value_options: HashMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub name_options: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustProcMacroArtifact {
-    pub path: String, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
-    // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
-    pub hash: String, // ignore
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<Uri>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
+                           // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
+                           // we don't need hash. It is calculated by IntelliJ-Rust
+                           //pub hash: String, // ignore
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -108,7 +115,7 @@ pub struct RustPackage {
     pub enabled_features: Vec<String>, //?
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
-    pub env: Vec<RustEnvData>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
+    pub env: HashMap<String, String>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
     #[serde(skip_serializing_if = "Option::is_none")]
     pub out_dir_url: Option<String>, // tutaj Null, bo nie mamy pojęcia co to
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -117,20 +124,31 @@ pub struct RustPackage {
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RustDepKindInfo {
-    pub kind: String,
+pub struct DepKind {
+    pub kind: DepKindEnum,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
+// todo check serialization
+pub enum DepKindEnum {
+    Unclassified,
+    Stdlib,
+    #[default]
+    Normal,
+    Dev,
+    Build,
+}
+
+#[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDependency {
-    pub source: String,
     pub target: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    pub dep_kinds: Vec<RustDepKindInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dep_kinds: Vec<DepKind>,
 }
 
 #[cfg(test)]
@@ -170,8 +188,11 @@ mod test {
     fn rust_workspace_result() {
         let result = RustWorkspaceResult {
             packages: vec![RustPackage::default()],
-            raw_dependencies: vec![RustRawDependency::default()],
-            dependencies: vec![RustDependency::default()],
+            raw_dependencies: HashMap::from([(
+                "package_id".to_string(),
+                RustRawDependency::default(),
+            )]),
+            dependencies: HashMap::from([("source".to_string(), RustDependency::default())]),
         };
 
         assert_json_snapshot!(result, @r###"
@@ -183,25 +204,20 @@ mod test {
               "allTargets": [],
               "features": [],
               "enabledFeatures": [],
-              "env": []
+              "env": {}
             }
           ],
-          "rawDependencies": [
-            {
-              "packageId": "",
+          "rawDependencies": {
+            "package_id": {
               "name": "",
-              "optional": false,
-              "usesDefaultFeatures": false,
               "features": []
             }
-          ],
-          "dependencies": [
-            {
-              "source": "",
-              "target": "",
-              "depKinds": []
+          },
+          "dependencies": {
+            "source": {
+              "target": ""
             }
-          ]
+          }
         }
         "###);
 
@@ -215,19 +231,17 @@ mod test {
     #[test]
     fn rust_raw_dependency() {
         let dependency = RustRawDependency {
-            package_id: "test_id".to_string(),
             name: "test_name".to_string(),
             rename: Some("test_rename".to_string()),
             kind: Some("test_kind".to_string()),
             target: Some("test_target".to_string()),
-            optional: false,
-            uses_default_features: false,
+            optional: Some(false),
+            uses_default_features: Some(false),
             features: vec!["test_feature".to_string()],
         };
 
         assert_json_snapshot!(dependency, @r###"
         {
-          "packageId": "test_id",
           "name": "test_name",
           "rename": "test_rename",
           "kind": "test_kind",
@@ -242,10 +256,7 @@ mod test {
 
         assert_json_snapshot!(RustRawDependency::default(), @r###"
         {
-          "packageId": "",
           "name": "",
-          "optional": false,
-          "usesDefaultFeatures": false,
           "features": []
         }
         "###);
@@ -257,9 +268,9 @@ mod test {
             name: "test_name".to_string(),
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
-            kind: "test_kind".to_string(),
+            kind: RustTargetKind::default(),
             edition: Some("test_edition".to_string()),
-            doctest: false,
+            doctest: Some(false),
             required_features: vec!["test_feature".to_string()],
         };
 
@@ -268,7 +279,7 @@ mod test {
           "name": "test_name",
           "crateRootUrl": "test_crate_url",
           "packageRootUrl": "test_root_url",
-          "kind": "test_kind",
+          "kind": "Bin",
           "edition": "test_edition",
           "doctest": false,
           "requiredFeatures": [
@@ -282,9 +293,7 @@ mod test {
           "name": "",
           "crateRootUrl": "",
           "packageRootUrl": "",
-          "kind": "",
-          "doctest": false,
-          "requiredFeatures": []
+          "kind": "Bin"
         }
         "###);
     }
@@ -307,54 +316,7 @@ mod test {
 
         assert_json_snapshot!(RustFeature::default(), @r###"
         {
-          "name": "",
-          "deps": []
-        }
-        "###);
-    }
-
-    #[test]
-    fn rust_env_data() {
-        let env_data = RustEnvData {
-            name: "test_name".to_string(),
-            value: "test_value".to_string(),
-        };
-
-        assert_json_snapshot!(env_data, @r###"
-        {
-          "name": "test_name",
-          "value": "test_value"
-        }
-        "###);
-
-        assert_json_snapshot!(RustEnvData::default(), @r###"
-        {
-          "name": "",
-          "value": ""
-        }
-        "###);
-    }
-
-    #[test]
-    fn rust_key_value_mapper() {
-        let key_value_mapper = RustKeyValueMapper {
-            key: "test_key".to_string(),
-            value: vec!["test_value".to_string()],
-        };
-
-        assert_json_snapshot!(key_value_mapper, @r###"
-        {
-          "key": "test_key",
-          "value": [
-            "test_value"
-          ]
-        }
-        "###);
-
-        assert_json_snapshot!(RustKeyValueMapper::default(), @r###"
-        {
-          "key": "",
-          "value": []
+          "name": ""
         }
         "###);
     }
@@ -362,35 +324,17 @@ mod test {
     #[test]
     fn rust_cfg_options() {
         let cfg_options = RustCfgOptions {
-            key_value_options: vec![
-                RustKeyValueMapper {
-                    key: "key1".to_string(),
-                    value: vec!["value1".to_string()],
-                },
-                RustKeyValueMapper {
-                    key: "key2".to_string(),
-                    value: vec!["value2".to_string()],
-                },
-            ],
+            key_value_options: HashMap::from([("key".to_string(), vec!["value".to_string()])]),
             name_options: vec!["name1".to_string(), "name2".to_string()],
         };
 
         assert_json_snapshot!(cfg_options, @r###"
         {
-          "keyValueOptions": [
-            {
-              "key": "key1",
-              "value": [
-                "value1"
-              ]
-            },
-            {
-              "key": "key2",
-              "value": [
-                "value2"
-              ]
-            }
-          ],
+          "keyValueOptions": {
+            "key": [
+              "value"
+            ]
+          },
           "nameOptions": [
             "name1",
             "name2"
@@ -399,32 +343,24 @@ mod test {
         "###);
 
         assert_json_snapshot!(RustCfgOptions::default(), @r###"
-        {
-          "keyValueOptions": [],
-          "nameOptions": []
-        }
+        {}
         "###);
     }
 
     #[test]
     fn rust_proc_macro_artifact() {
         let proc_macro_artifact = RustProcMacroArtifact {
-            path: "test_path".to_string(),
-            hash: "test_hash".to_string(),
+            path: Some("test_path".to_string()),
         };
 
         assert_json_snapshot!(proc_macro_artifact, @r###"
         {
-          "path": "test_path",
-          "hash": "test_hash"
+          "path": "test_path"
         }
         "###);
 
         assert_json_snapshot!(RustProcMacroArtifact::default(), @r###"
-        {
-          "path": "",
-          "hash": ""
-        }
+        {}
         "###);
     }
 
@@ -441,7 +377,7 @@ mod test {
             features: vec![RustFeature::default()],
             enabled_features: vec!["feature1".to_string(), "feature2".to_string()],
             cfg_options: Some(RustCfgOptions::default()),
-            env: vec![RustEnvData::default()],
+            env: HashMap::from([("key".to_string(), "value".to_string())]),
             out_dir_url: Some("test_out_dir_url".to_string()),
             proc_macro_artifact: Some(RustProcMacroArtifact::default()),
         };
@@ -458,9 +394,7 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": "",
-              "doctest": false,
-              "requiredFeatures": []
+              "kind": "Bin"
             }
           ],
           "allTargets": [
@@ -468,36 +402,24 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": "",
-              "doctest": false,
-              "requiredFeatures": []
+              "kind": "Bin"
             }
           ],
           "features": [
             {
-              "name": "",
-              "deps": []
+              "name": ""
             }
           ],
           "enabledFeatures": [
             "feature1",
             "feature2"
           ],
-          "cfgOptions": {
-            "keyValueOptions": [],
-            "nameOptions": []
+          "cfgOptions": {},
+          "env": {
+            "key": "value"
           },
-          "env": [
-            {
-              "name": "",
-              "value": ""
-            }
-          ],
           "outDirUrl": "test_out_dir_url",
-          "procMacroArtifact": {
-            "path": "",
-            "hash": ""
-          }
+          "procMacroArtifact": {}
         }
         "###);
 
@@ -508,28 +430,28 @@ mod test {
           "allTargets": [],
           "features": [],
           "enabledFeatures": [],
-          "env": []
+          "env": {}
         }
         "###);
     }
 
     #[test]
     fn rust_dep_kind_info() {
-        let dep_kind_info = RustDepKindInfo {
-            kind: "test_kind".to_string(),
+        let dep_kind_info = DepKind {
+            kind: DepKindEnum::default(),
             target: Some("test_target".to_string()),
         };
 
         assert_json_snapshot!(dep_kind_info, @r###"
         {
-          "kind": "test_kind",
+          "kind": "Normal",
           "target": "test_target"
         }
         "###);
 
-        assert_json_snapshot!(RustDepKindInfo::default(), @r###"
+        assert_json_snapshot!(DepKind::default(), @r###"
         {
-          "kind": ""
+          "kind": "Normal"
         }
         "###);
     }
@@ -537,20 +459,18 @@ mod test {
     #[test]
     fn rust_dependency() {
         let dependency = RustDependency {
-            source: "test_source".to_string(),
             target: "test_target".to_string(),
             name: Some("test_name".to_string()),
-            dep_kinds: vec![RustDepKindInfo::default()],
+            dep_kinds: vec![DepKind::default()],
         };
 
         assert_json_snapshot!(dependency, @r###"
         {
-          "source": "test_source",
           "target": "test_target",
           "name": "test_name",
           "depKinds": [
             {
-              "kind": ""
+              "kind": "Normal"
             }
           ]
         }
@@ -558,9 +478,7 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
-          "source": "",
-          "target": "",
-          "depKinds": []
+          "target": ""
         }
         "###);
     }

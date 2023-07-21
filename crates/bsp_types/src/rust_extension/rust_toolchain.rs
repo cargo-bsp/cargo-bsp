@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, Uri};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -20,23 +20,25 @@ pub struct RustToolchainParams {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    pub toolchains: Vec<RustToolchain>, // toolchain  dostępny systemowo, z którego korzysta cargo
+    pub items: Vec<RustToolchainsItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct RustToolchain {
-    pub rustc: RustcInfo,
-    pub cargo_bin_path: String,
-    pub proc_macro_srv_path: String, // scieżka do binraki rozwijającej makra proceduralne
+pub struct RustToolchainsItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rust_std_lib: Option<RustcInfo>,
+    pub cargo_bin_path: Uri,
+    pub proc_macro_srv_path: Uri, // scieżka do binraki rozwijającej makra proceduralne
 }
 ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
-    pub sysroot: String,
-    pub src_sysroot: String, ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
+    pub sysroot_path: Uri,
+    pub src_sysroot_path: Uri,
+    ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
     pub version: String,
     pub host: String, //example: x86_64-unknown-linux-gnu rustc --version --verbose
 }
@@ -76,18 +78,12 @@ mod test {
     #[test]
     fn rust_toolchain_result() {
         let result = RustToolchainResult {
-            toolchains: vec![RustToolchain::default()],
+            items: vec![RustToolchainsItem::default()],
         };
         assert_json_snapshot!(result, @r###"
         {
-          "toolchains": [
+          "items": [
             {
-              "rustc": {
-                "sysroot": "",
-                "srcSysroot": "",
-                "version": "",
-                "host": ""
-              },
               "cargoBinPath": "",
               "procMacroSrvPath": ""
             }
@@ -97,24 +93,24 @@ mod test {
 
         assert_json_snapshot!(RustToolchainResult::default(), @r###"
         {
-          "toolchains": []
+          "items": []
         }
         "###);
     }
 
     #[test]
     fn rust_toolchain() {
-        let rust_toolchain = RustToolchain {
-            rustc: RustcInfo::default(),
+        let rust_toolchain = RustToolchainsItem {
+            rust_std_lib: Some(RustcInfo::default()),
             cargo_bin_path: "test_cargo_bin_path".to_string(),
             proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
         };
 
         assert_json_snapshot!(rust_toolchain, @r###"
         {
-          "rustc": {
-            "sysroot": "",
-            "srcSysroot": "",
+          "rustStdLib": {
+            "sysrootPath": "",
+            "srcSysrootPath": "",
             "version": "",
             "host": ""
           },
@@ -123,11 +119,16 @@ mod test {
         }
         "###);
 
-        assert_json_snapshot!(RustToolchain::default(), @r###"
+        let test_rust_toolchains_item = RustToolchainsItem {
+            rust_std_lib: Some(RustcInfo::default()),
+            ..RustToolchainsItem::default()
+        };
+
+        assert_json_snapshot!(test_rust_toolchains_item, @r###"
         {
-          "rustc": {
-            "sysroot": "",
-            "srcSysroot": "",
+          "rustStdLib": {
+            "sysrootPath": "",
+            "srcSysrootPath": "",
             "version": "",
             "host": ""
           },
@@ -140,15 +141,15 @@ mod test {
     #[test]
     fn rustc_info() {
         let rustc_info = RustcInfo {
-            sysroot: "test_sysroot".to_string(),
-            src_sysroot: "test_src_sysroot".to_string(),
+            sysroot_path: "test_sysroot".to_string(),
+            src_sysroot_path: "test_src_sysroot".to_string(),
             version: "test_version".to_string(),
             host: "test_host".to_string(),
         };
         assert_json_snapshot!(rustc_info, @r###"
         {
-          "sysroot": "test_sysroot",
-          "srcSysroot": "test_src_sysroot",
+          "sysrootPath": "test_sysroot",
+          "srcSysrootPath": "test_src_sysroot",
           "version": "test_version",
           "host": "test_host"
         }
@@ -156,15 +157,14 @@ mod test {
 
         assert_json_snapshot!(RustcInfo::default(), @r###"
         {
-          "sysroot": "",
-          "srcSysroot": "",
+          "sysrootPath": "",
+          "srcSysrootPath": "",
           "version": "",
           "host": ""
         }
         "###);
     }
 }
-
 
 // Q: Czy zakładamy, że jak nie ma not null, to jest optional?
 // Q: all_targets w package?
