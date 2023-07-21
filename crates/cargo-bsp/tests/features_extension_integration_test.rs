@@ -125,21 +125,19 @@ fn package_from_response(resp: &str) -> PackageFeatures {
     current_state.packages_features.pop().unwrap()
 }
 
-fn package_id_from_response(resp: &str) -> String {
-    package_from_response(resp).package_id
-}
-
-// Returns pair of available and enabled features from CargoFeatureState response
-fn features_state_from_response(resp: &str) -> FeaturesState {
-    let package = package_from_response(resp);
+fn features_state_from_response(package: PackageFeatures) -> FeaturesState {
     FeaturesState {
         available_features: package.available_features,
         enabled_features: package.enabled_features,
     }
 }
 
-fn check_state(resp: &str, expected_available: &[&str], expected_enabled: &[&str]) {
-    let features_state = features_state_from_response(resp);
+fn check_package_state(
+    package: PackageFeatures,
+    expected_available: &[&str],
+    expected_enabled: &[&str],
+) {
+    let features_state = features_state_from_response(package);
     assert_eq!(
         features_state.available_features,
         create_feature_set_from_slices(expected_available)
@@ -148,6 +146,16 @@ fn check_state(resp: &str, expected_available: &[&str], expected_enabled: &[&str
         features_state.enabled_features,
         create_feature_set_from_slices(expected_enabled)
     );
+}
+
+fn request_state_and_check_it(
+    cl: &mut Client,
+    expected_available: &[&str],
+    expected_enabled: &[&str],
+) {
+    send_cargo_feature_state_request(cl);
+    let package = package_from_response(&cl.recv_resp());
+    check_package_state(package, expected_available, expected_enabled);
 }
 
 #[test]
@@ -159,8 +167,9 @@ fn cargo_features_state() {
 
         send_cargo_feature_state_request(cl);
         let resp = cl.recv_resp();
-        let package_id = package_id_from_response(&resp);
-        check_state(&resp, expected_available, &expected_enabled);
+        let package = package_from_response(&resp);
+        let package_id = package.package_id.clone();
+        check_package_state(package, expected_available, &expected_enabled);
 
         // Enable f1, f2
         toggle_features.extend(&[F[1], F[2]]);
@@ -168,8 +177,7 @@ fn cargo_features_state() {
         send_enable_features_request(cl, &package_id, &toggle_features);
         cl.recv_resp();
         // Enabled: [f1, f2]
-        send_cargo_feature_state_request(cl);
-        check_state(&cl.recv_resp(), expected_available, &expected_enabled);
+        request_state_and_check_it(cl, expected_available, &expected_enabled);
 
         // Disable f1
         toggle_features.clear();
@@ -178,8 +186,7 @@ fn cargo_features_state() {
         send_disable_features_request(cl, &package_id, &toggle_features);
         cl.recv_resp();
         // Enabled: [f2]
-        send_cargo_feature_state_request(cl);
-        check_state(&cl.recv_resp(), expected_available, &expected_enabled);
+        request_state_and_check_it(cl, expected_available, &expected_enabled);
 
         // Enable f0, f3
         toggle_features.clear();
@@ -188,8 +195,7 @@ fn cargo_features_state() {
         send_enable_features_request(cl, &package_id, &toggle_features);
         cl.recv_resp();
         // Enabled: [f0, f2, f3]
-        send_cargo_feature_state_request(cl);
-        check_state(&cl.recv_resp(), expected_available, &expected_enabled);
+        request_state_and_check_it(cl, expected_available, &expected_enabled);
     };
 
     run_test(
