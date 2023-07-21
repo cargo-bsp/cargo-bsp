@@ -1,4 +1,8 @@
-//! Stores package dependencies.
+//! Represents a dependency of a package.
+//! Fields `_features` and `_uses_default_features` may become handy when implementing
+//! `BuildTargetDependencyModules` request. Optional dependencies of the `PackageDependency` are
+//! included only if specific features for `PackageDependency` are set.
+//! Similarly, disabling default features impact the set of dependencies of the `PackageDependency`.
 
 use std::path::PathBuf;
 

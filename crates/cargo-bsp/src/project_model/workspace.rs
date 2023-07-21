@@ -1,4 +1,5 @@
 //! Discovers project's workspace based on `cargo metadata` command.
+//! `ProjectWorkspace` is stored in the state of the server.
 //! Creates hashmaps for easy access to the project's information.
 
 use std::collections::HashMap;

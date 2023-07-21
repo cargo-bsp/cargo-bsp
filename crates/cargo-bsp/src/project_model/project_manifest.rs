@@ -1,4 +1,4 @@
-//! Discovers Cargo project manifest.
+//! Cargo project's manifest discovery for executing `cargo metadata` command properly.
 
 use std::path::{Path, PathBuf};
 use std::{

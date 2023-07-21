@@ -1,6 +1,6 @@
 //! Stores necessary information that can be obtained about Cargo package with
-//! available and enabled features (relevant for the feature requests
-//! that are not yet added to the BSP).
+//! available and enabled features (relevant for the Cargo extension for BSP,
+//! which allows toggling the features, not yet added to the BSP documentation).
 
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::rc::Rc;
