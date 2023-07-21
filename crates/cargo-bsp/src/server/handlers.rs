@@ -43,7 +43,7 @@ pub(crate) fn handle_sources(
     })
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_resources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::ResourcesParams,
@@ -51,7 +51,7 @@ pub(crate) fn handle_resources(
     Ok(bsp_types::requests::ResourcesResult::default())
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_clean_cache(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::CleanCacheParams,
@@ -59,7 +59,7 @@ pub(crate) fn handle_clean_cache(
     Ok(bsp_types::requests::CleanCacheResult::default())
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_dependency_modules(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::DependencyModulesParams,
@@ -67,7 +67,7 @@ pub(crate) fn handle_dependency_modules(
     Ok(bsp_types::requests::DependencyModulesResult::default())
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_dependency_sources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::DependencySourcesParams,
@@ -75,7 +75,7 @@ pub(crate) fn handle_dependency_sources(
     Ok(bsp_types::requests::DependencySourcesResult::default())
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_inverse_sources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::InverseSourcesParams,
@@ -83,7 +83,7 @@ pub(crate) fn handle_inverse_sources(
     Ok(bsp_types::requests::InverseSourcesResult::default())
 }
 
-// Not properly handled yet
+// TODO: Not properly handled yet
 pub(crate) fn handle_output_paths(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::OutputPathsParams,

@@ -53,10 +53,10 @@ pub struct TestState {
     pub(super) task_id: TaskId,
     pub(super) suite_task_id: TaskId,
     pub(super) suite_task_progress: SuiteTaskProgress,
-    // Currently tested build target.
+    /// Currently tested build target.
     pub(super) current_build_target: Option<BuildTargetIdentifier>,
-    // Maps single tests name (by which they are recognized by Cargo) to the TaskId
-    // of the task that they started.
+    /// Maps single tests name (by which they are recognized by Cargo) to the TaskId
+    /// of the task that they started.
     pub(super) single_test_task_ids: HashMap<String, TaskId>,
 }
 

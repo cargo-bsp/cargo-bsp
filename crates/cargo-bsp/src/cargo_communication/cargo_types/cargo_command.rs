@@ -6,8 +6,8 @@
 //! - requested: standard `cargo build`, `cargo run` and `cargo test` to compile,
 //! run and test the project,
 //! - unit graph: the same as before but with `--unit-graph -Z unstable-options` flags
-//! (only available with `+nightly`). These commands are used to get the amount of steps
-//! during the compilation for the command executed without this flag.
+//! (only available with `+nightly`). These commands are used to get the number of
+//! compilation steps.
 //!
 //! The requested commands may have additional flags:
 //!

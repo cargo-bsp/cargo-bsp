@@ -189,7 +189,7 @@ where
         }
     }
 
-    // Cancel should cancel all started tasks, not only the root task.
+    // TODO: Cancel should cancel all started tasks, not only the root task.
     pub fn cancel(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             cargo_handle.cancel();
