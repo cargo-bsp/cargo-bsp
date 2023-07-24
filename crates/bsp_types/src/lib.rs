@@ -7,7 +7,6 @@ pub mod requests;
 
 pub mod extensions;
 pub mod notifications;
-pub mod rust_extension;
 
 pub mod tests {
     use serde::Deserialize;
