@@ -10,7 +10,7 @@ use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use log::error;
 use unzip_n::unzip_n;
 
-use bsp_types::requests::{Feature, PackageFeatures};
+use bsp_types::extensions::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;

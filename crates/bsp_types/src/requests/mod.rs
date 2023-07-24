@@ -2,7 +2,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub use build_target_sources::*;
-pub use cargo_extension::*;
 pub use clean_cache::*;
 pub use compile::*;
 pub use debug::*;
@@ -18,8 +17,6 @@ pub use run::*;
 pub use shutdown_build::*;
 pub use test::*;
 pub use workspace_build_targets::*;
-
-pub mod cargo_extension;
 
 mod build_target_sources;
 mod clean_cache;
