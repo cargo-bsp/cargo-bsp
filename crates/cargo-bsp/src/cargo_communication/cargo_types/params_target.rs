@@ -1,3 +1,6 @@
+//! ParamsTarget trait implementation for the Compile/Run/TestParams.
+//! Necessary for getting the list of build targets from the compile/run/test requests.
+
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use bsp_types::BuildTargetIdentifier;

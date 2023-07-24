@@ -1,3 +1,5 @@
+//! Discovers all sources for build targets.
+
 use std::path::PathBuf;
 
 use cargo_metadata::camino::Utf8PathBuf;

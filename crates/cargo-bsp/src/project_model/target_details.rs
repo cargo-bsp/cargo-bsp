@@ -1,3 +1,5 @@
+//! Stores Cargo target details.
+
 use std::collections::BTreeSet;
 
 use bsp_types::requests::Feature;

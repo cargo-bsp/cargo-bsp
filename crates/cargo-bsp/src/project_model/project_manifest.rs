@@ -1,3 +1,5 @@
+//! Cargo project's manifest discovery for executing `cargo metadata` command properly.
+
 use std::path::{Path, PathBuf};
 use std::{
     fs::{self, read_dir, ReadDir},

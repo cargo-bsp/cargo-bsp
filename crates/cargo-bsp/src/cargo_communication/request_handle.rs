@@ -1,3 +1,7 @@
+//! The first handler of the compile/run/test requests after the main loop.
+//! Creates and spawns all necessary commands and runs a new [`RequestActor`] in
+//! a new thread.
+
 use std::io;
 use std::process::Command;
 

@@ -1,3 +1,5 @@
+//! Test cases used when test connection with the client is required.
+
 use std::time::Duration;
 
 use bsp_server;

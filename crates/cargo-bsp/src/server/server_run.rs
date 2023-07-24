@@ -1,3 +1,5 @@
+//! Runs the server and establishes connection with the client.
+
 use bsp_server::Connection;
 use log::info;
 
@@ -22,6 +24,7 @@ pub fn run_server() -> Result<()> {
     Ok(())
 }
 
+/// Handles the initialize handshake with the client.
 fn initialize(connection: &Connection) -> Result<Config> {
     let (initialize_id, initialize_params) = connection.bsp_initialize_start()?;
     let initialize_params =

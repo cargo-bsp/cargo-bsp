@@ -1,3 +1,5 @@
+//! The main function that establishes the logging system and runs the server.
+
 use std::env;
 use std::fs::{create_dir, File};
 use std::path::PathBuf;

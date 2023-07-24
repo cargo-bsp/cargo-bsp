@@ -1,3 +1,6 @@
+//! Implementation of [`RequestActor`]. Parses messages from Cargo, handles them
+//! and creates the appropriate notifications for the client.
+
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
 use log::warn;
@@ -72,6 +75,8 @@ where
     }
 
     fn handle_diagnostic(&mut self, msg: CompilerMessage) {
+        // Diagnostics in Cargo are identified by root path, however in BSP
+        // they are identified by the BuildTargetId.
         let abs_root_path = match self.root_path.absolutize() {
             Ok(path) => path.to_path_buf(),
             Err(e) => {

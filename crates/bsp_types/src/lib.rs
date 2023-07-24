@@ -1,3 +1,5 @@
+//! Implementation of the [BSP structures](https://build-server-protocol.github.io/docs/specification) in Rust.
+
 pub use basic_bsp_structures::*;
 
 pub mod basic_bsp_structures;

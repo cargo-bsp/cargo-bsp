@@ -1,3 +1,7 @@
+//! CargoResult trait implementation for the Compile/Run/TestResult.
+//! Allows creating the result for the client regardless if its the compile,
+//! run or test request.
+
 use bsp_types::requests::{CompileResult, RunResult, TestResult};
 
 pub trait CargoResult {

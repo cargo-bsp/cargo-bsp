@@ -1,5 +1,6 @@
 //! The main loop responsible for dispatching BSP
-//! requests/replies and notifications back to the client.
+//! requests/responses and notifications back to the client.
+
 use std::time::Instant;
 
 use bsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
@@ -17,6 +18,10 @@ pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
 }
 
+/// Indicates where the message is coming from.
+/// Bsp means it comes from the client and the received request/notification should be handled.
+/// FromThread means it is from one of the handled requests in the server and the received
+/// response/notification should be sent back to the client.
 #[derive(Debug)]
 enum Event {
     Bsp(Message),
@@ -116,7 +121,6 @@ impl GlobalState {
             )
             .on_sync::<bsp_types::requests::Sources>(handlers::handle_sources)
             .on_sync::<bsp_types::requests::Resources>(handlers::handle_resources)
-            .on_sync::<bsp_types::requests::JavaExtensions>(handlers::handle_java_extensions)
             .on_sync::<bsp_types::requests::CleanCache>(handlers::handle_clean_cache)
             .on_sync::<bsp_types::requests::DependencyModules>(handlers::handle_dependency_modules)
             .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)

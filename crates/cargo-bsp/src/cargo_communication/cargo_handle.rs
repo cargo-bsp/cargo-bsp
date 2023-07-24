@@ -1,3 +1,9 @@
+//! Spawns and handles Cargo command.
+//! Wraps around the communication needed to be able to run `cargo build/run/test`
+//! without blocking. Currently the Rust standard library doesn't provide a way to read sub-process
+//! output without blocking, so we have to wrap sub-processes output handling in a thread and pass
+//! messages back over a channel (see [`CargoActor`]).
+
 use std::process::ExitStatus;
 use std::{
     io,

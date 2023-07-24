@@ -1,3 +1,5 @@
+//! Additional functions used within [`CargoCommunication`] and during its testing.
+
 #[cfg(test)]
 use cargo_metadata::{Target, TargetBuilder};
 use log::warn;

@@ -1,3 +1,6 @@
+//! Implementation of a mock client that can read and send messages to the server.
+//! Used in integration tests.
+
 use std::io::prelude::*;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout};

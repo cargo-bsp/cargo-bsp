@@ -1,3 +1,7 @@
+//! Structures for parsing and handling test information from
+//! `cargo +nightly test --show-output -Z unstable-options --format=json`
+//! command.
+
 use serde::{Deserialize, Serialize};
 
 use bsp_types::notifications::{TaskDataWithKind, TestFinishData, TestReportData, TestStatus};

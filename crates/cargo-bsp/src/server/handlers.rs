@@ -1,3 +1,6 @@
+//! Handles the upcoming requests from the client that does not require the
+//! communication with Cargo (such as compile, run or test requests).
+
 use log::warn;
 use std::sync::Arc;
 
@@ -40,6 +43,7 @@ pub(crate) fn handle_sources(
     })
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_resources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::ResourcesParams,
@@ -47,15 +51,7 @@ pub(crate) fn handle_resources(
     Ok(bsp_types::requests::ResourcesResult::default())
 }
 
-// the current version of the client sends a java extension request even though we are not working with java.
-// to be removed once it is fixed in the client
-pub(crate) fn handle_java_extensions(
-    _: GlobalStateSnapshot,
-    _: bsp_types::requests::JavacOptionsParams,
-) -> Result<bsp_types::requests::JavacOptionsResult> {
-    Ok(bsp_types::requests::JavacOptionsResult::default())
-}
-
+// TODO: Not properly handled yet
 pub(crate) fn handle_clean_cache(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::CleanCacheParams,
@@ -63,6 +59,7 @@ pub(crate) fn handle_clean_cache(
     Ok(bsp_types::requests::CleanCacheResult::default())
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_dependency_modules(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::DependencyModulesParams,
@@ -70,6 +67,7 @@ pub(crate) fn handle_dependency_modules(
     Ok(bsp_types::requests::DependencyModulesResult::default())
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_dependency_sources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::DependencySourcesParams,
@@ -77,6 +75,7 @@ pub(crate) fn handle_dependency_sources(
     Ok(bsp_types::requests::DependencySourcesResult::default())
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_inverse_sources(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::InverseSourcesParams,
@@ -84,6 +83,7 @@ pub(crate) fn handle_inverse_sources(
     Ok(bsp_types::requests::InverseSourcesResult::default())
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_output_paths(
     _: GlobalStateSnapshot,
     _: bsp_types::requests::OutputPathsParams,

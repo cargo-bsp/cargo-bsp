@@ -1,3 +1,5 @@
+//! Testing connection with the client - initialize handshake and shutdown request.
+
 use std::process::{Child, Command, Stdio};
 
 use assert_cmd::prelude::*;

@@ -1,3 +1,5 @@
+//! Maps the path into URI.
+
 use std::fmt::Display;
 
 use bsp_types::Uri;
