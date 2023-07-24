@@ -130,16 +130,16 @@ pub(crate) fn handle_cargo_features_state(
 
 pub(crate) fn _handle_rust_toolchain_request(
     state: GlobalStateSnapshot,
-    params: bsp_types::rust_extension::RustToolchainParams,
-) -> Result<bsp_types::rust_extension::RustToolchainResult> {
-    Ok(bsp_types::rust_extension::RustToolchainResult {
+    params: bsp_types::extensions::RustToolchainParams,
+) -> Result<bsp_types::extensions::RustToolchainResult> {
+    Ok(bsp_types::extensions::RustToolchainResult {
         items: get_rust_toolchain_items(state.workspace.deref(), params.targets),
     })
 }
 
 pub(crate) fn _handle_rust_workspace_request(
     _: GlobalStateSnapshot,
-    _params: bsp_types::rust_extension::RustWorkspaceParams,
-) -> Result<bsp_types::rust_extension::RustWorkspaceResult> {
+    _params: bsp_types::extensions::RustWorkspaceParams,
+) -> Result<bsp_types::extensions::RustWorkspaceResult> {
     Ok(Default::default())
 }

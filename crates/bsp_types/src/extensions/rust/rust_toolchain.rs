@@ -33,7 +33,7 @@ pub struct RustToolchainsItem {
 }
 ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
     pub sysroot_path: Uri,
