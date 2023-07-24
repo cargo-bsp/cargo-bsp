@@ -193,8 +193,7 @@ impl CargoPackage {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::tests::create_feature_set_from_slices;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use bsp_types::requests::PackageFeatures;
     use test_case::test_case;
@@ -206,6 +205,10 @@ mod tests {
     const F2: &str = "feature2";
     const F3: &str = "feature3";
     const F4: &str = "feature4";
+
+    fn create_feature_set_from_slices(slices: &[&str]) -> BTreeSet<Feature> {
+        slices.iter().map(|&f| Feature::from(f)).collect()
+    }
 
     fn create_package_features(slice_map: &[(&str, &[&str])]) -> BTreeMap<Feature, Vec<Feature>> {
         slice_map
