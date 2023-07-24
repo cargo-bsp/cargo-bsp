@@ -1,3 +1,5 @@
+//! Testing connection with the client - initialize handshake and shutdown request.
+
 use cargo_bsp::utils::tests::*;
 use serde_json::to_string;
 

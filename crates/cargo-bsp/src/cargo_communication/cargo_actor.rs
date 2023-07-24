@@ -1,3 +1,5 @@
+//! Reads the input from running Cargo command and forwards it to [`CargoHandle`].
+
 use std::{
     io,
     process::{ChildStderr, ChildStdout},

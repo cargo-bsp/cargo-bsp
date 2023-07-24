@@ -1,3 +1,5 @@
+//! Project's configuration, can be changed upon reload request.
+
 use std::env;
 use std::path::PathBuf;
 

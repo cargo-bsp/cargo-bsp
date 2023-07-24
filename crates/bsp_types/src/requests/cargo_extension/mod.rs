@@ -1,3 +1,6 @@
+//! [`CargoExtension`] provides implementation of the BSP structures for Cargo extension
+//! (not yet implemented in BSP).
+
 use serde::{Deserialize, Serialize};
 
 pub use cargo_features_state::*;

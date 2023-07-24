@@ -1,3 +1,5 @@
+//! Handles raw JSON notifications and routes raw JSON requests from the client.
+
 use std::{fmt, panic};
 
 use bsp_server::{ErrorCode, ExtractError, Notification, Request, RequestId, Response};
@@ -18,6 +20,16 @@ pub(crate) struct RequestDispatcher<'a> {
     pub(crate) global_state: &'a mut GlobalState,
 }
 
+/// A visitor for routing a raw JSON request to an appropriate handler function.
+///
+/// Most requests are read-only and are immediately handled on the main loop
+/// thread (`on_sync` method). These are typically requests asking for
+/// information about the project.
+///
+/// Some requests are read-only and require spawning a new Cargo subprocess
+/// (`on_cargo_run` method). These are the compile, run and test requests.
+///
+/// Some requests modify the state (`on_sync_mut` method).
 impl<'a> RequestDispatcher<'a> {
     /// Dispatches the request onto the current thread, given full access to
     /// mutable global state.
@@ -67,6 +79,7 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
+    /// Dispatches a new [`RequestHandle`].
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
@@ -144,7 +157,7 @@ where
     R::Result: Serialize,
 {
     let res = match result {
-        Ok(resp) => bsp_server::Response::new_ok(id, &resp),
+        Ok(resp) => Response::new_ok(id, &resp),
         Err(e) => match e.downcast::<LspError>() {
             Ok(lsp_error) => Response::new_err(id, lsp_error.code, lsp_error.message),
             Err(e) => Response::new_err(id, ErrorCode::InternalError as i32, e.to_string()),
@@ -153,6 +166,7 @@ where
     Ok(res)
 }
 
+/// Handles a raw JSON notification.
 pub(crate) struct NotificationDispatcher<'a> {
     pub(crate) not: Option<Notification>,
     pub(crate) global_state: &'a mut GlobalState,

@@ -1,3 +1,5 @@
+//! Sets the server capabilities for the client.
+
 use bsp_types::requests::{BuildServerCapabilities, CompileProvider, RunProvider, TestProvider};
 
 use crate::server::config::Config;

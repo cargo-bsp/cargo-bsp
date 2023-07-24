@@ -1,3 +1,6 @@
+//! [`Server`] manages the server and communication with the client and routes
+//! some requests to [`CargoCommunication`] and [`ProjectModel`].
+
 use std::fmt;
 
 use serde::de::DeserializeOwned;
@@ -26,13 +29,6 @@ pub fn from_json<T: DeserializeOwned>(what: &'static str, json: &serde_json::Val
 pub struct LspError {
     code: i32,
     message: String,
-}
-
-impl LspError {
-    #[allow(dead_code)]
-    fn new(code: i32, message: String) -> LspError {
-        LspError { code, message }
-    }
 }
 
 impl fmt::Display for LspError {

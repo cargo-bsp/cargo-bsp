@@ -1,3 +1,6 @@
+//! Discovers project's workspace based on `cargo metadata` command.
+//! `ProjectWorkspace` is the main source of project's information.
+
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::rc::Rc;

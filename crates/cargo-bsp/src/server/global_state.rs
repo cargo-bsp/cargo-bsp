@@ -1,3 +1,5 @@
+//! The context or environment in which the server functions.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -14,6 +16,9 @@ use crate::server::config::Config;
 pub(crate) type ReqHandler = fn(&mut GlobalState, Response);
 pub(crate) type ReqQueue = bsp_server::ReqQueue<(String, Instant), ReqHandler>;
 
+/// Stores information about the current state of the project and currently
+/// handled/waiting requests.
+/// Works as a bridge between handlers and main loop.
 pub(crate) struct GlobalState {
     sender: Sender<Message>,
     req_queue: ReqQueue,
@@ -27,7 +32,7 @@ pub(crate) struct GlobalState {
     pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
-/// snapshot of server state for request handlers
+/// Snapshot of server state for request handlers.
 pub(crate) struct GlobalStateSnapshot {
     pub(crate) config: Arc<Config>,
     pub(crate) workspace: Arc<ProjectWorkspace>,
@@ -70,12 +75,6 @@ impl GlobalState {
 
     pub(crate) fn respond(&mut self, response: Response) {
         if let Some((method, start)) = self.req_queue.incoming.complete(response.id.clone()) {
-            if let Some(err) = &response.error {
-                if err.message.starts_with("server panicked") {
-                    // self.poke_rust_analyzer_developer(format!("{}, check the log", err.message))
-                }
-            }
-
             let duration = start.elapsed();
             info!(
                 "handled {} - ({}) in {:0.2?}",

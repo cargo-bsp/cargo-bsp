@@ -1,3 +1,5 @@
+//! Maps Cargo target to the BSP build target.
+
 use std::fmt::Display;
 use std::rc::Rc;
 
