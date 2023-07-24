@@ -1,4 +1,4 @@
-//! Integration tests for Cargo extension of BSP. The test in this module switches te environment,
+//! Integration tests for Cargo extension of BSP. The test in this module changes working directory,
 //! when adding extra tests remember to execute them sequentially.
 
 use bsp_server::Response;
