@@ -18,6 +18,7 @@ const TEST_REQUEST_ID: i32 = 123;
 const TEST_PROJECT_NAME: &str = "tmp_test_project";
 
 mod common;
+
 use common::{spawn_server_with_proper_life_time, Client};
 
 const F: [&str; 6] = ["f0", "f1", "f2", "f3", "f4", "f5"];
@@ -27,14 +28,17 @@ struct FeaturesState {
     available_features: BTreeSet<Feature>,
 }
 
-struct FeatureSlice {
-    name: &'static str,
-    dependencies: &'static [&'static str],
+struct FeatureWithDependencies {
+    name: Feature,
+    dependencies: Vec<Feature>,
 }
 
-impl FeatureSlice {
+impl FeatureWithDependencies {
     pub fn new(name: &'static str, dependencies: &'static [&str]) -> Self {
-        FeatureSlice { name, dependencies }
+        FeatureWithDependencies {
+            name: Feature(name.into()),
+            dependencies: dependencies.iter().map(|&f| Feature(f.into())).collect(),
+        }
     }
 }
 
@@ -73,7 +77,7 @@ fn send_disable_features_request(cl: &mut Client, package_id: &str, features_to_
     cl.send(&to_string(&req).unwrap());
 }
 
-fn overwrite_cargo_toml_with_features(features_slice: &[FeatureSlice]) {
+fn overwrite_cargo_toml_with_features(features_slice: &[FeatureWithDependencies]) {
     const TEST_PROJECT_AUTHOR: &str = "Test Author";
     const TEST_PROJECT_VERSION: &str = "0.0.1";
 
@@ -84,10 +88,10 @@ fn overwrite_cargo_toml_with_features(features_slice: &[FeatureSlice]) {
         .author(TEST_PROJECT_AUTHOR);
 
     for feature_slice in features_slice {
-        let mut f = TomlFeature::new(feature_slice.name);
-        for &dep in feature_slice.dependencies {
-            f.feature(dep);
-        }
+        let mut f = TomlFeature::new(&feature_slice.name.0);
+        feature_slice.dependencies.iter().for_each(|dep| {
+            f.feature(&dep.0);
+        });
         cargo_toml.feature(f.build());
     }
 
@@ -98,7 +102,7 @@ fn overwrite_cargo_toml_with_features(features_slice: &[FeatureSlice]) {
         .unwrap();
 }
 
-fn create_mock_rust_project(features_slice: &[FeatureSlice]) {
+fn create_mock_rust_project(features_slice: &[FeatureWithDependencies]) {
     Command::new(toolchain::cargo())
         .args(["init", ".", "--name", TEST_PROJECT_NAME])
         .output()
@@ -107,7 +111,7 @@ fn create_mock_rust_project(features_slice: &[FeatureSlice]) {
     overwrite_cargo_toml_with_features(features_slice);
 }
 
-fn run_test(features_slice: &[FeatureSlice], test: fn(&mut Client)) {
+fn run_test(features_slice: &[FeatureWithDependencies], test: fn(&mut Client)) {
     let starting_path = current_dir().unwrap();
     let tmp_dir = tempdir().unwrap();
     set_current_dir(tmp_dir.path()).unwrap();
@@ -200,11 +204,11 @@ fn cargo_features_state() {
 
     run_test(
         &[
-            FeatureSlice::new(F[0], &[F[1]]),
-            FeatureSlice::new(F[1], &[F[3], F[2]]),
-            FeatureSlice::new(F[2], &[F[3]]),
-            FeatureSlice::new(F[2], &[F[3]]),
-            FeatureSlice::new(F[3], &[]),
+            FeatureWithDependencies::new(F[0], &[F[1]]),
+            FeatureWithDependencies::new(F[1], &[F[3], F[2]]),
+            FeatureWithDependencies::new(F[2], &[F[3]]),
+            FeatureWithDependencies::new(F[2], &[F[3]]),
+            FeatureWithDependencies::new(F[3], &[]),
         ],
         test_fn,
     );
