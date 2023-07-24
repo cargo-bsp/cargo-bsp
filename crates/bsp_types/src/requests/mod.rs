@@ -19,8 +19,9 @@ pub use shutdown_build::*;
 pub use test::*;
 pub use workspace_build_targets::*;
 
+pub mod cargo_extension;
+
 mod build_target_sources;
-mod cargo_extension;
 mod clean_cache;
 mod compile;
 mod debug;

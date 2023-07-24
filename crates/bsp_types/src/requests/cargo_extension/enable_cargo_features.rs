@@ -1,9 +1,10 @@
 use crate::requests::cargo_extension::Feature;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use crate::requests::Request;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum EnableCargoFeatures {}
 
 impl Request for EnableCargoFeatures {
@@ -16,7 +17,7 @@ impl Request for EnableCargoFeatures {
 #[serde(rename_all = "camelCase")]
 pub struct EnableCargoFeaturesParams {
     pub package_id: String,
-    pub features: Vec<Feature>,
+    pub features: BTreeSet<Feature>,
 }
 
 #[cfg(test)]
@@ -39,7 +40,7 @@ mod tests {
             r#"{"packageId": "package_id", "features":["feature"]}"#,
             &EnableCargoFeaturesParams {
                 package_id: PACKAGE_ID.into(),
-                features: vec![FEATURE.into()],
+                features: BTreeSet::from([FEATURE.into()]),
             },
         );
         test_deserialization(

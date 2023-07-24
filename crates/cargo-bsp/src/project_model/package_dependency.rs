@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use cargo_metadata::{Dependency, Package};
 use log::error;
 
+use bsp_types::requests::Feature;
 use bsp_types::BuildTargetIdentifier;
 
 use crate::utils::uri::file_uri;
@@ -22,7 +23,7 @@ pub struct PackageDependency {
     /// Whether this dependency is optional and needs to be enabled by feature
     pub optional: bool,
     /// Features which are enabled for this dependency
-    pub _features: Vec<String>,
+    pub _features: Vec<Feature>,
     /// Whether this dependency uses the default features
     pub _uses_default_features: bool,
 }
@@ -36,7 +37,11 @@ impl PackageDependency {
                 name: dependency.name.clone(),
                 manifest_path: p.manifest_path.clone().into(),
                 optional: dependency.optional,
-                _features: dependency.features.clone(),
+                _features: dependency
+                    .features
+                    .iter()
+                    .map(|f| Feature(f.clone()))
+                    .collect(),
                 _uses_default_features: dependency.uses_default_features,
             })
             .or_else(|| {

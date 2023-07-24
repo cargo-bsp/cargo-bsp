@@ -1,7 +1,7 @@
 //! Discovers project's workspace based on `cargo metadata` command.
 //! `ProjectWorkspace` is the main source of project's information.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -151,8 +151,8 @@ impl ProjectWorkspace {
     pub fn change_features_state_for_package(
         &mut self,
         package_id: String,
-        features: &[Feature],
-        state_change: fn(&mut CargoPackage, &[Feature]),
+        features: &BTreeSet<Feature>,
+        state_change: fn(&mut CargoPackage, &BTreeSet<Feature>),
     ) {
         let package = self.packages.iter_mut().find(|p| p.id == package_id);
         if let Some(package) = package {
@@ -166,12 +166,20 @@ impl ProjectWorkspace {
     }
 
     /// Enables features for a given package
-    pub fn enable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+    pub fn enable_features_for_package(
+        &mut self,
+        package_id: String,
+        features: &BTreeSet<Feature>,
+    ) {
         self.change_features_state_for_package(package_id, features, CargoPackage::enable_features);
     }
 
     /// Disables features for a given package
-    pub fn disable_features_for_package(&mut self, package_id: String, features: &[Feature]) {
+    pub fn disable_features_for_package(
+        &mut self,
+        package_id: String,
+        features: &BTreeSet<Feature>,
+    ) {
         self.change_features_state_for_package(
             package_id,
             features,
