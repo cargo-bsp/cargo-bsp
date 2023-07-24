@@ -1,6 +1,7 @@
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Uri};
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -12,7 +13,7 @@ impl Request for RustWorkspace {
     const METHOD: &'static str = "buildTarget/rustWorkspace";
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
@@ -58,16 +59,17 @@ pub struct RustTarget {
     pub required_features: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-// todo check serialization
+#[derive(Serialize_repr, Deserialize_repr, Default)]
+#[repr(u8)]
 pub enum RustTargetKind {
     #[default]
-    Bin,
-    Test,
-    Example,
-    Bench,
-    CustomBuild,
-    Unknown,
+    Lib = 1,
+    Bin = 2,
+    Test = 3,
+    Example = 4,
+    Bench = 5,
+    CustomBuild = 6,
+    Unknown = 7,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -130,15 +132,15 @@ pub struct DepKind {
     pub target: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-// todo check serialization
+#[derive(Serialize_repr, Deserialize_repr, Default)]
+#[repr(u8)]
 pub enum DepKindEnum {
-    Unclassified,
-    Stdlib,
+    Unclassified = 1,
+    Stdlib = 2,
     #[default]
-    Normal,
-    Dev,
-    Build,
+    Normal = 3,
+    Dev = 4,
+    Build = 5,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -154,6 +156,7 @@ pub struct RustDependency {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::tests::test_deserialization;
     use insta::assert_json_snapshot;
 
     #[test]
@@ -163,25 +166,13 @@ mod test {
 
     #[test]
     fn rust_workspace_params() {
-        let params = RustWorkspaceParams {
-            targets: vec![BuildTargetIdentifier::default()],
-        };
-
-        assert_json_snapshot!(params, @r###"
-        {
-          "targets": [
-            {
-              "uri": ""
-            }
-          ]
-        }
-        "###);
-
-        assert_json_snapshot!(RustWorkspaceParams::default(), @r###"
-        {
-          "targets": []
-        }
-        "###);
+        test_deserialization(
+            r#"{"targets":[{"uri":""}]}"#,
+            &RustWorkspaceParams {
+                targets: vec![BuildTargetIdentifier::default()],
+            },
+        );
+        test_deserialization(r#"{"targets":[]}"#, &RustWorkspaceParams::default());
     }
 
     #[test]
@@ -279,7 +270,7 @@ mod test {
           "name": "test_name",
           "crateRootUrl": "test_crate_url",
           "packageRootUrl": "test_root_url",
-          "kind": "Bin",
+          "kind": 1,
           "edition": "test_edition",
           "doctest": false,
           "requiredFeatures": [
@@ -293,7 +284,7 @@ mod test {
           "name": "",
           "crateRootUrl": "",
           "packageRootUrl": "",
-          "kind": "Bin"
+          "kind": 1
         }
         "###);
     }
@@ -394,7 +385,7 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": "Bin"
+              "kind": 1
             }
           ],
           "allTargets": [
@@ -402,7 +393,7 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": "Bin"
+              "kind": 1
             }
           ],
           "features": [
@@ -444,14 +435,14 @@ mod test {
 
         assert_json_snapshot!(dep_kind_info, @r###"
         {
-          "kind": "Normal",
+          "kind": 3,
           "target": "test_target"
         }
         "###);
 
         assert_json_snapshot!(DepKind::default(), @r###"
         {
-          "kind": "Normal"
+          "kind": 3
         }
         "###);
     }
@@ -470,7 +461,7 @@ mod test {
           "name": "test_name",
           "depKinds": [
             {
-              "kind": "Normal"
+              "kind": 3
             }
           ]
         }
@@ -481,5 +472,25 @@ mod test {
           "target": ""
         }
         "###);
+    }
+
+    #[test]
+    fn rust_target_kind() {
+        assert_json_snapshot!(RustTargetKind::Lib, @"1");
+        assert_json_snapshot!(RustTargetKind::Bin, @"2");
+        assert_json_snapshot!(RustTargetKind::Test, @"3");
+        assert_json_snapshot!(RustTargetKind::Example, @"4");
+        assert_json_snapshot!(RustTargetKind::Bench, @"5");
+        assert_json_snapshot!(RustTargetKind::CustomBuild, @"6");
+        assert_json_snapshot!(RustTargetKind::Unknown, @"7");
+    }
+
+    #[test]
+    fn rust_dep_kind() {
+        assert_json_snapshot!(DepKindEnum::Unclassified, @"1");
+        assert_json_snapshot!(DepKindEnum::Stdlib, @"2");
+        assert_json_snapshot!(DepKindEnum::Normal, @"3");
+        assert_json_snapshot!(DepKindEnum::Dev, @"4");
+        assert_json_snapshot!(DepKindEnum::Build, @"5");
     }
 }

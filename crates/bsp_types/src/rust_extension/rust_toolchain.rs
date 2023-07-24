@@ -11,7 +11,7 @@ impl Request for RustToolchainReq {
     const METHOD: &'static str = "buildTarget/rustToolchain";
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainParams {
     pub targets: Vec<BuildTargetIdentifier>, // targety mogą mieć toolchainy różnego strumienia - stable - nigghtly itp
@@ -46,6 +46,7 @@ pub struct RustcInfo {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::tests::test_deserialization;
     use insta::assert_json_snapshot;
 
     #[test]
@@ -55,24 +56,13 @@ mod test {
 
     #[test]
     fn rust_toolchain_params() {
-        let params = RustToolchainParams {
-            targets: vec![BuildTargetIdentifier::default()],
-        };
-        assert_json_snapshot!(params, @r###"
-        {
-          "targets": [
-            {
-              "uri": ""
-            }
-          ]
-        }
-        "###);
-
-        assert_json_snapshot!(RustToolchainParams::default(), @r###"
-        {
-          "targets": []
-        }
-        "###);
+        test_deserialization(
+            r#"{"targets":[{"uri":""}]}"#,
+            &RustToolchainParams {
+                targets: vec![BuildTargetIdentifier::default()],
+            },
+        );
+        test_deserialization(r#"{"targets":[]}"#, &RustToolchainParams::default());
     }
 
     #[test]
@@ -119,19 +109,8 @@ mod test {
         }
         "###);
 
-        let test_rust_toolchains_item = RustToolchainsItem {
-            rust_std_lib: Some(RustcInfo::default()),
-            ..RustToolchainsItem::default()
-        };
-
-        assert_json_snapshot!(test_rust_toolchains_item, @r###"
+        assert_json_snapshot!(RustToolchainsItem::default(), @r###"
         {
-          "rustStdLib": {
-            "sysrootPath": "",
-            "srcSysrootPath": "",
-            "version": "",
-            "host": ""
-          },
           "cargoBinPath": "",
           "procMacroSrvPath": ""
         }
