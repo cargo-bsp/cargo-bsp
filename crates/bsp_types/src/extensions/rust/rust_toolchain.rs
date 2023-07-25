@@ -21,12 +21,12 @@ pub struct RustToolchainParams {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    pub items: BTreeSet<RustToolchainsItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
+    pub toolchains: BTreeSet<RustToolchain>, // toolchain  dostępny systemowo, z którego korzysta cargo
 }
 
 #[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct RustToolchainsItem {
+pub struct RustToolchain {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
     pub cargo_bin_path: Uri,
@@ -69,11 +69,11 @@ mod test {
     #[test]
     fn rust_toolchain_result() {
         let result = RustToolchainResult {
-            items: BTreeSet::from([RustToolchainsItem::default()]),
+            toolchains: BTreeSet::from([RustToolchain::default()]),
         };
         assert_json_snapshot!(result, @r###"
         {
-          "items": [
+          "toolchains": [
             {
               "cargoBinPath": "",
               "procMacroSrvPath": ""
@@ -84,14 +84,14 @@ mod test {
 
         assert_json_snapshot!(RustToolchainResult::default(), @r###"
         {
-          "items": []
+          "toolchains": []
         }
         "###);
     }
 
     #[test]
     fn rust_toolchain() {
-        let rust_toolchain = RustToolchainsItem {
+        let rust_toolchain = RustToolchain {
             rust_std_lib: Some(RustcInfo::default()),
             cargo_bin_path: "test_cargo_bin_path".to_string(),
             proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
@@ -110,7 +110,7 @@ mod test {
         }
         "###);
 
-        assert_json_snapshot!(RustToolchainsItem::default(), @r###"
+        assert_json_snapshot!(RustToolchain::default(), @r###"
         {
           "cargoBinPath": "",
           "procMacroSrvPath": ""
