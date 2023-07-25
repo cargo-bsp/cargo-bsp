@@ -7,7 +7,7 @@ use std::{ops::Deref, sync::Arc};
 use bsp_types;
 
 use crate::project_model::sources::get_sources_for_target;
-use crate::project_model::toolchain::get_rust_toolchain_items;
+use crate::project_model::toolchain::get_rust_toolchains;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
 
@@ -133,7 +133,7 @@ pub(crate) fn _handle_rust_toolchain_request(
     params: bsp_types::extensions::RustToolchainParams,
 ) -> Result<bsp_types::extensions::RustToolchainResult> {
     Ok(bsp_types::extensions::RustToolchainResult {
-        items: get_rust_toolchain_items(state.workspace.deref(), params.targets),
+        toolchains: get_rust_toolchains(state.workspace.deref(), params.targets),
     })
 }
 
