@@ -2,6 +2,7 @@
 //! communication with Cargo (such as compile, run or test requests).
 
 use log::warn;
+use std::collections::HashMap;
 use std::{ops::Deref, sync::Arc};
 
 use bsp_types;
@@ -128,7 +129,7 @@ pub(crate) fn handle_cargo_features_state(
 
 // BSP Rust extension handlers
 
-pub(crate) fn _handle_rust_toolchain_request(
+pub(crate) fn handle_rust_toolchain_request(
     state: GlobalStateSnapshot,
     params: bsp_types::extensions::RustToolchainParams,
 ) -> Result<bsp_types::extensions::RustToolchainResult> {
@@ -137,9 +138,17 @@ pub(crate) fn _handle_rust_toolchain_request(
     })
 }
 
-pub(crate) fn _handle_rust_workspace_request(
-    _: GlobalStateSnapshot,
-    _params: bsp_types::extensions::RustWorkspaceParams,
+pub(crate) fn handle_rust_workspace_request(
+    state: GlobalStateSnapshot,
+    params: bsp_types::extensions::RustWorkspaceParams,
 ) -> Result<bsp_types::extensions::RustWorkspaceResult> {
-    Ok(Default::default())
+    // state.workspace.
+    Ok(bsp_types::extensions::RustWorkspaceResult {
+        packages: state
+            .workspace
+            .get_rust_packages_related_to_targets(&params.targets),
+        raw_dependencies: HashMap::new(),
+        dependencies: HashMap::new(),
+        resolved_targets: Vec::new(),
+    })
 }

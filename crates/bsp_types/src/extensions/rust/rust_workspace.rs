@@ -1,5 +1,6 @@
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Uri};
+use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -24,7 +25,10 @@ pub struct RustWorkspaceParams {
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
     pub raw_dependencies: HashMap<String, RustRawDependency>, //suma dependencji pakietów targetów
+    // zdobądź wszystkie pakiety targetów
+    // dostań ich zależności
     pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency
+    // weź każdą zależność i znajdź jej źródło
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -81,6 +85,15 @@ pub enum RustEdition {
     Edition2018 = 2018,
     Edition2021 = 2021,
 }
+impl From<Edition> for RustEdition {
+    fn from(edition: Edition) -> Self {
+        match edition {
+            Edition::E2015 => RustEdition::Edition2015,
+            Edition::E2018 => RustEdition::Edition2018,
+            _ => RustEdition::Edition2021,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -112,12 +125,9 @@ pub struct RustProcMacroArtifact {
 #[serde(rename_all = "camelCase")]
 pub struct RustPackage {
     pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edition: Option<RustEdition>,
+    pub version: String,
+    pub origin: String,
+    pub edition: RustEdition,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     pub targets: Vec<RustTarget>,
@@ -375,9 +385,9 @@ mod test {
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
-            version: Some("test_version".to_string()),
-            origin: Some("test_origin".to_string()),
-            edition: Some(RustEdition::default()),
+            version: "test_version".to_string(),
+            origin: "test_origin".to_string(),
+            edition: RustEdition::default(),
             source: Some("test_source".to_string()),
             targets: vec![RustTarget::default()],
             all_targets: vec![RustTarget::default()],

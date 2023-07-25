@@ -6,11 +6,11 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
-use cargo_metadata::{CargoOpt, Error, MetadataCommand};
+use cargo_metadata::{CargoOpt, Error, MetadataCommand, Package};
 use log::error;
 use unzip_n::unzip_n;
 
-use bsp_types::extensions::{Feature, PackageFeatures};
+use bsp_types::extensions::{Feature, PackageFeatures, RustPackage};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
@@ -25,8 +25,11 @@ unzip_n!(3);
 
 #[derive(Default, Debug, Clone)]
 pub struct ProjectWorkspace {
-    /// List of all packages in a workspace
+    /// List of all packages in a workspace (no external packages)
     pub packages: Vec<CargoPackage>,
+
+    // Structure containing data needed to handle rust extensions requests
+    pub all_packages: Vec<Package>,
 
     /// Map creating an easy access from BuildTargetIdentifier of a target to package name
     pub target_id_to_package_name: TargetIdToPackageName,
@@ -64,6 +67,7 @@ impl ProjectWorkspace {
 
         Ok(ProjectWorkspace {
             packages: bsp_packages,
+            all_packages: metadata.packages,
             target_id_to_package_name,
             target_id_to_target_data,
             src_path_to_target_id,
@@ -185,5 +189,55 @@ impl ProjectWorkspace {
             features,
             CargoPackage::disable_features,
         );
+    }
+
+    //
+    fn map_metadata_package_to_rust_package(metadata_package: Package) -> RustPackage {
+        RustPackage {
+            id: metadata_package.id.clone().to_string(),
+            version: metadata_package.version.to_string(),
+            origin: Default::default(),
+            edition: metadata_package.edition.into(),
+            source: metadata_package.source.map(|s| s.to_string()),
+            targets: Default::default(),
+            all_targets: Default::default(),
+            features: Default::default(),
+            enabled_features: Default::default(),
+            cfg_options: Default::default(),
+            env: Default::default(),
+            out_dir_url: Default::default(),
+            proc_macro_artifact: Default::default(),
+        }
+    }
+
+    /// Part of BSP Rust extension handler
+    /// Returns a list of rust extension packages from which provided targets depend on
+    pub fn get_rust_packages_related_to_targets(
+        &self,
+        targets: &[BuildTargetIdentifier],
+    ) -> Vec<RustPackage> {
+        let target_related_packages_names: Vec<String> = targets
+            .iter()
+            .filter_map(|t| self.get_package_related_to_target(t))
+            .flat_map(|p| {
+                let mut names: Vec<String> =
+                    p.dependencies.iter().map(|d| d.name.clone()).collect();
+                names.push(p.name.clone());
+                names
+            })
+            .collect();
+
+        target_related_packages_names
+            .iter()
+            .map(|n| {
+                let package = self
+                    .all_packages
+                    .iter()
+                    .find(|p| p.name == *n)
+                    .unwrap()
+                    .clone();
+                ProjectWorkspace::map_metadata_package_to_rust_package(package)
+            })
+            .collect()
     }
 }
