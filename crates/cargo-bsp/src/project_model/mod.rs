@@ -7,4 +7,5 @@ pub(crate) mod package_dependency;
 pub(crate) mod project_manifest;
 pub(crate) mod sources;
 pub(crate) mod target_details;
+pub mod toolchain;
 pub mod workspace;
