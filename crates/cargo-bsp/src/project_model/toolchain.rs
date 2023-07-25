@@ -19,33 +19,33 @@ fn get_sysroot() -> Option<String> {
 
 // TODO establishment really based on build target id
 fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> RustcInfo {
-    let sysroot_path: String = get_sysroot()
+    let sysroot_path = get_sysroot()
         .or_else(|| {
             warn!("Failed to obtain rustc sysroot path. Using 'Unknown' instead.");
             Some("Unknown".to_string())
         })
         .unwrap();
 
-    let rustc_version;
-    if let Ok(v) = version() {
-        rustc_version = v.to_string();
+    // TODO check what it is used for and if we can use "Unknown"
+    let version = if let Ok(v) = version() {
+        v.to_string()
     } else {
         warn!("Failed to obtain rustc version. Using 'Unknown' instead.");
-        rustc_version = "Unknown".to_string();
-    }
+        "Unknown".to_string()
+    };
 
-    let host;
-    if let Ok(v) = version_meta() {
-        host = v.host;
+    // TODO check what it is used for and if we can use "Unknown"
+    let host = if let Ok(v) = version_meta() {
+        v.host
     } else {
         warn!("Failed to obtain rustc host. Using 'Unknown' instead.");
-        host = "Unknown".to_string();
-    }
+        "Unknown".to_string()
+    };
 
     RustcInfo {
         src_sysroot_path: sysroot_path.clone().add("/lib/rustlib/src/rust"),
         sysroot_path,
-        version: rustc_version,
+        version,
         host,
     }
 }
@@ -65,8 +65,8 @@ pub fn get_rust_toolchain_items(
             RustToolchainsItem {
                 cargo_bin_path,
                 proc_macro_srv_path: rustc_info
-                    .clone()
                     .sysroot_path
+                    .clone()
                     .add("/libexec/rust-analyzer-proc-macro-srv"),
                 rust_std_lib: Some(rustc_info),
             }
