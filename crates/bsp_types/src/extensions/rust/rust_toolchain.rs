@@ -1,6 +1,7 @@
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Uri};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum RustToolchainReq {}
@@ -20,10 +21,10 @@ pub struct RustToolchainParams {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    pub items: Vec<RustToolchainsItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
+    pub items: BTreeSet<RustToolchainsItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainsItem {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -33,7 +34,7 @@ pub struct RustToolchainsItem {
 }
 ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
     pub sysroot_path: Uri,
@@ -68,7 +69,7 @@ mod test {
     #[test]
     fn rust_toolchain_result() {
         let result = RustToolchainResult {
-            items: vec![RustToolchainsItem::default()],
+            items: BTreeSet::from([RustToolchainsItem::default()]),
         };
         assert_json_snapshot!(result, @r###"
         {

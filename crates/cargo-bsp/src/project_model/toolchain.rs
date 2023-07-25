@@ -3,6 +3,7 @@ use bsp_types::extensions::{RustToolchainsItem, RustcInfo};
 use bsp_types::BuildTargetIdentifier;
 use log::warn;
 use rustc_version::{version, version_meta};
+use std::collections::BTreeSet;
 use std::ops::Add;
 
 fn get_sysroot() -> Option<String> {
@@ -16,6 +17,7 @@ fn get_sysroot() -> Option<String> {
     Some(stdout.trim().to_string())
 }
 
+// TODO establishment really based on build target id
 fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> RustcInfo {
     let sysroot_path: String = get_sysroot()
         .or_else(|| {
@@ -48,15 +50,18 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
     }
 }
 
+// TODO Currently responds with toolchain used in a root of the directory.
+// In the future it should respond with the list of toolchains which are used within the project.
+// This can be done by calling the `rustc --version --verbose` in the directory where each of the targets is located.
 pub fn get_rust_toolchain_items(
     _workspace: &ProjectWorkspace,
     build_target_ids: Vec<BuildTargetIdentifier>,
-) -> Vec<RustToolchainsItem> {
+) -> BTreeSet<RustToolchainsItem> {
     build_target_ids
         .iter()
         .map(|id| {
             let rustc_info = establish_rustc_info_for_target(id);
-            let cargo_bin_path = toolchain::cargo().to_string_lossy().to_string(); //todo
+            let cargo_bin_path = toolchain::cargo().to_string_lossy().to_string();
             RustToolchainsItem {
                 cargo_bin_path,
                 proc_macro_srv_path: rustc_info
