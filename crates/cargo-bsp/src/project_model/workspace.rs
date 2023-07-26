@@ -25,8 +25,11 @@ unzip_n!(3);
 
 #[derive(Default, Debug, Clone)]
 pub struct ProjectWorkspace {
-    /// List of all packages in a workspace
+    /// List of all packages in a workspace (no external packages)
     pub packages: Vec<CargoPackage>,
+
+    // Structure containing data needed to handle rust extensions requests
+    pub all_packages: Vec<cargo_metadata::Package>,
 
     /// Map creating an easy access from BuildTargetIdentifier of a target to package name
     pub target_id_to_package_name: TargetIdToPackageName,
@@ -64,6 +67,7 @@ impl ProjectWorkspace {
 
         Ok(ProjectWorkspace {
             packages: bsp_packages,
+            all_packages: metadata.packages,
             target_id_to_package_name,
             target_id_to_target_data,
             src_path_to_target_id,
@@ -95,7 +99,7 @@ impl ProjectWorkspace {
             .unzip_n()
     }
 
-    fn get_package_related_to_target(
+    pub fn get_package_related_to_target(
         &self,
         target_id: &BuildTargetIdentifier,
     ) -> Option<&CargoPackage> {

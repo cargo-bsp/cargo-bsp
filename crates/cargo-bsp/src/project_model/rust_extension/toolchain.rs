@@ -1,3 +1,6 @@
+//! This file is a part of implementation to handle the BSP Rust extension.
+//! Functions in this file are responsible for preparing the data for RustToolchainRequest response.
+
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{RustToolchain, RustcInfo};
 use bsp_types::BuildTargetIdentifier;

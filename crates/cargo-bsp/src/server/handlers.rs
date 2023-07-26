@@ -2,14 +2,16 @@
 //! communication with Cargo (such as compile, run or test requests).
 
 use log::warn;
+use std::collections::HashMap;
 use std::{ops::Deref, sync::Arc};
 
-use bsp_types;
-
+use crate::project_model::rust_extension::{
+    get_rust_packages_related_to_targets, get_rust_toolchains,
+};
 use crate::project_model::sources::get_sources_for_target;
-use crate::project_model::toolchain::get_rust_toolchains;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
+use bsp_types;
 
 pub(crate) fn handle_workspace_build_targets(
     state: GlobalStateSnapshot,
@@ -128,7 +130,7 @@ pub(crate) fn handle_cargo_features_state(
 
 // BSP Rust extension handlers
 
-pub(crate) fn _handle_rust_toolchain_request(
+pub(crate) fn handle_rust_toolchain(
     state: GlobalStateSnapshot,
     params: bsp_types::extensions::RustToolchainParams,
 ) -> Result<bsp_types::extensions::RustToolchainResult> {
@@ -137,9 +139,14 @@ pub(crate) fn _handle_rust_toolchain_request(
     })
 }
 
-pub(crate) fn _handle_rust_workspace_request(
-    _: GlobalStateSnapshot,
-    _params: bsp_types::extensions::RustWorkspaceParams,
+pub(crate) fn handle_rust_workspace(
+    state: GlobalStateSnapshot,
+    params: bsp_types::extensions::RustWorkspaceParams,
 ) -> Result<bsp_types::extensions::RustWorkspaceResult> {
-    Ok(Default::default())
+    Ok(bsp_types::extensions::RustWorkspaceResult {
+        packages: get_rust_packages_related_to_targets(state.workspace.as_ref(), &params.targets),
+        raw_dependencies: HashMap::new(),
+        dependencies: HashMap::new(),
+        resolved_targets: Vec::new(),
+    })
 }
