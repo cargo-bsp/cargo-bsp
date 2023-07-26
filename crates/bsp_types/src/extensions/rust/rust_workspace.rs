@@ -73,6 +73,16 @@ pub enum RustTargetKind {
     Unknown = 7,
 }
 
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum RustPackageOrigin {
+    Stdlib,
+    #[default]
+    Workspace,
+    Dependency,
+    StdlibDependency,
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Default)]
 #[repr(u16)]
 pub enum RustEdition {
@@ -115,7 +125,7 @@ pub struct RustPackage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin: Option<String>,
+    pub origin: Option<RustPackageOrigin>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edition: Option<RustEdition>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -376,7 +386,7 @@ mod test {
         let package = RustPackage {
             id: "test_id".to_string(),
             version: Some("test_version".to_string()),
-            origin: Some("test_origin".to_string()),
+            origin: Some(RustPackageOrigin::default()),
             edition: Some(RustEdition::default()),
             source: Some("test_source".to_string()),
             targets: vec![RustTarget::default()],
@@ -393,7 +403,7 @@ mod test {
         {
           "id": "test_id",
           "version": "test_version",
-          "origin": "test_origin",
+          "origin": "workspace",
           "edition": 2018,
           "source": "test_source",
           "targets": [
@@ -516,5 +526,13 @@ mod test {
         assert_json_snapshot!(RustEdition::Edition2015, @"2015");
         assert_json_snapshot!(RustEdition::Edition2018, @"2018");
         assert_json_snapshot!(RustEdition::Edition2021, @"2021");
+    }
+
+    #[test]
+    fn rust_package_origin() {
+        assert_json_snapshot!(RustPackageOrigin::Stdlib, @r###""stdlib""###);
+        assert_json_snapshot!(RustPackageOrigin::Workspace, @r###""workspace""###);
+        assert_json_snapshot!(RustPackageOrigin::Dependency, @r###""dependency""###);
+        assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r###""stdlib-dependency""###);
     }
 }
