@@ -23,8 +23,8 @@ pub struct RustWorkspaceParams {
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
-    pub raw_dependencies: HashMap<String, RustRawDependency>, //suma dependencji pakietów targetów
-    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency
+    pub raw_dependencies: HashMap<String, RustRawDependency>, //packace -> RustDependecies //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
+    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej źródło
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -52,10 +52,10 @@ pub struct RustTarget {
     pub crate_root_url: String,
     pub package_root_url: String,
     pub kind: RustTargetKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edition: Option<RustEdition>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub doctest: Option<bool>,
+    // TODO Removed Option type, check
+    pub edition: RustEdition,
+    // TODO Removed Option type, check
+    pub doctest: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_features: Vec<String>,
 }
@@ -122,18 +122,14 @@ pub struct RustProcMacroArtifact {
 #[serde(rename_all = "camelCase")]
 pub struct RustPackage {
     pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin: Option<RustPackageOrigin>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edition: Option<RustEdition>,
+    pub version: String,
+    pub origin: RustPackageOrigin,
+    pub edition: RustEdition,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     pub targets: Vec<RustTarget>,
     pub all_targets: Vec<RustTarget>,
     pub features: Vec<RustFeature>,
-    pub enabled_features: Vec<String>, //?
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
     pub env: HashMap<String, String>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
@@ -211,10 +207,12 @@ mod test {
           "packages": [
             {
               "id": "",
+              "version": "",
+              "origin": "workspace",
+              "edition": 2018,
               "targets": [],
               "allTargets": [],
               "features": [],
-              "enabledFeatures": [],
               "env": {}
             }
           ],
@@ -285,8 +283,8 @@ mod test {
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
             kind: RustTargetKind::default(),
-            edition: Some(RustEdition::default()),
-            doctest: Some(false),
+            edition: RustEdition::default(),
+            doctest: false,
             required_features: vec!["test_feature".to_string()],
         };
 
@@ -309,7 +307,9 @@ mod test {
           "name": "",
           "crateRootUrl": "",
           "packageRootUrl": "",
-          "kind": 1
+          "kind": 1,
+          "edition": 2018,
+          "doctest": false
         }
         "###);
     }
@@ -385,14 +385,13 @@ mod test {
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
-            version: Some("test_version".to_string()),
-            origin: Some(RustPackageOrigin::default()),
-            edition: Some(RustEdition::default()),
+            version: "test_version".to_string(),
+            origin: RustPackageOrigin::default(),
+            edition: RustEdition::default(),
             source: Some("test_source".to_string()),
             targets: vec![RustTarget::default()],
             all_targets: vec![RustTarget::default()],
             features: vec![RustFeature::default()],
-            enabled_features: vec!["feature1".to_string(), "feature2".to_string()],
             cfg_options: Some(RustCfgOptions::default()),
             env: HashMap::from([("key".to_string(), "value".to_string())]),
             out_dir_url: Some("test_out_dir_url".to_string()),
@@ -411,7 +410,9 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": 1
+              "kind": 1,
+              "edition": 2018,
+              "doctest": false
             }
           ],
           "allTargets": [
@@ -419,7 +420,9 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": 1
+              "kind": 1,
+              "edition": 2018,
+              "doctest": false
             }
           ],
           "features": [
@@ -427,10 +430,6 @@ mod test {
               "name": "",
               "dependencies": []
             }
-          ],
-          "enabledFeatures": [
-            "feature1",
-            "feature2"
           ],
           "cfgOptions": {},
           "env": {
@@ -444,10 +443,12 @@ mod test {
         assert_json_snapshot!(RustPackage::default(), @r###"
         {
           "id": "",
+          "version": "",
+          "origin": "workspace",
+          "edition": 2018,
           "targets": [],
           "allTargets": [],
           "features": [],
-          "enabledFeatures": [],
           "env": {}
         }
         "###);
