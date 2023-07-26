@@ -23,11 +23,8 @@ pub struct RustWorkspaceParams {
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
-    pub raw_dependencies: HashMap<String, RustRawDependency>, //suma dependencji pakietów targetów
-    // zdobądź wszystkie pakiety targetów
-    // dostań ich zależności
-    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency
-    // weź każdą zależność i znajdź jej źródło
+    pub raw_dependencies: HashMap<String, RustRawDependency>, //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
+    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej źródło
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -76,6 +73,16 @@ pub enum RustTargetKind {
     Unknown = 7,
 }
 
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum RustPackageOrigin {
+    Stdlib,
+    #[default]
+    Workspace,
+    Dependency,
+    StdlibDependency,
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Default)]
 #[repr(u16)]
 pub enum RustEdition {
@@ -116,7 +123,7 @@ pub struct RustProcMacroArtifact {
 pub struct RustPackage {
     pub id: String,
     pub version: String,
-    pub origin: String,
+    pub origin: RustPackageOrigin,
     pub edition: RustEdition,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
@@ -381,7 +388,7 @@ mod test {
         let package = RustPackage {
             id: "test_id".to_string(),
             version: "test_version".to_string(),
-            origin: "test_origin".to_string(),
+            origin: RustPackageOrigin::default(),
             edition: RustEdition::default(),
             source: Some("test_source".to_string()),
             targets: vec![RustTarget::default()],
@@ -398,7 +405,7 @@ mod test {
         {
           "id": "test_id",
           "version": "test_version",
-          "origin": "test_origin",
+          "origin": "workspace",
           "edition": 2018,
           "source": "test_source",
           "targets": [
@@ -528,5 +535,13 @@ mod test {
         assert_json_snapshot!(RustEdition::Edition2015, @"2015");
         assert_json_snapshot!(RustEdition::Edition2018, @"2018");
         assert_json_snapshot!(RustEdition::Edition2021, @"2021");
+    }
+
+    #[test]
+    fn rust_package_origin() {
+        assert_json_snapshot!(RustPackageOrigin::Stdlib, @r###""stdlib""###);
+        assert_json_snapshot!(RustPackageOrigin::Workspace, @r###""workspace""###);
+        assert_json_snapshot!(RustPackageOrigin::Dependency, @r###""dependency""###);
+        assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r###""stdlib-dependency""###);
     }
 }
