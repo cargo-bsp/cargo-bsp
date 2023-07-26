@@ -6,14 +6,29 @@ use crate::project_model::rust_extension::{
     metadata_edition_to_rust_extension_edition, target::metadata_targets_to_rust_extension_targets,
 };
 use crate::project_model::workspace::ProjectWorkspace;
-use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
+use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin, RustRawDependency};
 use bsp_types::BuildTargetIdentifier;
+use cargo_metadata::{DependencyKind, Package};
 use std::collections::HashMap;
 
-fn resolve_origin(_metadata_package: &cargo_metadata::Package) -> RustPackageOrigin {
+fn dependency_kind_to_string(dependency: DependencyKind) -> Option<String> {
+    match dependency {
+        DependencyKind::Build => Some("build".to_string()),
+        DependencyKind::Development => Some("dev".to_string()),
+        DependencyKind::Normal => None, // Cargo metadata output defaults to Null, when dependency is normal
+        _ => None,
+    }
+}
+
+fn resolve_origin(mut package: RustPackage, workspace: &ProjectWorkspace) -> RustPackage {
     // todo check if it is a workspace package or external lib
-    // todo check if it is a stdlib ord stdlib dep in intelij rust
-    RustPackageOrigin::Workspace
+    // todo check if it is a stdlib ord stdlib dep in InteliJ rust
+    if workspace.is_package_part_of_workspace(&package.id) {
+        package.origin = RustPackageOrigin::Workspace;
+    } else {
+        package.origin = RustPackageOrigin::Dependency;
+    }
+    package
 }
 
 fn metadata_features_to_rust_extension_features(
@@ -28,18 +43,19 @@ fn metadata_features_to_rust_extension_features(
         .collect()
 }
 
-fn metadata_package_to_rust_extension_package(
-    metadata_package: cargo_metadata::Package,
-) -> RustPackage {
+fn metadata_package_to_rust_extension_package(metadata_package: Package) -> RustPackage {
+    let all_targets = metadata_targets_to_rust_extension_targets(metadata_package.targets);
     RustPackage {
         id: metadata_package.id.clone().to_string(),
         version: metadata_package.version.to_string(),
         edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
-        origin: resolve_origin(&(metadata_package.clone())), //todo
+        origin: RustPackageOrigin::Unset, // This field will be resolved later
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
-        targets: metadata_targets_to_rust_extension_targets(metadata_package.targets),
-        all_targets: Default::default(), //todo find out what is it
+        enabled_features: Default::default(), // todo resolve from Cargo metadata -> resolved -> nodes (grouped by packageId) -> features.
+        // In our case targets = all_targets. This field is needed for Bazel //TODO (Check)
+        targets: all_targets.clone(),
+        all_targets,
         //Todo cargoCheck
         cfg_options: Default::default(),
         env: Default::default(),
@@ -72,7 +88,36 @@ pub fn get_rust_packages_related_to_targets(
                 .find(|p| p.name == *n)
                 .unwrap()
                 .clone();
-            metadata_package_to_rust_extension_package(package)
+            let rust_package = metadata_package_to_rust_extension_package(package);
+            resolve_origin(rust_package, workspace)
+        })
+        .collect()
+}
+
+pub fn resolve_raw_dependencies(
+    workspace: &ProjectWorkspace,
+    targets: &[BuildTargetIdentifier],
+) -> HashMap<String, RustRawDependency> {
+    targets
+        .iter()
+        .filter_map(|t| workspace.get_package_related_to_target(t))
+        .flat_map(|p| {
+            p.dependencies
+                .iter()
+                .cloned()
+                .map(|d| {
+                    let rust_raw_dep = RustRawDependency {
+                        name: d.name,
+                        optional: d.optional,
+                        uses_default_features: d.uses_default_features,
+                        features: d.features.into_iter().map(|f| f.0).collect(),
+                        rename: d.rename,
+                        kind: dependency_kind_to_string(d.kind),
+                        target: d.target.map(|p| p.to_string()),
+                    };
+                    (p.id.clone(), rust_raw_dep)
+                })
+                .collect::<Vec<(String, RustRawDependency)>>()
         })
         .collect()
 }
