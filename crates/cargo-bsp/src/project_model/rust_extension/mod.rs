@@ -1,10 +1,10 @@
 //! This module ia an implementation of handling the BSP Rust extension.
 
-mod rust_package;
-mod rust_target;
+mod package;
+mod target;
 mod toolchain;
 
-pub use self::rust_package::get_rust_packages_related_to_targets;
+pub use self::package::get_rust_packages_related_to_targets;
 pub use self::toolchain::get_rust_toolchains;
 
 use bsp_types::extensions::RustEdition;
