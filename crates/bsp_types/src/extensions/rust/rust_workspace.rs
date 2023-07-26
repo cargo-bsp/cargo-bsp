@@ -1,6 +1,5 @@
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Uri};
-use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -56,10 +55,10 @@ pub struct RustTarget {
     pub crate_root_url: String,
     pub package_root_url: String,
     pub kind: RustTargetKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edition: Option<RustEdition>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub doctest: Option<bool>,
+    // TODO Removed Option type, check
+    pub edition: RustEdition,
+    // TODO Removed Option type, check
+    pub doctest: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_features: Vec<String>,
 }
@@ -84,15 +83,6 @@ pub enum RustEdition {
     #[default]
     Edition2018 = 2018,
     Edition2021 = 2021,
-}
-impl From<Edition> for RustEdition {
-    fn from(edition: Edition) -> Self {
-        match edition {
-            Edition::E2015 => RustEdition::Edition2015,
-            Edition::E2018 => RustEdition::Edition2018,
-            _ => RustEdition::Edition2021,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -211,6 +201,9 @@ mod test {
           "packages": [
             {
               "id": "",
+              "version": "",
+              "origin": "",
+              "edition": 2018,
               "targets": [],
               "allTargets": [],
               "features": [],
@@ -285,8 +278,8 @@ mod test {
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
             kind: RustTargetKind::default(),
-            edition: Some(RustEdition::default()),
-            doctest: Some(false),
+            edition: RustEdition::default(),
+            doctest: false,
             required_features: vec!["test_feature".to_string()],
         };
 
@@ -309,7 +302,9 @@ mod test {
           "name": "",
           "crateRootUrl": "",
           "packageRootUrl": "",
-          "kind": 1
+          "kind": 1,
+          "edition": 2018,
+          "doctest": false
         }
         "###);
     }
@@ -411,7 +406,9 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": 1
+              "kind": 1,
+              "edition": 2018,
+              "doctest": false
             }
           ],
           "allTargets": [
@@ -419,7 +416,9 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "packageRootUrl": "",
-              "kind": 1
+              "kind": 1,
+              "edition": 2018,
+              "doctest": false
             }
           ],
           "features": [
@@ -444,6 +443,9 @@ mod test {
         assert_json_snapshot!(RustPackage::default(), @r###"
         {
           "id": "",
+          "version": "",
+          "origin": "",
+          "edition": 2018,
           "targets": [],
           "allTargets": [],
           "features": [],
