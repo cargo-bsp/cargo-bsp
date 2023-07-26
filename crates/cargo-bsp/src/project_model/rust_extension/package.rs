@@ -6,9 +6,15 @@ use crate::project_model::rust_extension::{
     metadata_edition_to_rust_extension_edition, target::metadata_targets_to_rust_extension_targets,
 };
 use crate::project_model::workspace::ProjectWorkspace;
-use bsp_types::extensions::{RustFeature, RustPackage};
+use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
+
+fn resolve_origin(_metadata_package: &cargo_metadata::Package) -> RustPackageOrigin {
+    // todo check if it is a workspace package or external lib
+    // todo check if it is a stdlib ord stdlib dep in intelij rust
+    RustPackageOrigin::Workspace
+}
 
 fn metadata_features_to_rust_extension_features(
     metadata_features: HashMap<String, Vec<String>>,
@@ -29,12 +35,12 @@ fn metadata_package_to_rust_extension_package(
         id: metadata_package.id.clone().to_string(),
         version: metadata_package.version.to_string(),
         edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
+        origin: resolve_origin(&(metadata_package.clone())), //todo
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
         targets: metadata_targets_to_rust_extension_targets(metadata_package.targets),
-        origin: Default::default(),      //todo wait for enum
         all_targets: Default::default(), //todo find out what is it
-
+        //Todo cargoCheck
         cfg_options: Default::default(),
         env: Default::default(),
         out_dir_url: Default::default(),

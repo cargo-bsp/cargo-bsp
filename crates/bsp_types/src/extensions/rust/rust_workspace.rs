@@ -23,8 +23,8 @@ pub struct RustWorkspaceParams {
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>, // obcięcie do tego od czego zależą przesłane targety (od biedy wszystko)
-    pub raw_dependencies: HashMap<String, RustRawDependency>, //packace -> RustDependecies //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
-    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej źródło
+    pub raw_dependencies: HashMap<String, RustRawDependency>, //packaceId -> RustDependecies //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
+    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej cargo_metadata::Package.source
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 

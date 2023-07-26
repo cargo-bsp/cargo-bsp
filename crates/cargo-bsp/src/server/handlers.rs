@@ -147,6 +147,6 @@ pub(crate) fn handle_rust_workspace(
         packages: get_rust_packages_related_to_targets(state.workspace.as_ref(), &params.targets),
         raw_dependencies: HashMap::new(),
         dependencies: HashMap::new(),
-        resolved_targets: Vec::new(),
+        resolved_targets: Vec::new(), //Todo this is for Bazel
     })
 }
