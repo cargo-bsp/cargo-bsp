@@ -209,7 +209,7 @@ mod test {
             {
               "id": "",
               "version": "",
-              "origin": "",
+              "origin": "workspace",
               "edition": 2018,
               "targets": [],
               "allTargets": [],
@@ -451,7 +451,7 @@ mod test {
         {
           "id": "",
           "version": "",
-          "origin": "",
+          "origin": "workspace",
           "edition": 2018,
           "targets": [],
           "allTargets": [],
