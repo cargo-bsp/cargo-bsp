@@ -1,12 +1,16 @@
 //! Represents a dependency of a package.
-//! Fields `_features` and `_uses_default_features` may become handy when implementing
+//! Fields `features` and `uses_default_features` may become handy when implementing
 //! `BuildTargetDependencyModules` request. Optional dependencies of the `PackageDependency` are
 //! included only if specific features for `PackageDependency` are set.
 //! Similarly, disabling default features impact the set of dependencies of the `PackageDependency`.
+//!
+//! Currently fields: `features`, `uses_default_features`, `rename`, `kind` and `target`
+//! are used only to handle the BSP Rust extension.
 
 use std::path::PathBuf;
 
-use cargo_metadata::{Dependency, Package};
+use cargo_metadata::{Dependency, DependencyKind, Package};
+use cargo_platform::Platform;
 use log::error;
 
 use bsp_types::{extensions::Feature, BuildTargetIdentifier};
@@ -22,9 +26,15 @@ pub struct PackageDependency {
     /// Whether this dependency is optional and needs to be enabled by feature
     pub optional: bool,
     /// Features which are enabled for this dependency
-    pub _features: Vec<Feature>,
+    pub features: Vec<Feature>,
     /// Whether this dependency uses the default features
-    pub _uses_default_features: bool,
+    pub uses_default_features: bool,
+    /// Name to which this dependency is renamed when declared in Cargo.toml
+    pub rename: Option<String>,
+    /// The kind of the dependency (normal, build, dev)
+    pub kind: DependencyKind,
+    /// The target platform for the dependency. None if not a target dependency.
+    pub target: Option<Platform>,
 }
 
 impl PackageDependency {
@@ -36,12 +46,15 @@ impl PackageDependency {
                 name: dependency.name.clone(),
                 manifest_path: p.manifest_path.clone().into(),
                 optional: dependency.optional,
-                _features: dependency
+                features: dependency
                     .features
                     .iter()
                     .map(|f| Feature(f.clone()))
                     .collect(),
-                _uses_default_features: dependency.uses_default_features,
+                uses_default_features: dependency.uses_default_features,
+                rename: dependency.rename.clone(),
+                kind: dependency.kind,
+                target: dependency.target.clone(),
             })
             .or_else(|| {
                 error!("Failed to find package with name: {}", dependency.name);

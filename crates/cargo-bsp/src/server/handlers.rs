@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::{ops::Deref, sync::Arc};
 
 use crate::project_model::rust_extension::{
-    get_rust_packages_related_to_targets, get_rust_toolchains,
+    get_rust_packages_related_to_targets, get_rust_toolchains, resolve_raw_dependencies,
 };
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
@@ -145,7 +145,7 @@ pub(crate) fn handle_rust_workspace(
 ) -> Result<bsp_types::extensions::RustWorkspaceResult> {
     Ok(bsp_types::extensions::RustWorkspaceResult {
         packages: get_rust_packages_related_to_targets(state.workspace.as_ref(), &params.targets),
-        raw_dependencies: HashMap::new(),
+        raw_dependencies: resolve_raw_dependencies(state.workspace.as_ref(), &params.targets),
         dependencies: HashMap::new(),
         resolved_targets: Vec::new(), //Todo this is for Bazel
     })

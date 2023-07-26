@@ -190,4 +190,7 @@ impl ProjectWorkspace {
             CargoPackage::disable_features,
         );
     }
+    pub fn is_package_part_of_workspace(&self, package_id: &str) -> bool {
+        self.packages.iter().any(|p| p.id == *package_id)
+    }
 }

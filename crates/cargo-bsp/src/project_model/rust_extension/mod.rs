@@ -4,7 +4,7 @@ mod package;
 mod target;
 mod toolchain;
 
-pub use self::package::get_rust_packages_related_to_targets;
+pub use self::package::{get_rust_packages_related_to_targets, resolve_raw_dependencies};
 pub use self::toolchain::get_rust_toolchains;
 
 use bsp_types::extensions::RustEdition;
