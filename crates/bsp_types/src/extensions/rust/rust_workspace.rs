@@ -23,8 +23,8 @@ pub struct RustWorkspaceParams {
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>,
-    pub raw_dependencies: HashMap<String, RustRawDependency>, //packaceId -> RustDependecies //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
-    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej cargo_metadata::Package.source
+    pub raw_dependencies: HashMap<String, RustRawDependency>,
+    pub dependencies: HashMap<String, RustDependency>,
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -165,9 +165,11 @@ pub enum RustDepKind {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDependency {
-    pub target: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    //TODO changed from optional
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    //TODO changed to optional
+    pub target: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
@@ -231,7 +233,7 @@ mod test {
           },
           "dependencies": {
             "source": {
-              "target": ""
+              "name": ""
             }
           },
           "resolvedTargets": [
@@ -492,15 +494,15 @@ mod test {
     #[test]
     fn rust_dependency() {
         let dependency = RustDependency {
-            target: "test_target".to_string(),
-            name: Some("test_name".to_string()),
+            name: "test_name".to_string(),
+            target: Some("test_target".to_string()),
             dep_kinds: vec![RustDepKindInfo::default()],
         };
 
         assert_json_snapshot!(dependency, @r###"
         {
-          "target": "test_target",
           "name": "test_name",
+          "target": "test_target",
           "depKinds": [
             {
               "kind": 3
@@ -511,7 +513,7 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
-          "target": ""
+          "name": ""
         }
         "###);
     }
