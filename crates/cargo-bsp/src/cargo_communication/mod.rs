@@ -3,6 +3,7 @@
 //! and preparing the appropriate responses for the client based on the given information.
 
 pub(crate) mod cargo_actor;
+mod cargo_check;
 mod cargo_handle;
 mod cargo_messages_handle;
 pub(crate) mod cargo_types;

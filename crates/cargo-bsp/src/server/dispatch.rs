@@ -1,6 +1,6 @@
 //! Handles raw JSON notifications and routes raw JSON requests from the client.
 
-use std::{fmt, panic};
+use std::{fmt, io, panic};
 
 use bsp_server::{ErrorCode, ExtractError, Notification, Request, RequestId, Response};
 use log::warn;
@@ -8,7 +8,9 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use bsp_types;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::{
+    CreateCommand, CreateUnitGraphCommand,
+};
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_handle::RequestHandle;
@@ -79,11 +81,12 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
+    // TODO change name and documentation
     /// Dispatches a new [`RequestHandle`].
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
-        R::Params: CreateCommand + ParamsTarget + Send + fmt::Debug,
+        R::Params: CreateUnitGraphCommand + CreateCommand + ParamsTarget + Send + fmt::Debug,
         R::Result: Serialize + CargoResult,
     {
         let (req, params, _) = match self.parse::<R>() {
@@ -98,18 +101,29 @@ impl<'a> RequestDispatcher<'a> {
             params,
             global_state_snapshot,
         );
-        match request_handle {
-            Ok(request_handle) => {
-                self.global_state.handlers.insert(req.id, request_handle);
-            }
-            Err(e) => {
-                let response =
-                    Response::new_err(req.id, ErrorCode::InternalError as i32, e.to_string());
-                self.global_state.respond(response);
-            }
-        }
+        self.update_handlers(request_handle, req)
+    }
 
-        self
+    // TODO change name
+    pub(crate) fn on_cargo_check_run<R>(&mut self) -> &mut Self
+    where
+        R: bsp_types::requests::Request + 'static,
+        R::Params: CreateCommand + ParamsTarget + Send + fmt::Debug,
+        R::Result: Serialize,
+    {
+        let (req, params, _) = match self.parse::<R>() {
+            Some(it) => it,
+            None => return self,
+        };
+        let sender_to_main = self.global_state.handlers_sender.clone();
+        let global_state_snapshot = self.global_state.snapshot();
+        let request_handle = RequestHandle::spawn_check::<R>(
+            Box::new(move |msg| sender_to_main.send(msg).unwrap()),
+            req.id.clone(),
+            params,
+            global_state_snapshot,
+        );
+        self.update_handlers(request_handle, req)
     }
 
     pub(crate) fn finish(&mut self) {
@@ -147,6 +161,25 @@ impl<'a> RequestDispatcher<'a> {
                 None
             }
         }
+    }
+
+    fn update_handlers(
+        &mut self,
+        request_handle: io::Result<RequestHandle>,
+        req: Request,
+    ) -> &mut Self {
+        match request_handle {
+            Ok(request_handle) => {
+                self.global_state.handlers.insert(req.id, request_handle);
+            }
+            Err(e) => {
+                let response =
+                    Response::new_err(req.id, ErrorCode::InternalError as i32, e.to_string());
+                self.global_state.respond(response);
+            }
+        }
+
+        self
     }
 }
 
