@@ -45,7 +45,10 @@ fn metadata_features_to_rust_extension_features(
 fn metadata_package_to_rust_extension_package(
     metadata_package: cargo_metadata::Package,
 ) -> RustPackage {
-    let all_targets = metadata_targets_to_rust_extension_targets(metadata_package.targets);
+    let all_targets = metadata_targets_to_rust_extension_targets(
+        metadata_package.targets,
+        &metadata_package.manifest_path,
+    );
     RustPackage {
         id: metadata_package.id.clone().to_string(),
         version: metadata_package.version.to_string(),

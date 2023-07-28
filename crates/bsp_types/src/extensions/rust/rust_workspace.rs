@@ -53,7 +53,9 @@ pub struct RustRawDependency {
 #[serde(rename_all = "camelCase")]
 pub struct RustTarget {
     pub name: String,
+    //TODO change name to source_path
     pub crate_root_url: String,
+    //TODO remove this field if possible
     pub package_root_url: String,
     pub kind: RustTargetKind,
     // TODO Added this field
