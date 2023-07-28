@@ -136,6 +136,7 @@ pub struct RustPackage {
     pub enabled_features: Vec<String>, // todo resolve from Cargo metadata -> resolved -> nodes (grouped by packageId) -> features.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
     #[serde(skip_serializing_if = "Option::is_none")]
     pub out_dir_url: Option<String>, // tutaj Null, bo nie mamy pojęcia co to
@@ -217,8 +218,7 @@ mod test {
               "targets": [],
               "allTargets": [],
               "features": [],
-              "enabledFeatures": [],
-              "env": {}
+              "enabledFeatures": []
             }
           ],
           "rawDependencies": {
@@ -462,8 +462,7 @@ mod test {
           "targets": [],
           "allTargets": [],
           "features": [],
-          "enabledFeatures": [],
-          "env": {}
+          "enabledFeatures": []
         }
         "###);
     }

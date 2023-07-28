@@ -13,6 +13,9 @@ use log::warn;
 use serde::Deserialize;
 use serde_json::to_value;
 
+use crate::cargo_communication::cargo_check::build_script_to_package_info::{
+    map_cfg_options, map_env, map_out_dir_url, map_proc_macro_artifact,
+};
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::request_actor::CargoHandler;
 use bsp_types::extensions::RustWorkspaceResult;
@@ -109,9 +112,13 @@ where
         let packages = result
             .packages
             .into_iter()
-            .map(|p| {
-                let _script = build_scripts.get(&PackageId { repr: p.id.clone() });
+            .map(|mut p| {
+                let script = build_scripts.get(&PackageId { repr: p.id.clone() });
                 // TODO get cfgOptions, env, out_dir_url, proc_macro from script (CargoMetadata 429)
+                p.cfg_options = map_cfg_options(script);
+                p.env = map_env(script, p.version.clone());
+                p.out_dir_url = map_out_dir_url(script);
+                p.proc_macro_artifact = map_proc_macro_artifact(script);
                 p
             })
             .collect();
