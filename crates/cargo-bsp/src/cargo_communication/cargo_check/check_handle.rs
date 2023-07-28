@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use std::io;
+use std::io::ErrorKind;
 
 use bsp_server::{Message, RequestId};
-use bsp_types::extensions::RustWorkspaceResult;
 use crossbeam_channel::unbounded;
 
 use crate::cargo_communication::cargo_check::check_actor::CheckActor;
@@ -14,9 +13,7 @@ use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::cargo_communication::utils::targets_ids_to_targets_details;
-use crate::project_model::rust_extension::{
-    get_rust_packages_related_to_targets, resolve_raw_dependencies,
-};
+use crate::project_model::rust_extension::resolve_rust_workspace_result;
 use crate::server::global_state::GlobalStateSnapshot;
 
 impl RequestHandle {
@@ -47,18 +44,12 @@ impl RequestHandle {
             cancel_receiver,
         );
         let build_targets = params.get_targets(&global_state.workspace);
-        let result = RustWorkspaceResult {
-            packages: get_rust_packages_related_to_targets(
-                global_state.workspace.as_ref(),
-                &build_targets,
-            ),
-            raw_dependencies: resolve_raw_dependencies(
-                global_state.workspace.as_ref(),
-                &build_targets,
-            ),
-            dependencies: HashMap::new(),
-            resolved_targets: Vec::new(), //Todo this is for Bazel
-        };
+        let result = resolve_rust_workspace_result(
+            &global_state.workspace,
+            &global_state.config.workspace_manifest,
+            &build_targets,
+        )
+        .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
         let thread = jod_thread::Builder::new().spawn(move || actor.run(result))?;
         Ok(RequestHandle {
             cancel_sender,
