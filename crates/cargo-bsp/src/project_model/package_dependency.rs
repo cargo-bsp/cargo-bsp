@@ -4,7 +4,7 @@
 //! included only if specific features for `PackageDependency` are set.
 //! Similarly, disabling default features impact the set of dependencies of the `PackageDependency`.
 //!
-//! Currently fields: `features`, `uses_default_features`, `rename`, `kind` and `target`
+//! Currently fields: `features`, `uses_default_features`, `rename`, `kind`, `target` and `source`
 //! are used only to handle the BSP Rust extension.
 
 use std::path::PathBuf;
@@ -35,6 +35,8 @@ pub struct PackageDependency {
     pub kind: DependencyKind,
     /// The target platform for the dependency. None if not a target dependency.
     pub target: Option<Platform>,
+    /// The source of dependency
+    pub source: Option<String>,
 }
 
 impl PackageDependency {
@@ -55,6 +57,7 @@ impl PackageDependency {
                 rename: dependency.rename.clone(),
                 kind: dependency.kind,
                 target: dependency.target.clone(),
+                source: dependency.source.clone(),
             })
             .or_else(|| {
                 error!("Failed to find package with name: {}", dependency.name);
