@@ -4,7 +4,7 @@
 use log::warn;
 use std::{ops::Deref, sync::Arc};
 
-use crate::project_model::rust_extension::{get_rust_toolchains, resolve_rust_workspace_result};
+use crate::project_model::rust_extension::get_rust_toolchains;
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
@@ -134,15 +134,4 @@ pub(crate) fn handle_rust_toolchain(
     Ok(bsp_types::extensions::RustToolchainResult {
         toolchains: get_rust_toolchains(state.workspace.deref(), params.targets),
     })
-}
-
-pub(crate) fn handle_rust_workspace(
-    state: GlobalStateSnapshot,
-    params: bsp_types::extensions::RustWorkspaceParams,
-) -> Result<bsp_types::extensions::RustWorkspaceResult> {
-    resolve_rust_workspace_result(
-        state.workspace.deref(),
-        &state.config.workspace_manifest,
-        &params.targets,
-    )
 }
