@@ -312,7 +312,6 @@ pub mod tests {
             target_id_to_package_name,
             target_id_to_target_data,
             src_path_to_target_id,
-            all_packages: vec![],
         }
     }
 

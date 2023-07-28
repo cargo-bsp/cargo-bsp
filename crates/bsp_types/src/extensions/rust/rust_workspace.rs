@@ -19,12 +19,15 @@ pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
+pub type PackageIdToRustRawDependency = HashMap<String, RustRawDependency>;
+pub type PackageSourceToRustDependency = HashMap<String, RustDependency>;
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>,
-    pub raw_dependencies: HashMap<String, RustRawDependency>, //packaceId -> RustDependecies //suma dependencji pakietów targetów (1)zdobądź wszystkie pakiety targetów (2) dostań ich zależności
-    pub dependencies: HashMap<String, RustDependency>, //zmapowane RustRawDependency na RustDependency (1)weź każdą zależność i znajdź jej cargo_metadata::Package.source
+    pub raw_dependencies: PackageIdToRustRawDependency,
+    pub dependencies: PackageSourceToRustDependency,
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -35,6 +38,7 @@ pub struct RustRawDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    //TODO change to Option<RustDependencyKind>??
     pub kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
@@ -52,6 +56,9 @@ pub struct RustTarget {
     pub crate_root_url: String,
     pub package_root_url: String,
     pub kind: RustTargetKind,
+    // TODO Added this field
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub crate_types: Vec<RustCrateType>,
     // TODO Removed Option type, check
     pub edition: RustEdition,
     // TODO Removed Option type, check
@@ -71,6 +78,21 @@ pub enum RustTargetKind {
     Bench = 5,
     CustomBuild = 6,
     Unknown = 7,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum RustCrateType {
+    #[default]
+    Bin,
+    Lib,
+    Rlib,
+    Dylib,
+    Cdylib,
+    Staticlib,
+    #[serde(rename = "proc-macro")]
+    ProcMacro,
+    Other,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -155,7 +177,7 @@ pub struct RustDepKindInfo {
 #[repr(u8)]
 pub enum RustDepKind {
     Unclassified = 1,
-    Stdlib = 2,
+    Stdlib = 2, //TODO this field does not appear in cargo_metadata output
     #[default]
     Normal = 3,
     Dev = 4,
@@ -165,9 +187,10 @@ pub enum RustDepKind {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDependency {
+    //TODO changed from optional
+    pub name: String,
+    //TODO Find out why this field is named TARGET
     pub target: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
@@ -231,6 +254,7 @@ mod test {
           },
           "dependencies": {
             "source": {
+              "name": "",
               "target": ""
             }
           },
@@ -292,6 +316,7 @@ mod test {
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
             kind: RustTargetKind::default(),
+            crate_types: vec![RustCrateType::default()],
             edition: RustEdition::default(),
             doctest: false,
             required_features: vec!["test_feature".to_string()],
@@ -303,6 +328,9 @@ mod test {
           "crateRootUrl": "test_crate_url",
           "packageRootUrl": "test_root_url",
           "kind": 1,
+          "crateTypes": [
+            "bin"
+          ],
           "edition": 2018,
           "doctest": false,
           "requiredFeatures": [
@@ -492,15 +520,15 @@ mod test {
     #[test]
     fn rust_dependency() {
         let dependency = RustDependency {
+            name: "test_name".to_string(),
             target: "test_target".to_string(),
-            name: Some("test_name".to_string()),
             dep_kinds: vec![RustDepKindInfo::default()],
         };
 
         assert_json_snapshot!(dependency, @r###"
         {
-          "target": "test_target",
           "name": "test_name",
+          "target": "test_target",
           "depKinds": [
             {
               "kind": 3
@@ -511,6 +539,7 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
+          "name": "",
           "target": ""
         }
         "###);
@@ -549,5 +578,17 @@ mod test {
         assert_json_snapshot!(RustPackageOrigin::Workspace, @r###""workspace""###);
         assert_json_snapshot!(RustPackageOrigin::Dependency, @r###""dependency""###);
         assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r###""stdlib-dependency""###);
+    }
+
+    #[test]
+    fn rust_crate_type() {
+        assert_json_snapshot!(RustCrateType::Bin, @r###""bin""###);
+        assert_json_snapshot!(RustCrateType::Lib, @r###""lib""###);
+        assert_json_snapshot!(RustCrateType::Rlib, @r###""rlib""###);
+        assert_json_snapshot!(RustCrateType::Dylib, @r###""dylib""###);
+        assert_json_snapshot!(RustCrateType::Cdylib, @r###""cdylib""###);
+        assert_json_snapshot!(RustCrateType::Staticlib, @r###""staticlib""###);
+        assert_json_snapshot!(RustCrateType::ProcMacro, @r###""proc-macro""###);
+        assert_json_snapshot!(RustCrateType::Other, @r###""other""###);
     }
 }

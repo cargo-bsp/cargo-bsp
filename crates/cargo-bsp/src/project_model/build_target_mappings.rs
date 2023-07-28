@@ -65,7 +65,8 @@ fn tags_and_capabilities_from_cargo_kind(
                 capabilities.can_run = false;
             }
             "custom-build" => {
-                todo!("Custom-build target is unsupported by BSP server yet.");
+                //TODO
+                warn!("Found Custom-Build target, which is unsupported by BSP server yet.")
             }
             _ => {
                 warn!("Unknown cargo target kind: {}", kind);
