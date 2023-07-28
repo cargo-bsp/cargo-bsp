@@ -52,6 +52,9 @@ pub struct RustTarget {
     pub crate_root_url: String,
     pub package_root_url: String,
     pub kind: RustTargetKind,
+    // TODO Added this field
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub crate_types: Vec<RustCrateType>,
     // TODO Removed Option type, check
     pub edition: RustEdition,
     // TODO Removed Option type, check
@@ -71,6 +74,21 @@ pub enum RustTargetKind {
     Bench = 5,
     CustomBuild = 6,
     Unknown = 7,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum RustCrateType {
+    #[default]
+    Bin,
+    Lib,
+    Rlib,
+    Dylib,
+    Cdylib,
+    Staticlib,
+    #[serde(rename = "proc-macro")]
+    ProcMacro,
+    Other,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -294,6 +312,7 @@ mod test {
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
             kind: RustTargetKind::default(),
+            crate_types: vec![RustCrateType::default()],
             edition: RustEdition::default(),
             doctest: false,
             required_features: vec!["test_feature".to_string()],
@@ -305,6 +324,9 @@ mod test {
           "crateRootUrl": "test_crate_url",
           "packageRootUrl": "test_root_url",
           "kind": 1,
+          "crateTypes": [
+            "bin"
+          ],
           "edition": 2018,
           "doctest": false,
           "requiredFeatures": [
@@ -551,5 +573,17 @@ mod test {
         assert_json_snapshot!(RustPackageOrigin::Workspace, @r###""workspace""###);
         assert_json_snapshot!(RustPackageOrigin::Dependency, @r###""dependency""###);
         assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r###""stdlib-dependency""###);
+    }
+
+    #[test]
+    fn rust_crate_type() {
+        assert_json_snapshot!(RustCrateType::Bin, @r###""bin""###);
+        assert_json_snapshot!(RustCrateType::Lib, @r###""lib""###);
+        assert_json_snapshot!(RustCrateType::Rlib, @r###""rlib""###);
+        assert_json_snapshot!(RustCrateType::Dylib, @r###""dylib""###);
+        assert_json_snapshot!(RustCrateType::Cdylib, @r###""cdylib""###);
+        assert_json_snapshot!(RustCrateType::Staticlib, @r###""staticlib""###);
+        assert_json_snapshot!(RustCrateType::ProcMacro, @r###""proc-macro""###);
+        assert_json_snapshot!(RustCrateType::Other, @r###""other""###);
     }
 }
