@@ -4,9 +4,7 @@
 use log::warn;
 use std::{ops::Deref, sync::Arc};
 
-use crate::project_model::rust_extension::{
-    get_rust_packages_related_to_targets, get_rust_toolchains, resolve_dependencies,
-};
+use crate::project_model::rust_extension::{get_rust_toolchains, resolve_rust_workspace_result};
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
@@ -142,15 +140,9 @@ pub(crate) fn handle_rust_workspace(
     state: GlobalStateSnapshot,
     params: bsp_types::extensions::RustWorkspaceParams,
 ) -> Result<bsp_types::extensions::RustWorkspaceResult> {
-    let packages = get_rust_packages_related_to_targets(state.workspace.as_ref(), &params.targets);
-
-    let (raw_dependencies, dependencies) =
-        resolve_dependencies(state.workspace.as_ref(), &params.targets);
-
-    Ok(bsp_types::extensions::RustWorkspaceResult {
-        packages,
-        raw_dependencies,
-        dependencies,
-        resolved_targets: Vec::new(), //Todo this is for Bazel
-    })
+    resolve_rust_workspace_result(
+        state.workspace.deref(),
+        &state.config.workspace_manifest,
+        &params.targets,
+    )
 }

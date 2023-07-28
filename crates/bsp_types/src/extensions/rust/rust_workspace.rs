@@ -19,12 +19,15 @@ pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
+pub type PackageIdToRustRawDependency = HashMap<String, RustRawDependency>;
+pub type PackageSourceToRustDependency = HashMap<String, RustDependency>;
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>,
-    pub raw_dependencies: HashMap<String, RustRawDependency>,
-    pub dependencies: HashMap<String, RustDependency>,
+    pub raw_dependencies: PackageIdToRustRawDependency,
+    pub dependencies: PackageSourceToRustDependency,
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
@@ -35,6 +38,7 @@ pub struct RustRawDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    //TODO change to Option<RustDependencyKind>??
     pub kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
@@ -173,7 +177,7 @@ pub struct RustDepKindInfo {
 #[repr(u8)]
 pub enum RustDepKind {
     Unclassified = 1,
-    Stdlib = 2,
+    Stdlib = 2, //TODO this field does not appear in cargo_metadata output
     #[default]
     Normal = 3,
     Dev = 4,
@@ -185,9 +189,8 @@ pub enum RustDepKind {
 pub struct RustDependency {
     //TODO changed from optional
     pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    //TODO changed to optional
-    pub target: Option<String>,
+    //TODO Find out why this field is named TARGET
+    pub target: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
@@ -251,7 +254,8 @@ mod test {
           },
           "dependencies": {
             "source": {
-              "name": ""
+              "name": "",
+              "target": ""
             }
           },
           "resolvedTargets": [
@@ -517,7 +521,7 @@ mod test {
     fn rust_dependency() {
         let dependency = RustDependency {
             name: "test_name".to_string(),
-            target: Some("test_target".to_string()),
+            target: "test_target".to_string(),
             dep_kinds: vec![RustDepKindInfo::default()],
         };
 
@@ -535,7 +539,8 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
-          "name": ""
+          "name": "",
+          "target": ""
         }
         "###);
     }

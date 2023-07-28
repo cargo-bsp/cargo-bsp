@@ -11,7 +11,6 @@ use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
 
 fn resolve_origin(mut package: RustPackage, workspace: &ProjectWorkspace) -> RustPackage {
-    // todo check if it is a workspace package or external lib
     // todo check if it is a stdlib ord stdlib dep in InteliJ rust
     if workspace.is_package_part_of_workspace(&package.id) {
         package.origin = RustPackageOrigin::Workspace;
@@ -59,6 +58,7 @@ fn metadata_package_to_rust_extension_package(
 /// Returns a list of rust extension packages from which provided targets depend on
 pub fn get_rust_packages_related_to_targets(
     workspace: &ProjectWorkspace,
+    metadata: &cargo_metadata::Metadata,
     targets: &[BuildTargetIdentifier],
 ) -> Vec<RustPackage> {
     let target_related_packages_names: Vec<String> = targets
@@ -74,8 +74,8 @@ pub fn get_rust_packages_related_to_targets(
     target_related_packages_names
         .iter()
         .map(|n| {
-            let package = workspace
-                .all_packages
+            let package = metadata
+                .packages
                 .iter()
                 .find(|p| p.name == *n)
                 .unwrap()

@@ -28,9 +28,6 @@ pub struct ProjectWorkspace {
     /// List of all packages in a workspace (no external packages)
     pub packages: Vec<CargoPackage>,
 
-    // Structure containing data needed to handle rust extensions requests
-    pub all_packages: Vec<cargo_metadata::Package>,
-
     /// Map creating an easy access from BuildTargetIdentifier of a target to package name
     pub target_id_to_package_name: TargetIdToPackageName,
 
@@ -49,12 +46,7 @@ impl ProjectWorkspace {
     ///
     /// Skips unit_tests discovery, see: [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
-        // Cargo metadata is called with `--all-features`, so we can get all features because
-        // we want the output to contain all the packages - even those feature-dependent
-        let metadata = MetadataCommand::new()
-            .manifest_path(project_manifest_path)
-            .features(CargoOpt::AllFeatures)
-            .exec()?;
+        let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest_path)?;
 
         let bsp_packages: Vec<CargoPackage> = metadata
             .workspace_packages()
@@ -67,11 +59,21 @@ impl ProjectWorkspace {
 
         Ok(ProjectWorkspace {
             packages: bsp_packages,
-            all_packages: metadata.packages,
             target_id_to_package_name,
             target_id_to_target_data,
             src_path_to_target_id,
         })
+    }
+
+    // Cargo metadata is called with `--all-features`, so we can get all features because
+    // we want the output to contain all the packages - even those feature-dependent
+    pub fn call_cargo_metadata_command(
+        project_manifest_path: &PathBuf,
+    ) -> Result<cargo_metadata::Metadata, Error> {
+        MetadataCommand::new()
+            .manifest_path(project_manifest_path)
+            .features(CargoOpt::AllFeatures)
+            .exec()
     }
 
     fn create_hashmaps(
@@ -192,5 +194,15 @@ impl ProjectWorkspace {
     }
     pub fn is_package_part_of_workspace(&self, package_id: &str) -> bool {
         self.packages.iter().any(|p| p.id == *package_id)
+    }
+
+    pub fn get_packages_related_to_targets(
+        &self,
+        targets: &[BuildTargetIdentifier],
+    ) -> Vec<&CargoPackage> {
+        targets
+            .iter()
+            .filter_map(|t| self.get_package_related_to_target(t))
+            .collect()
     }
 }
