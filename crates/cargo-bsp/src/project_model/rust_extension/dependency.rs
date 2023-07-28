@@ -2,6 +2,7 @@
 //! Functions in this file are used to resolve the dependencies part of the request.
 
 use crate::project_model::package_dependency::PackageDependency;
+use crate::project_model::rust_extension::{find_node, get_nodes_from_metadata};
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{
     PackageIdToRustRawDependency, PackageSourceToRustDependency, RustDepKind, RustDepKindInfo,
@@ -9,7 +10,6 @@ use bsp_types::extensions::{
 };
 use bsp_types::BuildTargetIdentifier;
 use cargo_metadata::DependencyKind;
-use log::warn;
 
 fn metadata_dependency_kind_to_string(metadata_dependency_kind: DependencyKind) -> Option<String> {
     match metadata_dependency_kind {
@@ -89,27 +89,14 @@ pub fn resolve_rust_dependencies(
     metadata: &cargo_metadata::Metadata,
     targets: &[BuildTargetIdentifier],
 ) -> PackageSourceToRustDependency {
-    let nodes = if let Some(resolve) = metadata.resolve.clone() {
-        resolve.nodes
-    } else {
-        warn!("No resolve field in cargo metadata. Returning default value for rust dependencies");
-        return Default::default();
-    };
+    let nodes = get_nodes_from_metadata(metadata);
 
     workspace
         .get_packages_related_to_targets(targets)
         .iter()
         .filter_map(|p| {
             let id = p.id.clone();
-            if let Some(n) = nodes.iter().find(|n| n.id.to_string() == *id) {
-                Some((id, n))
-            } else {
-                warn!(
-                    "No node found in cargo metadata for the {}. Skipping it.",
-                    id
-                );
-                None
-            }
+            find_node(&nodes, &id, "Skipping dependency.").map(|node| (id, node))
         })
         .flat_map(|(id, node)| {
             node.deps
