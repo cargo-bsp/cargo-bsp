@@ -2,6 +2,7 @@
 //! Necessary for getting the list of build targets from the compile/run/test requests.
 
 use crate::project_model::workspace::ProjectWorkspace;
+use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use bsp_types::BuildTargetIdentifier;
 
@@ -32,6 +33,12 @@ impl ParamsTarget for TestParams {
                 .cmp(&workspace.get_target_details(id1))
         });
         targets
+    }
+}
+
+impl ParamsTarget for RustWorkspaceParams {
+    fn get_targets(&self, _: &ProjectWorkspace) -> Vec<BuildTargetIdentifier> {
+        self.targets.clone()
     }
 }
 

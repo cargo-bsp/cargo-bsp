@@ -37,7 +37,7 @@ use log::warn;
 use mockall::*;
 use serde::Deserialize;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -50,7 +50,7 @@ use bsp_types::{BuildTargetIdentifier, StatusCode};
 pub(crate) struct RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand,
+    R::Params: CreateUnitGraphCommand,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -69,7 +69,7 @@ where
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -250,7 +250,7 @@ pub mod tests {
     struct TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateCommand,
+        R::Params: CreateUnitGraphCommand,
         R::Result: CargoResult,
     {
         req_actor: RequestActor<R, MockCargoHandler<CargoMessage>>,
@@ -265,7 +265,7 @@ pub mod tests {
     ) -> TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateCommand + ParamsTarget,
+        R::Params: CreateUnitGraphCommand + ParamsTarget,
         R::Result: CargoResult,
     {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();

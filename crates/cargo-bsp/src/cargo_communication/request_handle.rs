@@ -12,7 +12,9 @@ use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 
 use crate::cargo_communication::cargo_handle::CargoHandle;
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::{
+    CreateCommand, CreateUnitGraphCommand,
+};
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -22,8 +24,8 @@ use crate::cargo_communication::utils::targets_ids_to_targets_details;
 use crate::server::global_state::GlobalStateSnapshot;
 
 pub(crate) struct RequestHandle {
-    cancel_sender: Sender<Event>,
-    _thread: jod_thread::JoinHandle,
+    pub(super) cancel_sender: Sender<Event>,
+    pub(super) _thread: jod_thread::JoinHandle,
 }
 
 impl RequestHandle {
@@ -35,7 +37,7 @@ impl RequestHandle {
     ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
-        R::Params: CreateCommand + ParamsTarget + Send,
+        R::Params: CreateUnitGraphCommand + CreateCommand + ParamsTarget + Send,
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
@@ -72,7 +74,7 @@ impl RequestHandle {
 fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: Command)
 where
     R: Request + 'static,
-    R::Params: CreateCommand + ParamsTarget + Send,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + Send,
     R::Result: CargoResult,
 {
     actor.report_root_task_start();

@@ -7,7 +7,7 @@ use bsp_types::StatusCode;
 use log::warn;
 use serde::Deserialize;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -26,7 +26,7 @@ pub enum UnitGraphStatusCode {
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {

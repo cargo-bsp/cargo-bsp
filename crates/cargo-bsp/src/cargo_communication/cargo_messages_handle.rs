@@ -15,7 +15,7 @@ use bsp_types::notifications::{
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
 use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -32,7 +32,7 @@ use crate::cargo_communication::utils::{generate_random_id, generate_task_id, ge
 impl<R, C> RequestActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {

@@ -47,7 +47,6 @@ fn metadata_package_to_rust_extension_package(
         // In our case targets = all_targets. This field is needed for Bazel //TODO (Check)
         targets: all_targets.clone(),
         all_targets,
-        //Todo cargoCheck
         cfg_options: Default::default(),
         env: Default::default(),
         out_dir_url: Default::default(),

@@ -24,6 +24,7 @@ use std::path::Path;
 
 use crate::project_model::target_details::CargoTargetKind::Lib;
 use crate::project_model::target_details::TargetDetails;
+use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use std::process::Command;
 
@@ -33,19 +34,31 @@ enum CommandType {
     Build,
     Test,
     Run,
+    Check,
 }
 
 const FEATURE_FLAG: &str = "--feature";
 
 pub trait CreateCommand {
-    fn origin_id(&self) -> Option<String>;
-
-    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
-
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
 }
 
+pub trait CreateUnitGraphCommand {
+    fn origin_id(&self) -> Option<String>;
+
+    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
+}
+
 impl CreateCommand for CompileParams {
+    fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
+        let targets_args = targets_details_to_args(targets_details);
+        let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
+        cmd.arg("--").args(self.arguments.clone());
+        cmd
+    }
+}
+
+impl CreateUnitGraphCommand for CompileParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
     }
@@ -54,16 +67,18 @@ impl CreateCommand for CompileParams {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Build, root, targets_args)
     }
+}
 
+impl CreateCommand for RunParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
-        cmd.args(self.arguments.clone());
+        let target_args = targets_details_to_args(targets_details);
+        let mut cmd = create_requested_command(CommandType::Run, root, target_args);
+        cmd.arg("--").args(self.arguments.clone());
         cmd
     }
 }
 
-impl CreateCommand for RunParams {
+impl CreateUnitGraphCommand for RunParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
     }
@@ -72,16 +87,25 @@ impl CreateCommand for RunParams {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Run, root, targets_args)
     }
+}
 
+impl CreateCommand for TestParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let target_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Run, root, target_args);
-        cmd.args(self.arguments.clone());
+        let targets_args = targets_details_to_args(targets_details);
+        let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
+        cmd.args([
+            "--",
+            "--show-output",
+            "-Z",
+            "unstable-options",
+            "--format=json",
+        ])
+        .args(self.arguments.clone());
         cmd
     }
 }
 
-impl CreateCommand for TestParams {
+impl CreateUnitGraphCommand for TestParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
     }
@@ -90,12 +114,19 @@ impl CreateCommand for TestParams {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Test, root, targets_args)
     }
+}
 
+impl CreateCommand for RustWorkspaceParams {
+    // TODO decide whether to use --all-targets or not
+    // `--all-targets` is needed here to compile:
+    //   - build scripts even if a crate doesn't contain library or binary targets
+    //   - dev dependencies during build script evaluation
+    // `--keep-going` is needed here to compile as many proc macro artifacts as possible
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
-        cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
-            .args(self.arguments.clone());
+        let mut cmd = create_requested_command(CommandType::Check, root, targets_args);
+        cmd.args(["--workspace", "-Z", "unstable-options", "--keep-going"]);
+        cmd.env("RUSTC_BOOTSTRAP", "1");
         cmd
     }
 }
@@ -148,12 +179,15 @@ fn create_requested_command(
 ) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
-    if let CommandType::Test = command_type {
-        cmd.arg("+nightly");
+    match command_type {
+        CommandType::Test | CommandType::Check => {
+            cmd.arg("+nightly");
+        }
+        _ => {}
     }
     cmd.arg(command_type.to_string());
     cmd.args(targets_args);
-    cmd.args(["--message-format=json", "--"]);
+    cmd.arg("--message-format=json");
     cmd
 }
 
@@ -180,7 +214,6 @@ mod tests {
     use super::*;
     use crate::project_model::target_details::CargoTargetKind::Bin;
     use bsp_types::extensions::Feature;
-    use bsp_types::requests::{CompileParams, RunParams, TestParams};
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
@@ -317,6 +350,38 @@ mod tests {
             "--format=json",
             "--arg1",
             "--arg2",
+        ]
+        "###);
+        assert_eq!(cwd, Path::new(TEST_ROOT));
+    }
+
+    #[test]
+    fn test_rust_workspace_params_create_command() {
+        let rust_workspace_params = RustWorkspaceParams::default();
+        let cmd = rust_workspace_params
+            .create_requested_command(Path::new(TEST_ROOT), &default_target_details());
+        let args: Vec<&OsStr> = cmd.get_args().collect();
+        let cwd = cmd.get_current_dir().unwrap();
+
+        assert_debug_snapshot!(args, @r###"
+        [
+            "+nightly",
+            "check",
+            "--package",
+            "test_package1",
+            "--bin",
+            "test_bin1",
+            "--package",
+            "test_package2",
+            "--lib",
+            "--feature",
+            "test_feature1",
+            "--no-default-features",
+            "--message-format=json",
+            "--workspace",
+            "-Z",
+            "unstable-options",
+            "--keep-going",
         ]
         "###);
         assert_eq!(cwd, Path::new(TEST_ROOT));
