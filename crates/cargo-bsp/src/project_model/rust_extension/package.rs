@@ -3,21 +3,31 @@
 //! for preparing the data for RustWorkspaceRequest response.
 
 use crate::project_model::rust_extension::{
-    metadata_edition_to_rust_extension_edition, target::metadata_targets_to_rust_extension_targets,
+    find_node, get_nodes_from_metadata, metadata_edition_to_rust_extension_edition,
+    target::metadata_targets_to_rust_extension_targets,
 };
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
 
-fn resolve_origin(mut package: RustPackage, workspace: &ProjectWorkspace) -> RustPackage {
+fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     // todo check if it is a stdlib ord stdlib dep in InteliJ rust
     if workspace.is_package_part_of_workspace(&package.id) {
         package.origin = RustPackageOrigin::Workspace;
     } else {
         package.origin = RustPackageOrigin::Dependency;
     }
-    package
+}
+
+fn resolve_enabled_dependencies(package: &mut RustPackage, nodes: &[cargo_metadata::Node]) {
+    if let Some(n) = find_node(
+        nodes,
+        &package.id,
+        "Proceeding with empty enabled features.",
+    ) {
+        package.enabled_features = n.features.clone()
+    }
 }
 
 fn metadata_features_to_rust_extension_features(
@@ -70,6 +80,8 @@ pub fn get_rust_packages_related_to_targets(
         })
         .collect();
 
+    let nodes = get_nodes_from_metadata(metadata);
+
     target_related_packages_names
         .iter()
         .map(|n| {
@@ -79,8 +91,10 @@ pub fn get_rust_packages_related_to_targets(
                 .find(|p| p.name == *n)
                 .unwrap()
                 .clone();
-            let rust_package = metadata_package_to_rust_extension_package(package);
-            resolve_origin(rust_package, workspace)
+            let mut rust_package = metadata_package_to_rust_extension_package(package);
+            resolve_origin(&mut rust_package, workspace);
+            resolve_enabled_dependencies(&mut rust_package, &nodes);
+            rust_package
         })
         .collect()
 }
