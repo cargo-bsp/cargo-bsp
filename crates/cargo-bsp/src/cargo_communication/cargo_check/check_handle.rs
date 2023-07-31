@@ -13,7 +13,7 @@ use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::cargo_communication::utils::targets_ids_to_targets_details;
-use crate::project_model::rust_extension::resolve_rust_workspace_result;
+use crate::project_model::rust_extension::{get_metadata, resolve_rust_workspace_result};
 use crate::server::global_state::GlobalStateSnapshot;
 
 impl RequestHandle {
@@ -36,21 +36,15 @@ impl RequestHandle {
         let command = params.create_requested_command(root_path, &targets_details);
         let cargo_handle = CargoHandle::spawn(command)?;
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
-        let mut actor: CheckActor<CargoHandle> = CheckActor::new(
-            sender_to_main,
-            req_id,
-            root_path,
-            cargo_handle,
-            cancel_receiver,
-        );
+        let mut actor: CheckActor<CargoHandle> =
+            CheckActor::new(sender_to_main, req_id, cargo_handle, cancel_receiver);
         let build_targets = params.get_targets(&global_state.workspace);
-        let result = resolve_rust_workspace_result(
-            &global_state.workspace,
-            &global_state.config.workspace_manifest,
-            &build_targets,
-        )
-        .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
-        let thread = jod_thread::Builder::new().spawn(move || actor.run(result))?;
+        let metadata = get_metadata(&global_state.config.workspace_manifest)
+            .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
+        let result =
+            resolve_rust_workspace_result(&global_state.workspace, &build_targets, &metadata);
+        let thread =
+            jod_thread::Builder::new().spawn(move || actor.run(result, metadata.packages))?;
         Ok(RequestHandle {
             cancel_sender,
             _thread: thread,

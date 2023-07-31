@@ -135,15 +135,16 @@ pub struct RustCfgOptions {
     pub name_options: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RustProcMacroArtifact {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<Uri>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
-                           // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
-                           // we don't need hash. It is calculated by IntelliJ-Rust
-                           //pub hash: String, // ignore
-}
+// TODO see if hash is calculated by Intellij-rust
+// #[derive(Serialize, Deserialize, Default)]
+// #[serde(rename_all = "camelCase")]
+// pub struct RustProcMacroArtifact {
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     pub path: Option<Uri>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
+//                            // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
+//                            // we don't need hash. It is calculated by IntelliJ-Rust
+//                            //pub hash: String, // ignore
+// }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -162,10 +163,12 @@ pub struct RustPackage {
     pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
+    ///An absolute path which is used as a value of `OUT_DIR` environmental
+    /// variable when compiling current package.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub out_dir_url: Option<String>, // tutaj Null, bo nie mamy pojęcia co to
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proc_macro_artifact: Option<RustProcMacroArtifact>, //?
+    pub proc_macro_artifact: Option<Uri>, //?
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -403,22 +406,23 @@ mod test {
         "###);
     }
 
-    #[test]
-    fn rust_proc_macro_artifact() {
-        let proc_macro_artifact = RustProcMacroArtifact {
-            path: Some("test_path".to_string()),
-        };
-
-        assert_json_snapshot!(proc_macro_artifact, @r###"
-        {
-          "path": "test_path"
-        }
-        "###);
-
-        assert_json_snapshot!(RustProcMacroArtifact::default(), @r###"
-        {}
-        "###);
-    }
+    // TODO delete after checking hash
+    // #[test]
+    // fn rust_proc_macro_artifact() {
+    //     let proc_macro_artifact = RustProcMacroArtifact {
+    //         path: Some("test_path".to_string()),
+    //     };
+    //
+    //     assert_json_snapshot!(proc_macro_artifact, @r###"
+    //     {
+    //       "path": "test_path"
+    //     }
+    //     "###);
+    //
+    //     assert_json_snapshot!(RustProcMacroArtifact::default(), @r###"
+    //     {}
+    //     "###);
+    // }
 
     #[test]
     fn rust_package() {
@@ -435,7 +439,7 @@ mod test {
             cfg_options: Some(RustCfgOptions::default()),
             env: HashMap::from([("key".to_string(), "value".to_string())]),
             out_dir_url: Some("test_out_dir_url".to_string()),
-            proc_macro_artifact: Some(RustProcMacroArtifact::default()),
+            proc_macro_artifact: Some(Uri::default()),
         };
 
         assert_json_snapshot!(package, @r###"
@@ -479,7 +483,7 @@ mod test {
             "key": "value"
           },
           "outDirUrl": "test_out_dir_url",
-          "procMacroArtifact": {}
+          "procMacroArtifact": ""
         }
         "###);
 
