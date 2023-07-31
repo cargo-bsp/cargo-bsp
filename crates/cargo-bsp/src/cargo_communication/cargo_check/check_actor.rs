@@ -1,5 +1,5 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 
 use bsp_server::RequestId;
 use bsp_server::{ErrorCode, Message, Response, ResponseError};
@@ -7,7 +7,7 @@ pub use cargo_metadata::diagnostic::{
     Applicability, Diagnostic, DiagnosticCode, DiagnosticLevel, DiagnosticSpan,
     DiagnosticSpanMacroExpansion,
 };
-use cargo_metadata::{BuildScript, Message as CargoMetadataMessage, PackageId};
+use cargo_metadata::{Artifact, BuildScript, Message as CargoMetadataMessage, Package, PackageId};
 use crossbeam_channel::{never, select, Receiver};
 use log::warn;
 use serde::Deserialize;
@@ -25,12 +25,10 @@ where
     C: CargoHandler<CargoMessage>,
 {
     // sender for notifications and responses to main loop
-    pub(super) sender: Box<dyn Fn(Message) + Send>,
-    pub(super) cargo_handle: Option<C>,
+    sender: Box<dyn Fn(Message) + Send>,
+    cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
-    pub(super) req_id: RequestId,
-    // TODO check if it is needed
-    pub(super) _root_path: PathBuf,
+    req_id: RequestId,
 }
 
 impl<C> CheckActor<C>
@@ -40,7 +38,6 @@ where
     pub fn new(
         sender: Box<dyn Fn(Message) + Send>,
         req_id: RequestId,
-        root_path: &Path,
         cargo_handle: C,
         cancel_receiver: Receiver<Event>,
     ) -> CheckActor<C> {
@@ -49,7 +46,6 @@ where
             cargo_handle: Some(cargo_handle),
             cancel_receiver,
             req_id,
-            _root_path: root_path.to_path_buf(),
         }
     }
 
@@ -64,8 +60,9 @@ where
         }
     }
 
-    pub fn run(&mut self, result: RustWorkspaceResult) {
+    pub fn run(&mut self, result: RustWorkspaceResult, packages: Vec<Package>) {
         let mut build_scripts: HashMap<PackageId, BuildScript> = HashMap::new();
+        let mut compiler_artifacts: HashMap<PackageId, Vec<Artifact>> = HashMap::new();
 
         while let Some(event) = self.next_event() {
             match event {
@@ -74,11 +71,11 @@ where
                     break;
                 }
                 Event::CargoFinish => {
-                    self.finish(build_scripts, result);
+                    self.finish(build_scripts, compiler_artifacts, result, packages);
                     break;
                 }
                 Event::CargoEvent(message) => {
-                    self.handle_message(message, &mut build_scripts);
+                    self.handle_message(message, &mut build_scripts, &mut compiler_artifacts);
                 }
             }
         }
@@ -88,14 +85,28 @@ where
         &mut self,
         message: CargoMessage,
         build_scripts: &mut HashMap<PackageId, BuildScript>,
+        compiler_artifacts: &mut HashMap<PackageId, Vec<Artifact>>,
     ) {
         match message {
             CargoMessage::CargoStdout(msg) => {
                 let mut deserializer = serde_json::Deserializer::from_str(&msg);
                 let message = CargoMetadataMessage::deserialize(&mut deserializer)
                     .unwrap_or(CargoMetadataMessage::TextLine(msg));
-                if let CargoMetadataMessage::BuildScriptExecuted(msg) = message {
-                    build_scripts.insert(msg.package_id.clone(), msg);
+                match message {
+                    CargoMetadataMessage::BuildScriptExecuted(msg) => {
+                        build_scripts.insert(msg.package_id.clone(), msg);
+                    }
+                    CargoMetadataMessage::CompilerArtifact(msg) => {
+                        if let Entry::Vacant(e) = compiler_artifacts.entry(msg.package_id.clone()) {
+                            e.insert(vec![msg]);
+                        } else {
+                            compiler_artifacts
+                                .get_mut(&msg.package_id)
+                                .unwrap()
+                                .push(msg);
+                        }
+                    }
+                    _ => {}
                 }
             }
             CargoMessage::CargoStderr(msg) => {
@@ -107,18 +118,28 @@ where
     fn finish(
         &mut self,
         build_scripts: HashMap<PackageId, BuildScript>,
+        compiler_artifacts: HashMap<PackageId, Vec<Artifact>>,
         mut result: RustWorkspaceResult,
+        packages: Vec<Package>,
     ) {
         let packages = result
             .packages
             .into_iter()
             .map(|mut p| {
-                let script = build_scripts.get(&PackageId { repr: p.id.clone() });
+                let package_id = PackageId { repr: p.id.clone() };
+                let script = build_scripts.get(&package_id);
+                let default_artifacts = &vec![];
+                let artifacts = compiler_artifacts
+                    .get(&package_id)
+                    .unwrap_or(default_artifacts);
+                // We can unwrap, as there would be no RustWorkspaceResult without this package.
+                let package = packages.iter().find(|&p| p.id == package_id).unwrap();
+
                 // TODO get cfgOptions, env, out_dir_url, proc_macro from script (CargoMetadata 429)
                 p.cfg_options = map_cfg_options(script);
-                p.env = map_env(script, p.version.clone());
+                p.env = map_env(script, package);
                 p.out_dir_url = map_out_dir_url(script);
-                p.proc_macro_artifact = map_proc_macro_artifact(script);
+                p.proc_macro_artifact = map_proc_macro_artifact(artifacts);
                 p
             })
             .collect();

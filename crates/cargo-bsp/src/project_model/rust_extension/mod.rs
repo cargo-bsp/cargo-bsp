@@ -16,7 +16,7 @@ use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::Error;
 use bsp_types::extensions::{RustEdition, RustWorkspaceResult};
 use bsp_types::BuildTargetIdentifier;
-use cargo_metadata::{Edition, Node};
+use cargo_metadata::{Edition, Metadata, Node};
 use log::warn;
 
 pub(crate) fn metadata_edition_to_rust_extension_edition(metadata_edition: Edition) -> RustEdition {
@@ -53,21 +53,24 @@ pub(crate) fn get_nodes_from_metadata(metadata: &cargo_metadata::Metadata) -> Ve
     }
 }
 
+pub fn get_metadata(project_manifest: &ProjectManifest) -> Result<Metadata, Error> {
+    let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest.file)?;
+    Ok(metadata)
+}
+
 pub fn resolve_rust_workspace_result(
     workspace: &ProjectWorkspace,
-    project_manifest: &ProjectManifest,
     targets: &[BuildTargetIdentifier],
-) -> Result<RustWorkspaceResult, Error> {
-    let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest.file)?;
-
-    let packages = get_rust_packages_related_to_targets(workspace, &metadata, targets);
+    metadata: &Metadata,
+) -> RustWorkspaceResult {
+    let packages = get_rust_packages_related_to_targets(workspace, metadata, targets);
     let raw_dependencies = resolve_raw_dependencies(workspace, targets);
-    let dependencies = resolve_rust_dependencies(workspace, &metadata, targets);
+    let dependencies = resolve_rust_dependencies(workspace, metadata, targets);
 
-    Ok(RustWorkspaceResult {
+    RustWorkspaceResult {
         packages,
         raw_dependencies,
         dependencies,
         resolved_targets: Vec::new(), //Todo this is for Bazel
-    })
+    }
 }

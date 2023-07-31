@@ -1,7 +1,19 @@
-use bsp_types::extensions::{RustCfgOptions, RustProcMacroArtifact};
-use cargo_metadata::BuildScript;
+use bsp_types::extensions::RustCfgOptions;
+use bsp_types::Uri;
+use cargo_metadata::{Artifact, BuildScript, Package};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+
+const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = [".dll", ".so", ".dylib"];
+const PROC_MACRO: &str = "proc-macro";
+
+#[derive(Default)]
+struct SplitVersion {
+    major: String,
+    minor: String,
+    pre_release: String,
+    patch: String,
+}
 
 pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOptions> {
     script.map(|s| {
@@ -33,39 +45,74 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOpt
     })
 }
 
-pub(super) fn map_env(script: Option<&BuildScript>, _version: String) -> HashMap<String, String> {
-    let env: HashMap<String, String> = HashMap::new();
+fn split_version(version: String) -> SplitVersion {
+    if let Some((major, rest)) = version.split_once('.') {
+        if let Some((minor, rest)) = rest.split_once('.') {
+            let (pre_release, patch) = rest
+                .split_once('-')
+                .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
+                .unwrap_or_default();
+            return SplitVersion {
+                major: major.to_string(),
+                minor: minor.to_string(),
+                pre_release,
+                patch,
+            };
+        }
+    }
+    SplitVersion::default()
+}
+
+pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMap<String, String> {
+    let mut env: HashMap<String, String> = HashMap::new();
     if let Some(s) = script {
-        s.env.iter().for_each(|(_key, _value)| {
-            // let new_value = match key.as_str() {
-            //     // todo get root path
-            //     "CARGO_MANIFEST_DIR" => "a".to_string(),
-            //     "CARGO" => "cargo",
-            //     "CARGO_PKG_VERSION" => version,
-            //     "CARGO_PKG_VERSION_MAJOR" => semver?.major?.toString().orEmpty(),
-            //     "CARGO_PKG_VERSION_MINOR" => semver?.minor?.toString().orEmpty(),
-            //     "CARGO_PKG_VERSION_PATCH" => semver?.patch?.toString().orEmpty(),
-            //     "CARGO_PKG_VERSION_PRE" => semver?.preRelease.orEmpty(),
-            //     "CARGO_PKG_AUTHORS" => authors.joinToString(separator = ";"),
-            //     "CARGO_PKG_NAME" => name,
-            //     "CARGO_PKG_DESCRIPTION" => description.orEmpty(),
-            //     "CARGO_PKG_REPOSITORY" => repository.orEmpty(),
-            //     "CARGO_PKG_LICENSE" => license.orEmpty(),
-            //     "CARGO_PKG_LICENSE_FILE" => license_file.orEmpty(),
-            //     "CARGO_CRATE_NAME" => name.replace('-', '_'),
-            //     _ => String::default(),
-            // };
-        })
+        let split_version = split_version(package.version.to_string());
+        env = s
+            .env
+            .iter()
+            .map(|(key, _)| {
+                let new_value = match key.as_str() {
+                    "CARGO_MANIFEST_DIR" => package
+                        .manifest_path
+                        .parent()
+                        .map(|p| p.to_string())
+                        .unwrap_or_default(),
+                    "CARGO" => "cargo".to_string(),
+                    "CARGO_PKG_VERSION" => package.version.to_string(),
+                    "CARGO_PKG_VERSION_MAJOR" => split_version.major.clone(),
+                    "CARGO_PKG_VERSION_MINOR" => split_version.minor.clone(),
+                    "CARGO_PKG_VERSION_PATCH" => split_version.patch.clone(),
+                    "CARGO_PKG_VERSION_PRE" => split_version.pre_release.clone(),
+                    "CARGO_PKG_AUTHORS" => package.authors.join(";"),
+                    "CARGO_PKG_NAME" => package.name.clone(),
+                    "CARGO_PKG_DESCRIPTION" => package.description.clone().unwrap_or_default(),
+                    "CARGO_PKG_REPOSITORY" => package.repository.clone().unwrap_or_default(),
+                    "CARGO_PKG_LICENSE" => package.license.clone().unwrap_or_default(),
+                    "CARGO_PKG_LICENSE_FILE" => {
+                        package.license_file.clone().unwrap_or_default().to_string()
+                    }
+                    "CARGO_CRATE_NAME" => package.name.replace('-', "_"),
+                    _ => String::default(),
+                };
+                (key.clone(), new_value)
+            })
+            .collect::<HashMap<String, String>>();
     }
     env
 }
 
-pub(super) fn map_out_dir_url(_script: Option<&BuildScript>) -> Option<String> {
-    None
+pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<String> {
+    script.map(|s| s.out_dir.to_string())
 }
 
-pub(super) fn map_proc_macro_artifact(
-    _script: Option<&BuildScript>,
-) -> Option<RustProcMacroArtifact> {
-    None
+pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<Uri> {
+    artifacts
+        .iter()
+        .filter(|a| {
+            a.target.kind.contains(&PROC_MACRO.to_string())
+                && a.target.crate_types.contains(&PROC_MACRO.to_string())
+        })
+        .flat_map(|a| a.filenames.clone())
+        .find(|f| DYNAMIC_LIBRARY_EXTENSIONS.iter().any(|&e| f.ends_with(e)))
+        .map(|f| f.to_string())
 }
