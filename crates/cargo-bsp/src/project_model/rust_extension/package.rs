@@ -20,7 +20,7 @@ fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     }
 }
 
-fn resolve_enabled_dependencies(package: &mut RustPackage, nodes: &[cargo_metadata::Node]) {
+fn resolve_enabled_features(package: &mut RustPackage, nodes: &[cargo_metadata::Node]) {
     if let Some(n) = find_node(
         nodes,
         &package.id,
@@ -56,14 +56,11 @@ fn metadata_package_to_rust_extension_package(
         origin: RustPackageOrigin::Unset, // This field will be resolved later
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
-        enabled_features: Default::default(), // todo resolve from Cargo metadata -> resolved -> nodes (grouped by packageId) -> features.
         // In our case targets = all_targets. This field is needed for Bazel //TODO (Check)
         targets: all_targets.clone(),
         all_targets,
-        cfg_options: Default::default(),
-        env: Default::default(),
-        out_dir_url: Default::default(),
-        proc_macro_artifact: Default::default(),
+        // The rest of the fields is resolved later
+        ..RustPackage::default()
     }
 }
 
@@ -96,7 +93,7 @@ pub fn get_rust_packages_related_to_targets(
                 .clone();
             let mut rust_package = metadata_package_to_rust_extension_package(package);
             resolve_origin(&mut rust_package, workspace);
-            resolve_enabled_dependencies(&mut rust_package, &nodes);
+            resolve_enabled_features(&mut rust_package, &nodes);
             rust_package
         })
         .collect()
