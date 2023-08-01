@@ -158,7 +158,7 @@ pub struct RustPackage {
     pub targets: Vec<RustTarget>,
     pub all_targets: Vec<RustTarget>,
     pub features: Vec<RustFeature>,
-    pub enabled_features: Vec<String>, // todo resolve from Cargo metadata -> resolved -> nodes (grouped by packageId) -> features.
+    pub enabled_features: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
     #[serde(skip_serializing_if = "HashMap::is_empty")]
@@ -166,9 +166,9 @@ pub struct RustPackage {
     ///An absolute path which is used as a value of `OUT_DIR` environmental
     /// variable when compiling current package.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub out_dir_url: Option<String>, // tutaj Null, bo nie mamy pojęcia co to
+    pub out_dir_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proc_macro_artifact: Option<Uri>, //?
+    pub proc_macro_artifact: Option<Uri>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
