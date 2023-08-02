@@ -5,7 +5,7 @@ use crate::project_model::package_dependency::PackageDependency;
 use crate::project_model::rust_extension::{find_node, get_nodes_from_metadata};
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{
-    PackageIdToRustRawDependency, PackageSourceToRustDependency, RustDepKind, RustDepKindInfo,
+    PackageIdToRustDependency, PackageIdToRustRawDependency, RustDepKind, RustDepKindInfo,
     RustDependency, RustRawDependency,
 };
 use bsp_types::BuildTargetIdentifier;
@@ -61,8 +61,8 @@ fn metadata_dep_kinds_info_to_rust_dep_kinds_info(
 
 fn metadata_node_dep_to_rust_dependency(node_dep: &cargo_metadata::NodeDep) -> RustDependency {
     RustDependency {
-        name: node_dep.name.clone(),
-        target: node_dep.pkg.to_string(),
+        name: Some(node_dep.name.clone()),
+        pkg: node_dep.pkg.to_string(),
         dep_kinds: metadata_dep_kinds_info_to_rust_dep_kinds_info(&node_dep.dep_kinds),
     }
 }
@@ -88,7 +88,7 @@ pub fn resolve_rust_dependencies(
     workspace: &ProjectWorkspace,
     metadata: &cargo_metadata::Metadata,
     targets: &[BuildTargetIdentifier],
-) -> PackageSourceToRustDependency {
+) -> PackageIdToRustDependency {
     let nodes = get_nodes_from_metadata(metadata);
 
     workspace

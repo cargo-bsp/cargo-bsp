@@ -16,55 +16,74 @@ impl Request for RustWorkspace {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceParams {
+    /** A sequence of build targets for workspace resolution. */
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
 pub type PackageIdToRustRawDependency = HashMap<String, RustRawDependency>;
-pub type PackageSourceToRustDependency = HashMap<String, RustDependency>;
+pub type PackageIdToRustDependency = HashMap<String, RustDependency>;
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustWorkspaceResult {
+    /** Packages of given targets. */
     pub packages: Vec<RustPackage>,
+    /** Dependencies as listed in the package `Cargo.toml`,
+    without package resolution or any additional data. */
     pub raw_dependencies: PackageIdToRustRawDependency,
-    pub dependencies: PackageSourceToRustDependency,
+    /** Resolved dependencies of the package. Handles renamed dependencies. */
+    pub dependencies: PackageIdToRustDependency,
+    /** A sequence of build targets taken into consideration during build process. */
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustRawDependency {
+    /** The name of the dependency. */
     pub name: String,
+    /** Name to which this dependency is renamed when declared in Cargo.toml. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
+    /** The dependency kind. "dev", "build", or null for a normal dependency. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    //TODO change to Option<RustDependencyKind>??
     pub kind: Option<String>,
+    /** The target platform for the dependency. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
-    // TODO Removed Option type, check
+    /** Indicates whether this is an optional dependency. */
     pub optional: bool,
-    // TODO Removed Option type, check
+    /** Indicates whether default features are enabled. */
     pub uses_default_features: bool,
+    /** A sequence of enabled features. **/
     pub features: Vec<String>,
 }
 
+/** This structure is embedded in the `data?: BuildTargetData` field, when the
+`dataKind` field contains "rust". */
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RustTarget {
+pub struct RustBuildTarget {
+    /** The name of the target. */
     pub name: String,
-    //TODO change name to source_path
+    /** Path to the root module of the crate. */
+    // TODO see if src_path from metadata doesn't need some path resolving
     pub crate_root_url: String,
+    /** Url of the root of the target's package. */
     //TODO remove this field if possible
     pub package_root_url: String,
+    /** A target's kind. */
     pub kind: RustTargetKind,
-    // TODO Added this field
+    /** Type of output that is produced by a crate during the build process.
+    The crate type determines how the source code is compiled. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub crate_types: Vec<RustCrateType>,
-    // TODO Removed Option type, check
+    /** The Rust edition of the target. */
     pub edition: RustEdition,
-    // TODO Removed Option type, check
+    /** Whether or not this target has doc tests enabled, and
+    the target is compatible with doc testing. */
     pub doctest: bool,
+    /** A sequence of required features. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_features: Vec<String>,
 }
@@ -72,42 +91,50 @@ pub struct RustTarget {
 #[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
 pub enum RustTargetKind {
+    /** For lib targets. */
     #[default]
     Lib = 1,
+    /** For binaries. */
     Bin = 2,
+    /** For integration tests. */
     Test = 3,
+    /** For examples. */
     Example = 4,
+    /** For benchmarks. */
     Bench = 5,
+    /** For build scripts. */
     CustomBuild = 6,
+    /** For unknown targets. */
     Unknown = 7,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[serde(rename_all = "lowercase")]
+/** Crate types (`lib`, `rlib`, `dylib`, `cdylib`, `staticlib`) are listed for
+`lib` and `example` target kinds. For other target kinds `bin` crate type is listed. */
+#[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
+#[repr(u8)]
 pub enum RustCrateType {
+    Bin = 1,
     #[default]
-    Bin,
-    Lib,
-    Rlib,
-    Dylib,
-    Cdylib,
-    Staticlib,
-    #[serde(rename = "proc-macro")]
-    ProcMacro,
-    Other,
+    Lib = 2,
+    Rlib = 3,
+    Dylib = 4,
+    Cdylib = 5,
+    Staticlib = 6,
+    ProcMacro = 7,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum RustPackageOrigin {
+    /** The package comes from the standard library. */
     Stdlib,
+    /** The package is a part of our workspace. */
     #[default]
     Workspace,
+    /** External dependency of [WORKSPACE] or other [DEPENDENCY] package. */
     Dependency,
+    /** External dependency of [STDLIB] or other [STDLIB_DEPENDENCY] package. */
     StdlibDependency,
-    #[serde(skip_serializing)]
-    // Not part of the protocol, used internally to mark that origin is not set
-    Unset,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
@@ -122,51 +149,77 @@ pub enum RustEdition {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustFeature {
+    /** Name of the feature. */
     pub name: String,
+    /** Feature's dependencies. */
     pub dependencies: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustCfgOptions {
+    /** `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
+    The `cfg` is split by '=' delimiter and the first half becomes key and
+    the second is aggregated to the value in `keyValueOptions`. */
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub key_value_options: HashMap<String, Vec<String>>,
+    /** A sequence of first halves after splitting `cfgs` by '='. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub name_options: Vec<String>,
 }
 
-// TODO see if hash is calculated by Intellij-rust
-// #[derive(Serialize, Deserialize, Default)]
-// #[serde(rename_all = "camelCase")]
-// pub struct RustProcMacroArtifact {
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub path: Option<Uri>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
-//                            // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
-//                            // we don't need hash. It is calculated by IntelliJ-Rust
-//                            //pub hash: String, // ignore
-// }
+/** A `crate` is the smallest amount of code that the Rust compiler considers at a time.
+It can come in one of two forms: a binary crate or a library crate.
+`Binary crates` are programs you can compile to an executable that you can run,
+such as a command-line program or a server.
+Each must have a function called main that defines what happens when the executable runs.
+`Library crates` don’t have a main function, and they don’t compile to an executable.
+Instead, they define functionality intended to be shared with multiple projects.
 
+A `package` is a bundle of one or more crates that provides a set of functionality.
+It contains a Cargo.toml file that describes how to build those crates.
+A package can contain many binary crates, but at most only one library crate.
+However, it must contain at least one crate, whether that’s a library or binary crate. */
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustPackage {
+    /** The package’s unique identifier. */
     pub id: String,
+    /** The version of the package. */
     pub version: String,
+    /** Defines a reason a package is in a project. */
     pub origin: RustPackageOrigin,
+    /** Code edition of the package. */
     pub edition: RustEdition,
+    /** The source ID of the dependency, `null` for the root package and path dependencies. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    pub targets: Vec<RustTarget>,
-    pub all_targets: Vec<RustTarget>,
+    /** Correspond to source files which can be compiled into a crate from this package.
+    Contains only resolved targets without conflicts. */
+    pub targets: Vec<RustBuildTarget>,
+    /** Same as `targets`, but contains all targets from this package.
+    `targets` should be the subset of `allTargets`. */
+    pub all_targets: Vec<RustBuildTarget>,
+    /** Set of features defined for the package (including optional dependencies).
+    Each feature maps to an array of features or dependencies it enables.
+    The entry named "default" defines which features are enabled by default. */
     pub features: Vec<RustFeature>,
+    /** Array of features enabled on this package. */
     pub enabled_features: Vec<String>,
+    /** Conditional compilation flags that can be set based on certain conditions.
+    They can be used to enable or disable certain sections of code during the build process. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cfg_options: Option<RustCfgOptions>, //Null or check where it comes from in current plugin implementaion
+    pub cfg_options: Option<RustCfgOptions>,
+    /** Environment variables for the package. */
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub env: HashMap<String, String>, //? to co ma plugin: https://github.com/intellij-rust/intellij-rust/blob/d99a5fcd5de6dd4bd81d18d67e0c6718e7612127/src/main/kotlin/org/rust/cargo/toolchain/impl/CargoMetadata.kt#L438 to co wysyła ZPP: https://github.com/ZPP-This-is-fine/bazel-bsp/blob/712e005abcd9d3f0a02a2d2001d486f2c728559e/server/src/main/java/org/jetbrains/bsp/bazel/server/sync/languages/rust/RustWorkspaceResolver.kt#L155
-    ///An absolute path which is used as a value of `OUT_DIR` environmental
-    /// variable when compiling current package.
+    pub env: HashMap<String, String>,
+    /** An absolute path which is used as a value of `OUT_DIR` environmental
+    variable when compiling current package. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub out_dir_url: Option<String>,
+    /** File path to compiled output of a procedural macro crate.
+    Procedural macros are macros that generate code at compile time.
+    Contains files with file extensions: `.dll`, `.so` or `.dylib`. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proc_macro_artifact: Option<Uri>,
 }
@@ -174,7 +227,9 @@ pub struct RustPackage {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDepKindInfo {
+    /** The dependency kind. */
     pub kind: RustDepKind,
+    /** The target platform for the dependency. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 }
@@ -182,21 +237,27 @@ pub struct RustDepKindInfo {
 #[derive(Serialize_repr, Deserialize_repr, Default)]
 #[repr(u8)]
 pub enum RustDepKind {
+    /** For old Cargo versions prior to `1.41.0`. */
     Unclassified = 1,
-    Stdlib = 2, //TODO this field does not appear in cargo_metadata output
+    /** For [dependencies]. */
     #[default]
-    Normal = 3,
-    Dev = 4,
-    Build = 5,
+    Normal = 2,
+    /** For [dev-dependencies]. */
+    Dev = 3,
+    /** For [build-dependencies]. */
+    Build = 4,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDependency {
-    //TODO changed from optional
-    pub name: String,
-    //TODO Find out why this field is named TARGET
-    pub target: String,
+    /** The Package ID of the dependency. */
+    pub pkg: String,
+    /** The name of the dependency's library target.
+    If this is a renamed dependency, this is the new name. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /** Array of dependency kinds. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
@@ -231,7 +292,7 @@ mod test {
                 "package_id".to_string(),
                 RustRawDependency::default(),
             )]),
-            dependencies: HashMap::from([("source".to_string(), RustDependency::default())]),
+            dependencies: HashMap::from([("package_id".to_string(), RustDependency::default())]),
             resolved_targets: vec![BuildTargetIdentifier::default()],
         };
 
@@ -258,9 +319,8 @@ mod test {
             }
           },
           "dependencies": {
-            "source": {
-              "name": "",
-              "target": ""
+            "package_id": {
+              "pkg": ""
             }
           },
           "resolvedTargets": [
@@ -316,7 +376,7 @@ mod test {
 
     #[test]
     fn rust_target() {
-        let target = RustTarget {
+        let target = RustBuildTarget {
             name: "test_name".to_string(),
             crate_root_url: "test_crate_url".to_string(),
             package_root_url: "test_root_url".to_string(),
@@ -334,7 +394,7 @@ mod test {
           "packageRootUrl": "test_root_url",
           "kind": 1,
           "crateTypes": [
-            "bin"
+            2
           ],
           "edition": 2018,
           "doctest": false,
@@ -344,7 +404,7 @@ mod test {
         }
         "###);
 
-        assert_json_snapshot!(RustTarget::default(), @r###"
+        assert_json_snapshot!(RustBuildTarget::default(), @r###"
         {
           "name": "",
           "crateRootUrl": "",
@@ -406,24 +466,6 @@ mod test {
         "###);
     }
 
-    // TODO delete after checking hash
-    // #[test]
-    // fn rust_proc_macro_artifact() {
-    //     let proc_macro_artifact = RustProcMacroArtifact {
-    //         path: Some("test_path".to_string()),
-    //     };
-    //
-    //     assert_json_snapshot!(proc_macro_artifact, @r###"
-    //     {
-    //       "path": "test_path"
-    //     }
-    //     "###);
-    //
-    //     assert_json_snapshot!(RustProcMacroArtifact::default(), @r###"
-    //     {}
-    //     "###);
-    // }
-
     #[test]
     fn rust_package() {
         let package = RustPackage {
@@ -432,8 +474,8 @@ mod test {
             origin: RustPackageOrigin::default(),
             edition: RustEdition::default(),
             source: Some("test_source".to_string()),
-            targets: vec![RustTarget::default()],
-            all_targets: vec![RustTarget::default()],
+            targets: vec![RustBuildTarget::default()],
+            all_targets: vec![RustBuildTarget::default()],
             features: vec![RustFeature::default()],
             enabled_features: vec!["test_feature".to_string()],
             cfg_options: Some(RustCfgOptions::default()),
@@ -510,14 +552,14 @@ mod test {
 
         assert_json_snapshot!(dep_kind_info, @r###"
         {
-          "kind": 3,
+          "kind": 2,
           "target": "test_target"
         }
         "###);
 
         assert_json_snapshot!(RustDepKindInfo::default(), @r###"
         {
-          "kind": 3
+          "kind": 2
         }
         "###);
     }
@@ -525,18 +567,18 @@ mod test {
     #[test]
     fn rust_dependency() {
         let dependency = RustDependency {
-            name: "test_name".to_string(),
-            target: "test_target".to_string(),
+            name: Some("test_name".to_string()),
+            pkg: "test_target".to_string(),
             dep_kinds: vec![RustDepKindInfo::default()],
         };
 
         assert_json_snapshot!(dependency, @r###"
         {
+          "pkg": "test_target",
           "name": "test_name",
-          "target": "test_target",
           "depKinds": [
             {
-              "kind": 3
+              "kind": 2
             }
           ]
         }
@@ -544,8 +586,7 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
-          "name": "",
-          "target": ""
+          "pkg": ""
         }
         "###);
     }
@@ -564,10 +605,9 @@ mod test {
     #[test]
     fn rust_dep_kind() {
         assert_json_snapshot!(RustDepKind::Unclassified, @"1");
-        assert_json_snapshot!(RustDepKind::Stdlib, @"2");
-        assert_json_snapshot!(RustDepKind::Normal, @"3");
-        assert_json_snapshot!(RustDepKind::Dev, @"4");
-        assert_json_snapshot!(RustDepKind::Build, @"5");
+        assert_json_snapshot!(RustDepKind::Normal, @"2");
+        assert_json_snapshot!(RustDepKind::Dev, @"3");
+        assert_json_snapshot!(RustDepKind::Build, @"4");
     }
 
     #[test]
@@ -587,13 +627,12 @@ mod test {
 
     #[test]
     fn rust_crate_type() {
-        assert_json_snapshot!(RustCrateType::Bin, @r###""bin""###);
-        assert_json_snapshot!(RustCrateType::Lib, @r###""lib""###);
-        assert_json_snapshot!(RustCrateType::Rlib, @r###""rlib""###);
-        assert_json_snapshot!(RustCrateType::Dylib, @r###""dylib""###);
-        assert_json_snapshot!(RustCrateType::Cdylib, @r###""cdylib""###);
-        assert_json_snapshot!(RustCrateType::Staticlib, @r###""staticlib""###);
-        assert_json_snapshot!(RustCrateType::ProcMacro, @r###""proc-macro""###);
-        assert_json_snapshot!(RustCrateType::Other, @r###""other""###);
+        assert_json_snapshot!(RustCrateType::Bin, @"1");
+        assert_json_snapshot!(RustCrateType::Lib, @"2");
+        assert_json_snapshot!(RustCrateType::Rlib, @"3");
+        assert_json_snapshot!(RustCrateType::Dylib, @"4");
+        assert_json_snapshot!(RustCrateType::Cdylib, @"5");
+        assert_json_snapshot!(RustCrateType::Staticlib, @"6");
+        assert_json_snapshot!(RustCrateType::ProcMacro, @"7");
     }
 }

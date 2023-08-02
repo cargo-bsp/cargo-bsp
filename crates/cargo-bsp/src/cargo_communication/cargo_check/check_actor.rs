@@ -135,7 +135,6 @@ where
                 // We can unwrap, as there would be no RustWorkspaceResult without this package.
                 let package = packages.iter().find(|&p| p.id == package_id).unwrap();
 
-                // TODO get cfgOptions, env, out_dir_url, proc_macro from script (CargoMetadata 429)
                 p.cfg_options = map_cfg_options(script);
                 p.env = map_env(script, package);
                 p.out_dir_url = map_out_dir_url(script);
