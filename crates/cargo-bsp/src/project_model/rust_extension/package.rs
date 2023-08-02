@@ -53,7 +53,6 @@ fn metadata_package_to_rust_extension_package(
         id: metadata_package.id.clone().to_string(),
         version: metadata_package.version.to_string(),
         edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
-        origin: RustPackageOrigin::Unset, // This field will be resolved later
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
         // In our case targets = all_targets. This field is needed for Bazel //TODO (Check)

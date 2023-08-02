@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
-pub enum RustToolchainReq {}
+pub enum RustToolchain {}
 
-impl Request for RustToolchainReq {
+impl Request for RustToolchain {
     type Params = RustToolchainParams;
     type Result = RustToolchainResult;
     const METHOD: &'static str = "buildTarget/rustToolchain";
@@ -15,33 +15,41 @@ impl Request for RustToolchainReq {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainParams {
+    /** A sequence of build targets for toolchain resolution. */
     pub targets: Vec<BuildTargetIdentifier>, // targety mogą mieć toolchainy różnego strumienia - stable - nigghtly itp
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    pub toolchains: BTreeSet<RustToolchain>, // toolchain  dostępny systemowo, z którego korzysta cargo
+    /** A sequence of Rust toolchains. */
+    pub toolchains: BTreeSet<RustToolchainItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
 }
 
 #[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct RustToolchain {
+pub struct RustToolchainItem {
+    /** Additional information about Rust toolchain. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
+    /** Path to Cargo executable. */
     pub cargo_bin_path: Uri,
-    pub proc_macro_srv_path: Uri, // scieżka do binraki rozwijającej makra proceduralne
+    /** Location of the source code of procedural macros in the Rust toolchain. */
+    pub proc_macro_srv_path: Uri,
 }
-///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
+    /** Root directory where the Rust compiler looks for standard libraries and other
+    essential components when building Rust projects. */
     pub sysroot_path: Uri,
+    /** Source code for the Rust standard library. */
     pub src_sysroot_path: Uri,
-    ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
+    /** `rustc` SemVer (Semantic Versioning) version. */
     pub version: String,
-    pub host: String, //example: x86_64-unknown-linux-gnu rustc --version --verbose
+    /** Target architecture and operating system of the Rust compiler. */
+    pub host: String,
 }
 
 #[cfg(test)]
@@ -52,7 +60,7 @@ mod test {
 
     #[test]
     fn rust_toolchain_method() {
-        assert_eq!(RustToolchainReq::METHOD, "buildTarget/rustToolchain");
+        assert_eq!(RustToolchain::METHOD, "buildTarget/rustToolchain");
     }
 
     #[test]
@@ -69,7 +77,7 @@ mod test {
     #[test]
     fn rust_toolchain_result() {
         let result = RustToolchainResult {
-            toolchains: BTreeSet::from([RustToolchain::default()]),
+            toolchains: BTreeSet::from([RustToolchainItem::default()]),
         };
         assert_json_snapshot!(result, @r###"
         {
@@ -91,7 +99,7 @@ mod test {
 
     #[test]
     fn rust_toolchain() {
-        let rust_toolchain = RustToolchain {
+        let rust_toolchain = RustToolchainItem {
             rust_std_lib: Some(RustcInfo::default()),
             cargo_bin_path: "test_cargo_bin_path".to_string(),
             proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
@@ -110,7 +118,7 @@ mod test {
         }
         "###);
 
-        assert_json_snapshot!(RustToolchain::default(), @r###"
+        assert_json_snapshot!(RustToolchainItem::default(), @r###"
         {
           "cargoBinPath": "",
           "procMacroSrvPath": ""
@@ -145,8 +153,3 @@ mod test {
         "###);
     }
 }
-
-// Q: Czy zakładamy, że jak nie ma not null, to jest optional?
-// Q: all_targets w package?
-// Q: RustcInfo: src_sysroot, host?
-// Q: ProcMacroSrvPath, błąd? Co to? i czy jest target specific? (Vec[buildTargetIdentifier])

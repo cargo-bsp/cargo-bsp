@@ -2,7 +2,7 @@
 //! Functions in this file are responsible for preparing the data for RustToolchainRequest response.
 
 use crate::project_model::workspace::ProjectWorkspace;
-use bsp_types::extensions::{RustToolchain, RustcInfo};
+use bsp_types::extensions::{RustToolchainItem, RustcInfo};
 use bsp_types::BuildTargetIdentifier;
 use log::warn;
 use rustc_version::{version, version_meta};
@@ -59,13 +59,13 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
 pub fn get_rust_toolchains(
     _workspace: &ProjectWorkspace,
     build_target_ids: Vec<BuildTargetIdentifier>,
-) -> BTreeSet<RustToolchain> {
+) -> BTreeSet<RustToolchainItem> {
     build_target_ids
         .iter()
         .map(|id| {
             let rustc_info = establish_rustc_info_for_target(id);
             let cargo_bin_path = toolchain::cargo().to_string_lossy().to_string();
-            RustToolchain {
+            RustToolchainItem {
                 cargo_bin_path,
                 proc_macro_srv_path: rustc_info
                     .sysroot_path
