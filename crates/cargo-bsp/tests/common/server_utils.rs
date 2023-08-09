@@ -42,7 +42,10 @@ pub fn spawn_server() -> Child {
         .unwrap()
 }
 
-pub fn spawn_server_with_proper_life_time(communication: fn(cl: &mut Client)) {
+pub fn spawn_server_with_proper_life_time<F>(communication: F)
+where
+    F: Fn(&mut Client),
+{
     let mut child = spawn_server();
     let mut cl = Client::new(&mut child);
 

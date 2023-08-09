@@ -3,7 +3,7 @@ use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-use crate::requests::Request;
+use crate::requests::{FeaturesDependencyGraph, Request};
 
 #[derive(Debug)]
 pub enum CargoFeaturesState {}
@@ -26,12 +26,13 @@ pub struct PackageFeatures {
     pub package_id: String,
     pub targets: Vec<BuildTargetIdentifier>,
     pub enabled_features: BTreeSet<Feature>,
-    pub available_features: BTreeSet<Feature>,
+    pub available_features: FeaturesDependencyGraph,
 }
 
 #[cfg(test)]
 mod tests {
     use insta::assert_json_snapshot;
+    use std::collections::BTreeMap;
 
     use super::*;
 
@@ -43,10 +44,12 @@ mod tests {
     const TARGET_ID2: &str = "target2";
 
     fn example_package_features(pid: &str, f1: &str) -> PackageFeatures {
+        let mut available_features = BTreeMap::new();
+        available_features.insert(f1.into(), vec![]);
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
-            available_features: vec![f1.into()].into_iter().collect(),
+            available_features,
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),
@@ -72,7 +75,7 @@ mod tests {
           "packageId": "",
           "targets": [],
           "enabledFeatures": [],
-          "availableFeatures": []
+          "availableFeatures": {}
         }
         "###);
         assert_json_snapshot!(test_data, @r###"
@@ -89,9 +92,9 @@ mod tests {
           "enabledFeatures": [
             "feature"
           ],
-          "availableFeatures": [
-            "feature"
-          ]
+          "availableFeatures": {
+            "feature": []
+          }
         }
         "###);
     }
@@ -126,9 +129,9 @@ mod tests {
               "enabledFeatures": [
                 "feature"
               ],
-              "availableFeatures": [
-                "feature"
-              ]
+              "availableFeatures": {
+                "feature": []
+              }
             },
             {
               "packageId": "package_id2",
@@ -143,9 +146,9 @@ mod tests {
               "enabledFeatures": [
                 "feature2"
               ],
-              "availableFeatures": [
-                "feature2"
-              ]
+              "availableFeatures": {
+                "feature2": []
+              }
             }
           ]
         }
