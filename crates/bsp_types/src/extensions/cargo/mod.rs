@@ -15,6 +15,8 @@ mod enable_cargo_features;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Feature(pub String);
 
+/// Hashmap where key is a feature name and the value are names of other features it enables.
+/// Includes pair for default features if default is defined
 pub type FeaturesDependencyGraph = BTreeMap<Feature, Vec<Feature>>;
 
 impl From<&str> for Feature {
