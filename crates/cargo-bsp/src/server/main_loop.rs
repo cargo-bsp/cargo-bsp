@@ -110,11 +110,8 @@ impl GlobalState {
 
         dispatcher
             .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
-            .on_sync_mut::<bsp_types::extensions::EnableCargoFeatures>(
-                handlers::handle_enable_cargo_features,
-            )
-            .on_sync_mut::<bsp_types::extensions::DisableCargoFeatures>(
-                handlers::handle_disable_cargo_features,
+            .on_sync_mut::<bsp_types::extensions::SetCargoFeatures>(
+                handlers::handle_set_cargo_features,
             )
             .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
                 handlers::handle_workspace_build_targets,

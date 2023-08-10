@@ -5,13 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub use cargo_features_state::*;
-pub use disable_cargo_features::*;
-pub use enable_cargo_features::*;
+pub use set_cargo_features_state::*;
 
 mod cargo_features_state;
-mod disable_cargo_features;
-mod enable_cargo_features;
-
+mod set_cargo_features_state;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Feature(pub String);
 

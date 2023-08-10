@@ -1,10 +1,11 @@
 //! Handles the upcoming requests from the client that does not require the
 //! communication with Cargo (such as compile, run or test requests).
 
-use log::warn;
+use log::{error, warn};
 use std::sync::Arc;
 
 use bsp_types;
+use bsp_types::StatusCode;
 
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
@@ -98,22 +99,20 @@ pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()>
 
 // Cargo Extension handlers
 
-pub(crate) fn handle_disable_cargo_features(
+pub(crate) fn handle_set_cargo_features(
     state: &mut GlobalState,
-    params: bsp_types::extensions::DisableCargoFeaturesParams,
-) -> Result<()> {
+    params: bsp_types::extensions::SetCargoFeaturesParams,
+) -> Result<bsp_types::extensions::SetCargoFeaturesResult> {
     let mutable_workspace = Arc::make_mut(&mut state.workspace);
-    mutable_workspace.disable_features_for_package(params.package_id, &params.features);
-    Ok(())
-}
-
-pub(crate) fn handle_enable_cargo_features(
-    state: &mut GlobalState,
-    params: bsp_types::extensions::EnableCargoFeaturesParams,
-) -> Result<()> {
-    let mutable_workspace = Arc::make_mut(&mut state.workspace);
-    mutable_workspace.enable_features_for_package(params.package_id, &params.features);
-    Ok(())
+    let status_code =
+        match mutable_workspace.set_features_for_the_package(params.package_id, &params.features) {
+            Ok(_) => StatusCode::Ok,
+            Err(e) => {
+                error!("{}", e);
+                StatusCode::Error
+            }
+        };
+    Ok(bsp_types::extensions::SetCargoFeaturesResult { status_code })
 }
 
 pub(crate) fn handle_cargo_features_state(
