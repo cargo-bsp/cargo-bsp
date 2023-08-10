@@ -17,9 +17,7 @@ impl Request for SetCargoFeatures {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SetCargoFeaturesParams {
-    /** Id of a package the features we want to set*/
     pub package_id: String,
-    //** A list of features the server is supposed to set */
     pub features: BTreeSet<Feature>,
 }
 
@@ -32,6 +30,7 @@ pub struct SetCargoFeaturesResult {
 #[cfg(test)]
 mod tests {
     use crate::tests::test_deserialization;
+    use insta::assert_json_snapshot;
 
     use super::*;
 
@@ -59,11 +58,13 @@ mod tests {
     }
     #[test]
     fn set_cargo_features_result() {
-        test_deserialization(
-            r#"{"statusCode": 1}"#,
-            &SetCargoFeaturesResult {
-                status_code: StatusCode::Ok,
-            },
-        );
+        let test_data = SetCargoFeaturesResult {
+            status_code: StatusCode::Ok,
+        };
+        assert_json_snapshot!(test_data, @r###"
+        {
+          "statusCode": 1
+        }
+        "###);
     }
 }

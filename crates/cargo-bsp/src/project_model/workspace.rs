@@ -11,7 +11,7 @@ use log::error;
 use unzip_n::unzip_n;
 
 use bsp_types::extensions::{Feature, PackageFeatures};
-use bsp_types::{BuildTarget, BuildTargetIdentifier};
+use bsp_types::{BuildTarget, BuildTargetIdentifier, StatusCode};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
 use crate::project_model::cargo_package::CargoPackage;
@@ -152,16 +152,17 @@ impl ProjectWorkspace {
         &mut self,
         package_id: String,
         features: &BTreeSet<Feature>,
-    ) -> Result<(), String> {
+    ) -> StatusCode {
         let package = self.packages.iter_mut().find(|p| p.id == package_id);
         if let Some(package) = package {
             package.set_features(features);
-            Ok(())
+            StatusCode::Ok
         } else {
-            Err(format!(
+            error!(
                 "Couldn't change features state, package not found for id: {:?}",
                 package_id
-            ))
+            );
+            StatusCode::Error
         }
     }
 }

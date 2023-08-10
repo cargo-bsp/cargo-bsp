@@ -1,5 +1,6 @@
 //! Integration tests for Cargo extension of BSP. The test in this module changes working directory,
 //! when adding extra tests remember to execute them sequentially.
+
 use bsp_server::Response;
 use bsp_types::extensions::*;
 use bsp_types::requests::Request;
