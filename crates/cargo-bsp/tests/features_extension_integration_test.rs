@@ -22,21 +22,7 @@ use common::{spawn_server_with_proper_life_time, Client};
 
 struct FeaturesState {
     enabled_features: BTreeSet<Feature>,
-    available_features: BTreeSet<Feature>,
-}
-
-struct FeatureWithDependencies {
-    name: Feature,
-    dependencies: Vec<Feature>,
-}
-
-impl FeatureWithDependencies {
-    pub fn new(name: Feature, dependencies: &[Feature]) -> Self {
-        FeatureWithDependencies {
-            name,
-            dependencies: dependencies.to_vec(),
-        }
-    }
+    available_features: FeaturesDependencyGraph,
 }
 
 fn send_cargo_feature_state_request(cl: &mut Client) {
@@ -82,7 +68,7 @@ fn send_disable_features_request(
     cl.send(&to_string(&req).unwrap());
 }
 
-fn overwrite_cargo_toml_with_features(features: &[FeatureWithDependencies]) {
+fn overwrite_cargo_toml_with_features(features: &FeaturesDependencyGraph) {
     const TEST_PROJECT_AUTHOR: &str = "Test Author";
     const TEST_PROJECT_VERSION: &str = "0.0.1";
 
@@ -92,10 +78,10 @@ fn overwrite_cargo_toml_with_features(features: &[FeatureWithDependencies]) {
         .version(TEST_PROJECT_VERSION)
         .author(TEST_PROJECT_AUTHOR);
 
-    for f in features {
+    for (f, dependencies) in features {
         // feature added to the Cargo.toml builder
-        let mut toml_feature = TomlFeature::new(&f.name.0);
-        f.dependencies.iter().for_each(|dep| {
+        let mut toml_feature = TomlFeature::new(&f.0);
+        dependencies.iter().for_each(|dep| {
             toml_feature.feature(&dep.0);
         });
         cargo_toml.feature(toml_feature.build());
@@ -108,7 +94,7 @@ fn overwrite_cargo_toml_with_features(features: &[FeatureWithDependencies]) {
         .unwrap();
 }
 
-fn create_mock_rust_project(features: &[FeatureWithDependencies]) {
+fn create_mock_rust_project(features: &FeaturesDependencyGraph) {
     Command::new(toolchain::cargo())
         .args(["init", ".", "--name", TEST_PROJECT_NAME])
         .output()
@@ -117,12 +103,14 @@ fn create_mock_rust_project(features: &[FeatureWithDependencies]) {
     overwrite_cargo_toml_with_features(features);
 }
 
-fn run_test(features: &[FeatureWithDependencies], test: fn(&mut Client)) {
+fn run_test<F>(features: &FeaturesDependencyGraph, test: F)
+where
+    F: Fn(&mut Client),
+{
     let starting_path = current_dir().unwrap();
     let tmp_dir = tempdir().unwrap();
     set_current_dir(tmp_dir.path()).unwrap();
     create_mock_rust_project(features);
-
     spawn_server_with_proper_life_time(test);
     set_current_dir(starting_path).unwrap();
 }
@@ -144,7 +132,7 @@ fn features_state_from_response(package: PackageFeatures) -> FeaturesState {
 
 fn check_package_state(
     package: PackageFeatures,
-    expected_available: &BTreeSet<Feature>,
+    expected_available: &FeaturesDependencyGraph,
     expected_enabled: &BTreeSet<Feature>,
 ) {
     let features_state = features_state_from_response(package);
@@ -157,7 +145,7 @@ fn check_package_state(
 
 fn request_state_and_check_it(
     cl: &mut Client,
-    expected_available: &BTreeSet<Feature>,
+    expected_available: &FeaturesDependencyGraph,
     expected_enabled: &BTreeSet<Feature>,
 ) {
     send_cargo_feature_state_request(cl);
@@ -169,10 +157,22 @@ fn feature(id: i8) -> Feature {
     Feature(format!("f{}", id))
 }
 
+fn feature_with_dependencies(id: i8, dependencies: Vec<i8>) -> (Feature, Vec<Feature>) {
+    (
+        feature(id),
+        dependencies.iter().map(|d| feature(*d)).collect(),
+    )
+}
+
 #[test]
 fn cargo_features_state() {
+    let mut available_features: FeaturesDependencyGraph = (0..4)
+        .map(|id| feature_with_dependencies(id, vec![id + 1]))
+        .collect::<FeaturesDependencyGraph>();
+    // Add an f4 on which f3 depends
+    available_features.insert(feature(4), vec![]);
+
     let test_fn = |cl: &mut Client| {
-        let expected_available: BTreeSet<Feature> = (0..4).map(feature).collect();
         let mut expected_enabled = BTreeSet::new();
         let mut toggle_features;
 
@@ -180,7 +180,7 @@ fn cargo_features_state() {
         let resp = cl.recv_resp();
         let package = package_from_response(&resp);
         let package_id = package.package_id.clone();
-        check_package_state(package, &expected_available, &expected_enabled);
+        check_package_state(package, &available_features, &expected_enabled);
 
         // Enable f1, f2
         toggle_features = BTreeSet::from([feature(1), feature(2)]);
@@ -188,7 +188,7 @@ fn cargo_features_state() {
         send_enable_features_request(cl, &package_id, toggle_features);
         cl.recv_resp();
         // Enabled: [f1, f2]
-        request_state_and_check_it(cl, &expected_available, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &expected_enabled);
 
         // Disable f1
         toggle_features = BTreeSet::from([feature(1)]);
@@ -196,7 +196,7 @@ fn cargo_features_state() {
         send_disable_features_request(cl, &package_id, toggle_features);
         cl.recv_resp();
         // Enabled: [f2]
-        request_state_and_check_it(cl, &expected_available, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &expected_enabled);
 
         // Enable f0, f3
         toggle_features = BTreeSet::from([feature(0), feature(3)]);
@@ -204,17 +204,8 @@ fn cargo_features_state() {
         send_enable_features_request(cl, &package_id, toggle_features);
         cl.recv_resp();
         // Enabled: [f0, f2, f3]
-        request_state_and_check_it(cl, &expected_available, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &expected_enabled);
     };
 
-    run_test(
-        &[
-            FeatureWithDependencies::new(feature(0), &[feature(1)]),
-            FeatureWithDependencies::new(feature(1), &[feature(3), feature(2)]),
-            FeatureWithDependencies::new(feature(2), &[feature(3)]),
-            FeatureWithDependencies::new(feature(2), &[feature(3)]),
-            FeatureWithDependencies::new(feature(3), &[]),
-        ],
-        test_fn,
-    );
+    run_test(&available_features, test_fn);
 }

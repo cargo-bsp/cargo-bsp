@@ -1,4 +1,5 @@
 use super::Feature;
+use crate::extensions::FeaturesDependencyGraph;
 use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -26,12 +27,13 @@ pub struct PackageFeatures {
     pub package_id: String,
     pub targets: Vec<BuildTargetIdentifier>,
     pub enabled_features: BTreeSet<Feature>,
-    pub available_features: BTreeSet<Feature>,
+    pub available_features: FeaturesDependencyGraph,
 }
 
 #[cfg(test)]
 mod tests {
     use insta::assert_json_snapshot;
+    use std::collections::BTreeMap;
 
     use super::*;
 
@@ -46,7 +48,7 @@ mod tests {
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
-            available_features: vec![f1.into()].into_iter().collect(),
+            available_features: BTreeMap::from([(f1.into(), vec![])]),
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),
@@ -72,7 +74,7 @@ mod tests {
           "packageId": "",
           "targets": [],
           "enabledFeatures": [],
-          "availableFeatures": []
+          "availableFeatures": {}
         }
         "###);
         assert_json_snapshot!(test_data, @r###"
@@ -89,9 +91,9 @@ mod tests {
           "enabledFeatures": [
             "feature"
           ],
-          "availableFeatures": [
-            "feature"
-          ]
+          "availableFeatures": {
+            "feature": []
+          }
         }
         "###);
     }
@@ -126,9 +128,9 @@ mod tests {
               "enabledFeatures": [
                 "feature"
               ],
-              "availableFeatures": [
-                "feature"
-              ]
+              "availableFeatures": {
+                "feature": []
+              }
             },
             {
               "packageId": "package_id2",
@@ -143,9 +145,9 @@ mod tests {
               "enabledFeatures": [
                 "feature2"
               ],
-              "availableFeatures": [
-                "feature2"
-              ]
+              "availableFeatures": {
+                "feature2": []
+              }
             }
           ]
         }

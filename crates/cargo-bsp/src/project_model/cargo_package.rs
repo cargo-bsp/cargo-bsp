@@ -2,13 +2,13 @@
 //! available and enabled features (relevant for the Cargo extension for BSP,
 //! which allows toggling the features, not yet added to the BSP documentation).
 
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::extensions::{Feature, PackageFeatures};
+use bsp_types::extensions::{Feature, FeaturesDependencyGraph, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
@@ -33,7 +33,7 @@ pub struct CargoPackage {
     /// List of all package targets, from which BSP build targets are created
     pub targets: Vec<Rc<cargo_metadata::Target>>,
 
-    /// List of enabled (by BSP client) features.
+    /// List of enabled (by BSP client) features. Only top-level features are included.
     /// Does not include default features
     pub enabled_features: BTreeSet<Feature>,
 
@@ -43,7 +43,7 @@ pub struct CargoPackage {
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
     /// Includes pair for default features if default is defined
-    pub package_features: BTreeMap<Feature, Vec<Feature>>,
+    pub package_features: FeaturesDependencyGraph,
 }
 
 impl CargoPackage {
@@ -186,7 +186,7 @@ impl CargoPackage {
             package_id: self.id.clone(),
             targets: build_target_ids_from_cargo_targets(&self.targets),
             enabled_features: self.enabled_features.clone(),
-            available_features: self.package_features.keys().cloned().collect(),
+            available_features: self.package_features.clone(),
         }
     }
 }
