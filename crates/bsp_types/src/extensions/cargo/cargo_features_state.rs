@@ -1,9 +1,10 @@
 use super::Feature;
+use crate::extensions::FeaturesDependencyGraph;
 use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-use crate::requests::{FeaturesDependencyGraph, Request};
+use crate::requests::Request;
 
 #[derive(Debug)]
 pub enum CargoFeaturesState {}
@@ -44,11 +45,10 @@ mod tests {
     const TARGET_ID2: &str = "target2";
 
     fn example_package_features(pid: &str, f1: &str) -> PackageFeatures {
-        let available_features = BTreeMap::from([(f1.into(), vec![])]);
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
-            available_features,
+            available_features: BTreeMap::from([(f1.into(), vec![])]),
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),
