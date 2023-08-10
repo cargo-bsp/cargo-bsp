@@ -1,4 +1,4 @@
-use crate::requests::cargo_extension::Feature;
+use super::Feature;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 

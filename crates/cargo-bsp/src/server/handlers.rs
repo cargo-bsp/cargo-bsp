@@ -100,7 +100,7 @@ pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()>
 
 pub(crate) fn handle_disable_cargo_features(
     state: &mut GlobalState,
-    params: bsp_types::requests::DisableCargoFeaturesParams,
+    params: bsp_types::extensions::DisableCargoFeaturesParams,
 ) -> Result<()> {
     let mutable_workspace = Arc::make_mut(&mut state.workspace);
     mutable_workspace.disable_features_for_package(params.package_id, &params.features);
@@ -109,7 +109,7 @@ pub(crate) fn handle_disable_cargo_features(
 
 pub(crate) fn handle_enable_cargo_features(
     state: &mut GlobalState,
-    params: bsp_types::requests::EnableCargoFeaturesParams,
+    params: bsp_types::extensions::EnableCargoFeaturesParams,
 ) -> Result<()> {
     let mutable_workspace = Arc::make_mut(&mut state.workspace);
     mutable_workspace.enable_features_for_package(params.package_id, &params.features);
@@ -119,8 +119,8 @@ pub(crate) fn handle_enable_cargo_features(
 pub(crate) fn handle_cargo_features_state(
     state: GlobalStateSnapshot,
     _: (),
-) -> Result<bsp_types::requests::CargoFeaturesStateResult> {
+) -> Result<bsp_types::extensions::CargoFeaturesStateResult> {
     let packages_features = state.workspace.get_cargo_features_state();
 
-    Ok(bsp_types::requests::CargoFeaturesStateResult { packages_features })
+    Ok(bsp_types::extensions::CargoFeaturesStateResult { packages_features })
 }

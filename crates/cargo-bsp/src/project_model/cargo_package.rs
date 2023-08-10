@@ -8,7 +8,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::requests::{Feature, PackageFeatures};
+use bsp_types::extensions::{Feature, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
@@ -193,9 +193,8 @@ impl CargoPackage {
 
 #[cfg(test)]
 mod tests {
+    use bsp_types::extensions::PackageFeatures;
     use std::collections::{BTreeMap, BTreeSet};
-
-    use bsp_types::requests::PackageFeatures;
     use test_case::test_case;
 
     use super::*;

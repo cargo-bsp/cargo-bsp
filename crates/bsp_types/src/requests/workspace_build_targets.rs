@@ -42,7 +42,7 @@ mod tests {
     }
 
     #[test]
-    fn inverse_sources_result() {
+    fn workspace_build_targets_result() {
         let test_data = WorkspaceBuildTargetsResult {
             targets: vec![BuildTarget::default()],
         };

@@ -9,8 +9,7 @@ use std::path::PathBuf;
 use cargo_metadata::{Dependency, Package};
 use log::error;
 
-use bsp_types::requests::Feature;
-use bsp_types::BuildTargetIdentifier;
+use bsp_types::{extensions::Feature, BuildTargetIdentifier};
 
 use crate::utils::uri::file_uri;
 
