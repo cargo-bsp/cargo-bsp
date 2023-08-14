@@ -134,7 +134,7 @@ where
             _ => MessageType::Log,
         };
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
-            message_type,
+            r#type: message_type,
             task: Some(self.state.compile_state.task_id.clone()),
             origin_id: self.params.origin_id(),
             message: global_msg.message,

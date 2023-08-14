@@ -24,8 +24,7 @@ impl Notification for OnBuildLogMessage {
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageParams {
     /** The message type. See {@link MessageType}. */
-    #[serde(rename = "type")]
-    pub message_type: MessageType,
+    pub r#type: MessageType,
 
     /** The task id if any. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,8 +43,7 @@ pub struct ShowMessageParams {
 #[serde(rename_all = "camelCase")]
 pub struct LogMessageParams {
     /** The message type. See {@link MessageType}. */
-    #[serde(rename = "type")]
-    pub message_type: MessageType,
+    pub r#type: MessageType,
 
     /** The task id if any. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,7 +86,7 @@ mod tests {
     #[test]
     fn show_message_params() {
         let test_data = ShowMessageParams {
-            message_type: MessageType::Error,
+            r#type: MessageType::Error,
             task: Some(TaskId::default()),
             origin_id: Some("test_originId".to_string()),
             message: "test_message".to_string(),
@@ -119,7 +117,7 @@ mod tests {
     #[test]
     fn log_message_params() {
         let test_data = LogMessageParams {
-            message_type: MessageType::default(),
+            r#type: MessageType::default(),
             task: Some(TaskId::default()),
             origin_id: Some("test_originId".to_string()),
             message: "test_message".to_string(),

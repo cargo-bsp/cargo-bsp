@@ -130,7 +130,7 @@ where
     ) {
         let task_id = task_id.unwrap_or(self.state.get_task_id());
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
-            message_type,
+            r#type: message_type,
             task: Some(task_id),
             origin_id: self.params.origin_id(),
             message,
