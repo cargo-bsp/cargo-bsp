@@ -4,6 +4,7 @@
 use bsp_server::Response;
 use bsp_types::extensions::*;
 use bsp_types::requests::Request;
+use bsp_types::StatusCode;
 use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
 use serde_json::to_string;
 use std::collections::BTreeSet;
@@ -34,38 +35,28 @@ fn send_cargo_feature_state_request(cl: &mut Client) {
     cl.send(&to_string(&req).unwrap());
 }
 
-fn send_enable_features_request(
-    cl: &mut Client,
-    package_id: &str,
-    features_to_enable: BTreeSet<Feature>,
-) {
-    let req = bsp_server::Request {
-        id: TEST_REQUEST_ID.into(),
-        method: EnableCargoFeatures::METHOD.into(),
-        params: serde_json::to_value(EnableCargoFeaturesParams {
-            package_id: package_id.to_string(),
-            features: features_to_enable,
-        })
-        .unwrap(),
-    };
-    cl.send(&to_string(&req).unwrap());
+fn check_set_features_response_status_code(received_string: String) {
+    let resp: Response = serde_json::from_str(&received_string).unwrap();
+    let result = serde_json::from_value::<SetCargoFeaturesResult>(resp.result.unwrap()).unwrap();
+    assert_eq!(result.status_code, StatusCode::Ok);
 }
 
-fn send_disable_features_request(
+fn send_set_features_request_and_check_result(
     cl: &mut Client,
     package_id: &str,
-    features_to_disable: BTreeSet<Feature>,
+    features_to_set: &BTreeSet<Feature>,
 ) {
     let req = bsp_server::Request {
         id: TEST_REQUEST_ID.into(),
-        method: DisableCargoFeatures::METHOD.into(),
-        params: serde_json::to_value(DisableCargoFeaturesParams {
+        method: SetCargoFeatures::METHOD.into(),
+        params: serde_json::to_value(SetCargoFeaturesParams {
             package_id: package_id.to_string(),
-            features: features_to_disable,
+            features: features_to_set.clone(),
         })
         .unwrap(),
     };
     cl.send(&to_string(&req).unwrap());
+    check_set_features_response_status_code(cl.recv_resp());
 }
 
 fn overwrite_cargo_toml_with_features(features: &FeaturesDependencyGraph) {
@@ -133,24 +124,24 @@ fn features_state_from_response(package: PackageFeatures) -> FeaturesState {
 fn check_package_state(
     package: PackageFeatures,
     expected_available: &FeaturesDependencyGraph,
-    expected_enabled: &BTreeSet<Feature>,
+    expected_state: &BTreeSet<Feature>,
 ) {
     let features_state = features_state_from_response(package);
     assert_eq!(
         features_state.available_features,
         expected_available.clone()
     );
-    assert_eq!(features_state.enabled_features, expected_enabled.clone());
+    assert_eq!(features_state.enabled_features, expected_state.clone());
 }
 
 fn request_state_and_check_it(
     cl: &mut Client,
     expected_available: &FeaturesDependencyGraph,
-    expected_enabled: &BTreeSet<Feature>,
+    expected_state: &BTreeSet<Feature>,
 ) {
     send_cargo_feature_state_request(cl);
     let package = package_from_response(&cl.recv_resp());
-    check_package_state(package, expected_available, expected_enabled);
+    check_package_state(package, expected_available, expected_state);
 }
 
 fn feature(id: i8) -> Feature {
@@ -173,38 +164,32 @@ fn cargo_features_state() {
     available_features.insert(feature(4), vec![]);
 
     let test_fn = |cl: &mut Client| {
-        let mut expected_enabled = BTreeSet::new();
-        let mut toggle_features;
+        let mut state = BTreeSet::new();
 
+        // First request, obtain the package id
         send_cargo_feature_state_request(cl);
         let resp = cl.recv_resp();
         let package = package_from_response(&resp);
         let package_id = package.package_id.clone();
-        check_package_state(package, &available_features, &expected_enabled);
+        check_package_state(package, &available_features, &state);
 
-        // Enable f1, f2
-        toggle_features = BTreeSet::from([feature(1), feature(2)]);
-        expected_enabled.extend(toggle_features.clone());
-        send_enable_features_request(cl, &package_id, toggle_features);
-        cl.recv_resp();
+        // Set state as  [f1, f2]
+        state = BTreeSet::from([feature(1), feature(2)]);
+        send_set_features_request_and_check_result(cl, &package_id, &state);
         // Enabled: [f1, f2]
-        request_state_and_check_it(cl, &available_features, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &state);
 
-        // Disable f1
-        toggle_features = BTreeSet::from([feature(1)]);
-        expected_enabled.retain(|f| !toggle_features.contains(f));
-        send_disable_features_request(cl, &package_id, toggle_features);
-        cl.recv_resp();
+        // Set state as  [f1]
+        state = BTreeSet::from([feature(1)]);
+        send_set_features_request_and_check_result(cl, &package_id, &state);
         // Enabled: [f2]
-        request_state_and_check_it(cl, &available_features, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &state);
 
-        // Enable f0, f3
-        toggle_features = BTreeSet::from([feature(0), feature(3)]);
-        expected_enabled.extend(toggle_features.clone()); // Enabled: [f0, f2, f3]
-        send_enable_features_request(cl, &package_id, toggle_features);
-        cl.recv_resp();
+        // Set state as [f0, f2, f3]
+        state = BTreeSet::from([feature(0), feature(3)]);
+        send_set_features_request_and_check_result(cl, &package_id, &state);
         // Enabled: [f0, f2, f3]
-        request_state_and_check_it(cl, &available_features, &expected_enabled);
+        request_state_and_check_it(cl, &available_features, &state);
     };
 
     run_test(&available_features, test_fn);

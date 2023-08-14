@@ -151,26 +151,16 @@ impl CargoPackage {
             .collect()
     }
 
-    /// Enables a list of features if they exist and are not already enabled
-    pub fn enable_features(&mut self, features: &BTreeSet<Feature>) {
+    /// Sets features from list, which exist in the package as new package feature state
+    pub fn set_features(&mut self, features: &BTreeSet<Feature>) {
+        self.enabled_features.clear();
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() {
                 warn!("Can't enable feature {:?}. It doesn't exist.", f);
                 return;
             }
             self.enabled_features.insert(f.clone());
-        });
-    }
-
-    /// Disables a list of features if they exist and are enabled
-    pub fn disable_features(&mut self, features: &BTreeSet<Feature>) {
-        features.iter().for_each(|f| {
-            if self.package_features.get(f).is_none() {
-                warn!("Can't disable feature {:?}. It doesn't exist.", f);
-                return;
-            }
-            self.enabled_features.remove(f);
-        });
+        })
     }
 
     /// Returns list of dependencies taking into account optional ones and enabled features
@@ -273,29 +263,18 @@ mod tests {
         );
     }
 
-    // enabling_features
-    #[test_case(&[], &[], &[], &[], true ; "enabling_features::no_features")]
-    #[test_case(&[], &[], &[F1], &[F1], true ; "enabling_features::no_toggling")]
-    #[test_case(&[], &[F2], &[], &[], true ; "enabling_features::feature_not_defined")]
-    #[test_case(&[F1], &[F2], &[F1], &[F1], true ; "enabling_features::feature_not_defined2")]
-    #[test_case(&[F1], &[F1], &[], &[F1], true ; "enabling_features::enable_nothing_enabled")]
-    #[test_case(&[F1, F2], &[F2], &[F1], &[F1, F2], true ; "enabling_features::enable_some_enabled")]
-    #[test_case(&[F1], &[F1], &[F1], &[F1], true ; "enabling_features::enable_already_enabled")]
-    #[test_case(&[F1, F2], &[F1, F2], &[F1], &[F1, F2], true ; "enabling_features::enable_many")]
-    // disabling features
-    #[test_case(&[], &[], &[], &[], false ; "disabling_features::no_features")]
-    #[test_case(&[], &[], &[F1], &[F1], false ; "disabling_features::no_toggling")]
-    #[test_case(&[], &[F1], &[], &[], false ; "disabling_features::feature_not_defined")]
-    #[test_case(&[F1], &[F2], &[F1], &[F1], false ; "disabling_features::feature_not_defined2")]
-    #[test_case(&[F1], &[F1], &[F1], &[], false ; "disabling_features::disable_one")]
-    #[test_case(&[F1, F2], &[F2], &[F1], &[F1], false ; "disabling_features::disable_already_disabled")]
-    #[test_case(&[F1, F2, F3], &[F2, F3], &[F1, F2, F3], &[F1], false ; "disabling_features::disable_many")]
+    #[test_case(&[], &[], &[], &[] ; "enabling_features::no_features")]
+    #[test_case(&[], &[], &[F1], &[] ; "enabling_features::clearing")]
+    #[test_case(&[], &[F2], &[], &[] ; "enabling_features::feature_not_defined")]
+    #[test_case(&[F1], &[F2], &[F1], &[] ; "enabling_features::feature_not_defined2")]
+    #[test_case(&[F1], &[F1], &[], &[F1] ; "enabling_features::set_nothing_set")]
+    #[test_case(&[F1, F2], &[F2], &[F1], &[F2] ; "enabling_features::change_state_drastically")]
+    #[test_case(&[F1], &[F1], &[F1], &[F1] ; "enabling_features::set_already_set")]
     fn test_toggling_features(
         defined_features: &[&str],
-        features_to_toggle: &[&str],
+        features_to_set: &[&str],
         enabled_features_slice: &[&str],
         expected: &[&str],
-        test_enabling: bool,
     ) {
         let defined_features_map = defined_features
             .iter()
@@ -307,14 +286,8 @@ mod tests {
         );
 
         let expected = create_feature_set_from_slices(expected);
-        let features_to_toggle = create_feature_set_from_slices(features_to_toggle);
-
-        if test_enabling {
-            test_package.enable_features(&features_to_toggle);
-        } else {
-            test_package.disable_features(&features_to_toggle);
-        }
-
+        let features_to_set = create_feature_set_from_slices(features_to_set);
+        test_package.set_features(&features_to_set);
         assert_eq!(test_package.enabled_features, expected);
     }
 
