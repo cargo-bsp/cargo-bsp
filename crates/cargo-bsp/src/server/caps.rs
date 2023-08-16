@@ -15,6 +15,7 @@ pub fn server_capabilities(config: &Config) -> BuildServerCapabilities {
         run_provider: Some(RunProvider {
             language_ids: config.caps.language_ids.clone(),
         }),
+        cargo_features_provider: Some(true), // This server does support BSP Cargo extension
         debug_provider: None,
         inverse_sources_provider: Some(false),
         dependency_sources_provider: Some(false),

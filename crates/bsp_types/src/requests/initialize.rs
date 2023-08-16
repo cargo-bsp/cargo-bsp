@@ -128,6 +128,11 @@ pub struct BuildServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jvm_test_environment_provider: Option<bool>,
 
+    /** The server can respond to `workspace/cargoFeaturesState` and
+    `setCargoFeatures` requests. In other words, supports Cargo Features extension. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cargo_features_provider: Option<bool>,
+
     /** Reloading the build state through workspace/reload is supported */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub can_reload: Option<bool>,
@@ -253,6 +258,7 @@ mod tests {
             build_target_changed_provider: Some(true),
             jvm_run_environment_provider: Some(true),
             jvm_test_environment_provider: Some(true),
+            cargo_features_provider: Some(true),
             can_reload: Some(true),
         };
 
@@ -279,6 +285,7 @@ mod tests {
           "buildTargetChangedProvider": true,
           "jvmRunEnvironmentProvider": true,
           "jvmTestEnvironmentProvider": true,
+          "cargoFeaturesProvider": true,
           "canReload": true
         }
         "###
