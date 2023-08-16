@@ -19,7 +19,7 @@ SERVER_PATH=$PWD/target/release/server
 cd $1
 # Creates the directory if it doesn't exist, and does not throw an error if the directory already exists.
 mkdir -p .bsp
-cat >> .bsp/cargo-bsp.json << EOF
+cat > .bsp/cargo-bsp.json << EOF
 {
   "name": "cargo-bsp",
   "argv": [
