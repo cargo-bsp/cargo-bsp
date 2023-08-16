@@ -36,7 +36,7 @@ pub(super) fn get_current_time() -> i64 {
 }
 
 pub(super) fn targets_ids_to_targets_details(
-    targets_ids: Vec<BuildTargetIdentifier>,
+    targets_ids: &Vec<BuildTargetIdentifier>,
     global_state: &GlobalStateSnapshot,
 ) -> io::Result<Vec<TargetDetails>> {
     let targets_details: Vec<TargetDetails> = targets_ids

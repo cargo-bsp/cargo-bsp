@@ -4,7 +4,7 @@ use cargo_metadata::{Artifact, BuildScript, Package};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = [".dll", ".so", ".dylib"];
+const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = ["dll", "so", "dylib"];
 const PROC_MACRO: &str = "proc-macro";
 
 #[derive(Default)]
@@ -48,10 +48,10 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOpt
 fn split_version(version: String) -> SplitVersion {
     if let Some((major, rest)) = version.split_once('.') {
         if let Some((minor, rest)) = rest.split_once('.') {
-            let (pre_release, patch) = rest
+            let (patch, pre_release) = rest
                 .split_once('-')
                 .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
-                .unwrap_or_default();
+                .unwrap_or((rest.to_string(), String::default()));
             return SplitVersion {
                 major: major.to_string(),
                 minor: minor.to_string(),
@@ -64,39 +64,49 @@ fn split_version(version: String) -> SplitVersion {
 }
 
 pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMap<String, String> {
-    let mut env: HashMap<String, String> = HashMap::new();
+    let split_version = split_version(package.version.to_string());
+    let mut env: HashMap<String, String> = HashMap::from([
+        (
+            "CARGO_MANIFEST_DIR",
+            package
+                .manifest_path
+                .parent()
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
+        ),
+        ("CARGO", "cargo".to_string()),
+        ("CARGO_PKG_VERSION", package.version.to_string()),
+        ("CARGO_PKG_VERSION_MAJOR", split_version.major.clone()),
+        ("CARGO_PKG_VERSION_MINOR", split_version.minor.clone()),
+        ("CARGO_PKG_VERSION_PATCH", split_version.patch.clone()),
+        ("CARGO_PKG_VERSION_PRE", split_version.pre_release.clone()),
+        ("CARGO_PKG_AUTHORS", package.authors.join(";")),
+        ("CARGO_PKG_NAME", package.name.clone()),
+        (
+            "CARGO_PKG_DESCRIPTION",
+            package.description.clone().unwrap_or_default(),
+        ),
+        (
+            "CARGO_PKG_REPOSITORY",
+            package.repository.clone().unwrap_or_default(),
+        ),
+        (
+            "CARGO_PKG_LICENSE",
+            package.license.clone().unwrap_or_default(),
+        ),
+        (
+            "CARGO_PKG_LICENSE_FILE",
+            package.license_file.clone().unwrap_or_default().to_string(),
+        ),
+        ("CARGO_CRATE_NAME", package.name.replace('-', "_")),
+    ])
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v))
+    .collect();
     if let Some(s) = script {
-        let split_version = split_version(package.version.to_string());
-        env = s
-            .env
-            .iter()
-            .map(|(key, _)| {
-                let new_value = match key.as_str() {
-                    "CARGO_MANIFEST_DIR" => package
-                        .manifest_path
-                        .parent()
-                        .map(|p| p.to_string())
-                        .unwrap_or_default(),
-                    "CARGO" => "cargo".to_string(),
-                    "CARGO_PKG_VERSION" => package.version.to_string(),
-                    "CARGO_PKG_VERSION_MAJOR" => split_version.major.clone(),
-                    "CARGO_PKG_VERSION_MINOR" => split_version.minor.clone(),
-                    "CARGO_PKG_VERSION_PATCH" => split_version.patch.clone(),
-                    "CARGO_PKG_VERSION_PRE" => split_version.pre_release.clone(),
-                    "CARGO_PKG_AUTHORS" => package.authors.join(";"),
-                    "CARGO_PKG_NAME" => package.name.clone(),
-                    "CARGO_PKG_DESCRIPTION" => package.description.clone().unwrap_or_default(),
-                    "CARGO_PKG_REPOSITORY" => package.repository.clone().unwrap_or_default(),
-                    "CARGO_PKG_LICENSE" => package.license.clone().unwrap_or_default(),
-                    "CARGO_PKG_LICENSE_FILE" => {
-                        package.license_file.clone().unwrap_or_default().to_string()
-                    }
-                    "CARGO_CRATE_NAME" => package.name.replace('-', "_"),
-                    _ => String::default(),
-                };
-                (key.clone(), new_value)
-            })
-            .collect::<HashMap<String, String>>();
+        for (k, v) in &s.env {
+            env.insert(k.clone(), v.clone());
+        }
     }
     env
 }
@@ -113,6 +123,10 @@ pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<Uri> {
                 && a.target.crate_types.contains(&PROC_MACRO.to_string())
         })
         .flat_map(|a| a.filenames.clone())
-        .find(|f| DYNAMIC_LIBRARY_EXTENSIONS.iter().any(|&e| f.ends_with(e)))
+        .find(|f| {
+            DYNAMIC_LIBRARY_EXTENSIONS
+                .iter()
+                .any(|&e| f.extension().map_or(false, |ex| ex == e))
+        })
         .map(|f| f.to_string())
 }

@@ -35,7 +35,10 @@ where
                 to_value(R::Result::create_result(
                     self.params.origin_id(),
                     // If there is no exit code, process terminated by signal
-                    exit_status.code().unwrap_or(143),
+                    match exit_status.code() {
+                        Some(0) => StatusCode::Ok,
+                        _ => StatusCode::Error,
+                    },
                 ))
                 .unwrap()
             }),

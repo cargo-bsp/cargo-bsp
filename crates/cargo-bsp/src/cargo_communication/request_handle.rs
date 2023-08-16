@@ -42,12 +42,12 @@ impl RequestHandle {
     {
         let root_path = global_state.config.root_path();
         let targets_details = targets_ids_to_targets_details(
-            params.get_targets(&global_state.workspace),
+            &params.get_targets(&global_state.workspace),
             &global_state,
         )?;
-        let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
-        let requested_cmd = params.create_requested_command(root_path, &targets_details);
-        let cargo_handle = CargoHandle::spawn(unit_graph_cmd)?;
+        let mut unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
+        let mut requested_cmd = params.create_requested_command(root_path, &targets_details);
+        let cargo_handle = CargoHandle::spawn(&mut unit_graph_cmd)?;
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let actor: RequestActor<R, CargoHandle> = RequestActor::new(
             sender_to_main,
@@ -58,8 +58,8 @@ impl RequestHandle {
             cancel_receiver,
             &global_state.workspace,
         );
-        let thread =
-            jod_thread::Builder::new().spawn(move || run_commands(actor, requested_cmd))?;
+        let thread = jod_thread::Builder::new()
+            .spawn(move || run_commands(actor, requested_cmd.first_mut().unwrap()))?;
         Ok(RequestHandle {
             cancel_sender,
             _thread: thread,
@@ -71,7 +71,7 @@ impl RequestHandle {
     }
 }
 
-fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: Command)
+fn run_commands<R>(mut actor: RequestActor<R, CargoHandle>, requested_cmd: &mut Command)
 where
     R: Request + 'static,
     R::Params: CreateUnitGraphCommand + ParamsTarget + Send,

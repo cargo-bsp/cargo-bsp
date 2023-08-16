@@ -43,7 +43,7 @@ pub(crate) fn find_node<'a>(
     }
 }
 
-pub(crate) fn get_nodes_from_metadata(metadata: &cargo_metadata::Metadata) -> Vec<Node> {
+pub(crate) fn get_nodes_from_metadata(metadata: &Metadata) -> Vec<Node> {
     match metadata.resolve.clone() {
         Some(resolve) => resolve.nodes,
         None => {
@@ -64,13 +64,13 @@ pub fn resolve_rust_workspace_result(
     metadata: &Metadata,
 ) -> RustWorkspaceResult {
     let packages = get_rust_packages_related_to_targets(workspace, metadata, targets);
-    let raw_dependencies = resolve_raw_dependencies(workspace, targets);
-    let dependencies = resolve_rust_dependencies(workspace, metadata, targets);
+    let raw_dependencies = resolve_raw_dependencies(metadata, &packages);
+    let dependencies = resolve_rust_dependencies(metadata, &packages);
 
     RustWorkspaceResult {
         packages,
         raw_dependencies,
         dependencies,
-        resolved_targets: Vec::new(), //Todo this is for Bazel
+        resolved_targets: Vec::from(targets), //Todo this is for Bazel
     }
 }

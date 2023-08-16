@@ -1,14 +1,11 @@
 //! This file is a part of implementation to handle the BSP Rust extension.
 //! Functions in this file are used to resolve the dependencies part of the request.
 
-use crate::project_model::package_dependency::PackageDependency;
 use crate::project_model::rust_extension::{find_node, get_nodes_from_metadata};
-use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{
     PackageIdToRustDependency, PackageIdToRustRawDependency, RustDepKind, RustDepKindInfo,
-    RustDependency, RustRawDependency,
+    RustDependency, RustPackage, RustRawDependency,
 };
-use bsp_types::BuildTargetIdentifier;
 use cargo_metadata::DependencyKind;
 
 fn metadata_dependency_kind_to_string(metadata_dependency_kind: DependencyKind) -> Option<String> {
@@ -21,17 +18,13 @@ fn metadata_dependency_kind_to_string(metadata_dependency_kind: DependencyKind) 
 }
 
 fn package_dependency_to_rust_raw_dependency(
-    package_dependency: PackageDependency,
+    package_dependency: cargo_metadata::Dependency,
 ) -> RustRawDependency {
     RustRawDependency {
         name: package_dependency.name,
         optional: package_dependency.optional,
         uses_default_features: package_dependency.uses_default_features,
-        features: package_dependency
-            .features
-            .into_iter()
-            .map(|f| f.0)
-            .collect(),
+        features: package_dependency.features,
         rename: package_dependency.rename,
         kind: metadata_dependency_kind_to_string(package_dependency.kind),
         target: package_dependency.target.map(|p| p.to_string()),
@@ -68,40 +61,43 @@ fn metadata_node_dep_to_rust_dependency(node_dep: &cargo_metadata::NodeDep) -> R
 }
 
 pub fn resolve_raw_dependencies(
-    workspace: &ProjectWorkspace,
-    targets: &[BuildTargetIdentifier],
+    metadata: &cargo_metadata::Metadata,
+    packages: &Vec<RustPackage>,
 ) -> PackageIdToRustRawDependency {
-    workspace
-        .get_packages_related_to_targets(targets)
+    packages
         .iter()
-        .flat_map(|p| {
-            p.dependencies
+        .filter_map(|p| metadata.packages.iter().find(|wp| wp.id.repr == p.id))
+        .map(|p| {
+            let dependencies = p
+                .dependencies
                 .iter()
                 .cloned()
-                .map(|d| (p.id.clone(), package_dependency_to_rust_raw_dependency(d)))
-                .collect::<Vec<(String, RustRawDependency)>>()
+                .map(package_dependency_to_rust_raw_dependency)
+                .collect::<Vec<RustRawDependency>>();
+            (p.id.repr.clone(), dependencies)
         })
         .collect()
 }
 
 pub fn resolve_rust_dependencies(
-    workspace: &ProjectWorkspace,
     metadata: &cargo_metadata::Metadata,
-    targets: &[BuildTargetIdentifier],
+    packages: &Vec<RustPackage>,
 ) -> PackageIdToRustDependency {
     let nodes = get_nodes_from_metadata(metadata);
 
-    workspace
-        .get_packages_related_to_targets(targets)
+    packages
         .iter()
         .filter_map(|p| {
             let id = p.id.clone();
             find_node(&nodes, &id, "Skipping dependency.").map(|node| (id, node))
         })
-        .flat_map(|(id, node)| {
-            node.deps
+        .map(|(id, node)| {
+            let dependencies = node
+                .deps
                 .iter()
-                .map(move |d| (id.clone(), metadata_node_dep_to_rust_dependency(d)))
+                .map(metadata_node_dep_to_rust_dependency)
+                .collect::<Vec<RustDependency>>();
+            (id, dependencies)
         })
         .collect()
 }

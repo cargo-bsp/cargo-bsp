@@ -2,6 +2,7 @@
 //! Functions in this file are partially responsible
 //! for preparing the data for RustWorkspaceRequest response.
 
+use crate::project_model::cargo_package::CargoPackage;
 use crate::project_model::rust_extension::{
     find_node, get_nodes_from_metadata, metadata_edition_to_rust_extension_edition,
     target::metadata_targets_to_rust_extension_targets,
@@ -9,7 +10,7 @@ use crate::project_model::rust_extension::{
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     // todo check if it is a stdlib ord stdlib dep in InteliJ rust
@@ -51,6 +52,7 @@ fn metadata_package_to_rust_extension_package(
     );
     RustPackage {
         id: metadata_package.id.clone().to_string(),
+        name: metadata_package.name.clone(),
         version: metadata_package.version.to_string(),
         edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
         source: metadata_package.source.map(|s| s.to_string()),
@@ -73,10 +75,10 @@ pub fn get_rust_packages_related_to_targets(
         .iter()
         .filter_map(|t| workspace.get_package_related_to_target(t))
         .flat_map(|p| {
-            let mut names: Vec<String> = p.dependencies.iter().map(|d| d.name.clone()).collect();
-            names.push(p.name.clone());
-            names
+            find_all_packages(p, &metadata.packages)
         })
+        .collect::<HashSet<_>>()
+        .into_iter()
         .collect();
 
     let nodes = get_nodes_from_metadata(metadata);
@@ -96,4 +98,26 @@ pub fn get_rust_packages_related_to_targets(
             rust_package
         })
         .collect()
+}
+
+fn find_all_packages(package: &CargoPackage, packages: &Vec<cargo_metadata::Package>) -> Vec<String> {
+    if let Some(package) = packages.iter().find(|p| p.name == package.name) {
+        let mut next_dependencies: VecDeque<&cargo_metadata::Package> = VecDeque::from([package]);
+        let mut checked_dependencies: HashSet<String> = HashSet::from([package.name.clone()]);
+        let mut all_package_names: Vec<String> = vec![package.name.clone()];
+
+        while let Some(next) = next_dependencies.pop_front() {
+            for dependency in &next.dependencies {
+                if !checked_dependencies.contains(&dependency.name) {
+                    checked_dependencies.insert(dependency.name.clone());
+                    if let Some(p) = packages.iter().find(|p| p.name == dependency.name) {
+                        all_package_names.push(p.name.clone());
+                        next_dependencies.push_back(p);
+                    }
+                }
+            }
+        }
+        return all_package_names;
+    }
+    Vec::new()
 }

@@ -31,7 +31,7 @@ fn metadata_crate_types_to_rust_extension_crate_types(
             "cdylib" => RustCrateType::Cdylib,
             "staticlib" => RustCrateType::Staticlib,
             "proc-macro" => RustCrateType::ProcMacro,
-            _ => RustCrateType::default(),
+            _ => RustCrateType::Unknown,
         })
         .collect()
 }

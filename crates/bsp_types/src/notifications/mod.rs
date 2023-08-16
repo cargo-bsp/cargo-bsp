@@ -31,7 +31,6 @@ pub struct TaskId {
     relationship of tasks makes it possible to render tasks in
     a tree-like user interface or inspect what caused a certain task
     execution. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parents: Vec<String>,
 }
 
@@ -61,7 +60,8 @@ mod tests {
         assert_json_snapshot!(TaskId::default(),
             @r###"
         {
-          "id": ""
+          "id": "",
+          "parents": []
         }
         "###
         );

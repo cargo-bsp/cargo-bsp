@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
 pub enum Run {}
@@ -25,7 +25,7 @@ pub struct RunParams {
     pub origin_id: Option<String>,
 
     /** Optional arguments to the executed application. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub arguments: Vec<String>,
 
     /** Kind of data to expect in the data field. If this field is not set, the kind of data is not specified. */
@@ -46,7 +46,7 @@ pub struct RunResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: i32,
+    pub status_code: StatusCode,
 }
 
 #[cfg(test)]
@@ -84,21 +84,21 @@ mod tests {
     fn run_result() {
         let test_data = RunResult {
             origin_id: Some("test_originId".to_string()),
-            status_code: i32::default(),
+            status_code: StatusCode::default(),
         };
 
         assert_json_snapshot!(test_data,
             @r###"
         {
           "originId": "test_originId",
-          "statusCode": 0
+          "statusCode": 2
         }
         "###
         );
         assert_json_snapshot!(RunResult::default(),
             @r###"
         {
-          "statusCode": 0
+          "statusCode": 2
         }
         "###
         );

@@ -20,8 +20,8 @@ pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-pub type PackageIdToRustRawDependency = HashMap<String, RustRawDependency>;
-pub type PackageIdToRustDependency = HashMap<String, RustDependency>;
+pub type PackageIdToRustRawDependency = HashMap<String, Vec<RustRawDependency>>;
+pub type PackageIdToRustDependency = HashMap<String, Vec<RustDependency>>;
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -76,7 +76,6 @@ pub struct RustBuildTarget {
     pub kind: RustTargetKind,
     /** Type of output that is produced by a crate during the build process.
     The crate type determines how the source code is compiled. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub crate_types: Vec<RustCrateType>,
     /** The Rust edition of the target. */
     pub edition: RustEdition,
@@ -84,7 +83,6 @@ pub struct RustBuildTarget {
     the target is compatible with doc testing. */
     pub doctest: bool,
     /** A sequence of required features. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_features: Vec<String>,
 }
 
@@ -121,6 +119,7 @@ pub enum RustCrateType {
     Cdylib = 5,
     Staticlib = 6,
     ProcMacro = 7,
+    Unknown = 8,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -161,10 +160,8 @@ pub struct RustCfgOptions {
     /** `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
     The `cfg` is split by '=' delimiter and the first half becomes key and
     the second is aggregated to the value in `keyValueOptions`. */
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub key_value_options: HashMap<String, Vec<String>>,
     /** A sequence of first halves after splitting `cfgs` by '='. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub name_options: Vec<String>,
 }
 
@@ -185,6 +182,8 @@ However, it must contain at least one crate, whether that’s a library or binar
 pub struct RustPackage {
     /** The package’s unique identifier. */
     pub id: String,
+    // TODO add name
+    pub name: String,
     /** The version of the package. */
     pub version: String,
     /** Defines a reason a package is in a project. */
@@ -211,7 +210,6 @@ pub struct RustPackage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cfg_options: Option<RustCfgOptions>,
     /** Environment variables for the package. */
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
     /** An absolute path which is used as a value of `OUT_DIR` environmental
     variable when compiling current package. */
@@ -258,7 +256,6 @@ pub struct RustDependency {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /** Array of dependency kinds. */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
 
@@ -290,9 +287,12 @@ mod test {
             packages: vec![RustPackage::default()],
             raw_dependencies: HashMap::from([(
                 "package_id".to_string(),
-                RustRawDependency::default(),
+                vec![RustRawDependency::default()],
             )]),
-            dependencies: HashMap::from([("package_id".to_string(), RustDependency::default())]),
+            dependencies: HashMap::from([(
+                "package_id".to_string(),
+                vec![RustDependency::default()],
+            )]),
             resolved_targets: vec![BuildTargetIdentifier::default()],
         };
 
@@ -301,27 +301,34 @@ mod test {
           "packages": [
             {
               "id": "",
+              "name": "",
               "version": "",
               "origin": "workspace",
               "edition": 2018,
               "targets": [],
               "allTargets": [],
               "features": [],
-              "enabledFeatures": []
+              "enabledFeatures": [],
+              "env": {}
             }
           ],
           "rawDependencies": {
-            "package_id": {
-              "name": "",
-              "optional": false,
-              "usesDefaultFeatures": false,
-              "features": []
-            }
+            "package_id": [
+              {
+                "name": "",
+                "optional": false,
+                "usesDefaultFeatures": false,
+                "features": []
+              }
+            ]
           },
           "dependencies": {
-            "package_id": {
-              "pkg": ""
-            }
+            "package_id": [
+              {
+                "pkg": "",
+                "depKinds": []
+              }
+            ]
           },
           "resolvedTargets": [
             {
@@ -410,8 +417,10 @@ mod test {
           "crateRootUrl": "",
           "packageRootUrl": "",
           "kind": 1,
+          "crateTypes": [],
           "edition": 2018,
-          "doctest": false
+          "doctest": false,
+          "requiredFeatures": []
         }
         "###);
     }
@@ -462,7 +471,10 @@ mod test {
         "###);
 
         assert_json_snapshot!(RustCfgOptions::default(), @r###"
-        {}
+        {
+          "keyValueOptions": {},
+          "nameOptions": []
+        }
         "###);
     }
 
@@ -470,6 +482,7 @@ mod test {
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
+            name: "test_name".to_string(),
             version: "test_version".to_string(),
             origin: RustPackageOrigin::default(),
             edition: RustEdition::default(),
@@ -487,6 +500,7 @@ mod test {
         assert_json_snapshot!(package, @r###"
         {
           "id": "test_id",
+          "name": "test_name",
           "version": "test_version",
           "origin": "workspace",
           "edition": 2018,
@@ -497,8 +511,10 @@ mod test {
               "crateRootUrl": "",
               "packageRootUrl": "",
               "kind": 1,
+              "crateTypes": [],
               "edition": 2018,
-              "doctest": false
+              "doctest": false,
+              "requiredFeatures": []
             }
           ],
           "allTargets": [
@@ -507,8 +523,10 @@ mod test {
               "crateRootUrl": "",
               "packageRootUrl": "",
               "kind": 1,
+              "crateTypes": [],
               "edition": 2018,
-              "doctest": false
+              "doctest": false,
+              "requiredFeatures": []
             }
           ],
           "features": [
@@ -520,7 +538,10 @@ mod test {
           "enabledFeatures": [
             "test_feature"
           ],
-          "cfgOptions": {},
+          "cfgOptions": {
+            "keyValueOptions": {},
+            "nameOptions": []
+          },
           "env": {
             "key": "value"
           },
@@ -532,13 +553,15 @@ mod test {
         assert_json_snapshot!(RustPackage::default(), @r###"
         {
           "id": "",
+          "name": "",
           "version": "",
           "origin": "workspace",
           "edition": 2018,
           "targets": [],
           "allTargets": [],
           "features": [],
-          "enabledFeatures": []
+          "enabledFeatures": [],
+          "env": {}
         }
         "###);
     }
@@ -586,7 +609,8 @@ mod test {
 
         assert_json_snapshot!(RustDependency::default(), @r###"
         {
-          "pkg": ""
+          "pkg": "",
+          "depKinds": []
         }
         "###);
     }
@@ -634,5 +658,6 @@ mod test {
         assert_json_snapshot!(RustCrateType::Cdylib, @"5");
         assert_json_snapshot!(RustCrateType::Staticlib, @"6");
         assert_json_snapshot!(RustCrateType::ProcMacro, @"7");
+        assert_json_snapshot!(RustCrateType::Unknown, @"8");
     }
 }

@@ -59,7 +59,7 @@ impl CargoHandler<CargoMessage> for CargoHandle {
 }
 
 impl CargoHandle {
-    pub fn spawn(mut command: Command) -> io::Result<CargoHandle> {
+    pub fn spawn(command: &mut Command) -> io::Result<CargoHandle> {
         info!("Created command: {:?}", command);
         command
             .stdout(Stdio::piped())

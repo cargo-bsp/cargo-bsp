@@ -32,7 +32,6 @@ pub struct SourcesItem {
 
     /** The root directories from where source files should be relativized.
     Example: ["file://Users/name/dev/metals/src/main/scala"] */
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roots: Vec<Uri>,
 }
 
@@ -99,7 +98,8 @@ mod tests {
               "target": {
                 "uri": ""
               },
-              "sources": []
+              "sources": [],
+              "roots": []
             }
           ]
         }
@@ -147,7 +147,8 @@ mod tests {
           "target": {
             "uri": ""
           },
-          "sources": []
+          "sources": [],
+          "roots": []
         }
         "###
         );

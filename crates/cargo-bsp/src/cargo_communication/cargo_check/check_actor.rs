@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::io;
 
 use bsp_server::RequestId;
 use bsp_server::{ErrorCode, Message, Response, ResponseError};
@@ -26,9 +27,11 @@ where
 {
     // sender for notifications and responses to main loop
     sender: Box<dyn Fn(Message) + Send>,
-    cargo_handle: Option<C>,
+    pub(super) cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
     req_id: RequestId,
+    build_scripts: HashMap<PackageId, BuildScript>,
+    compiler_artifacts: HashMap<PackageId, Vec<Artifact>>,
 }
 
 impl<C> CheckActor<C>
@@ -38,14 +41,15 @@ where
     pub fn new(
         sender: Box<dyn Fn(Message) + Send>,
         req_id: RequestId,
-        cargo_handle: C,
         cancel_receiver: Receiver<Event>,
     ) -> CheckActor<C> {
         CheckActor {
             sender,
-            cargo_handle: Some(cargo_handle),
+            cargo_handle: None,
             cancel_receiver,
             req_id,
+            build_scripts: HashMap::new(),
+            compiler_artifacts: HashMap::new(),
         }
     }
 
@@ -60,33 +64,24 @@ where
         }
     }
 
-    pub fn run(&mut self, result: RustWorkspaceResult, packages: Vec<Package>) {
-        let mut build_scripts: HashMap<PackageId, BuildScript> = HashMap::new();
-        let mut compiler_artifacts: HashMap<PackageId, Vec<Artifact>> = HashMap::new();
-
+    pub fn run(&mut self) {
         while let Some(event) = self.next_event() {
             match event {
                 Event::Cancel => {
                     self.cancel();
-                    break;
+                    return;
                 }
                 Event::CargoFinish => {
-                    self.finish(build_scripts, compiler_artifacts, result, packages);
-                    break;
+                    return;
                 }
                 Event::CargoEvent(message) => {
-                    self.handle_message(message, &mut build_scripts, &mut compiler_artifacts);
+                    self.handle_message(message);
                 }
             }
         }
     }
 
-    fn handle_message(
-        &mut self,
-        message: CargoMessage,
-        build_scripts: &mut HashMap<PackageId, BuildScript>,
-        compiler_artifacts: &mut HashMap<PackageId, Vec<Artifact>>,
-    ) {
+    fn handle_message(&mut self, message: CargoMessage) {
         match message {
             CargoMessage::CargoStdout(msg) => {
                 let mut deserializer = serde_json::Deserializer::from_str(&msg);
@@ -94,13 +89,15 @@ where
                     .unwrap_or(CargoMetadataMessage::TextLine(msg));
                 match message {
                     CargoMetadataMessage::BuildScriptExecuted(msg) => {
-                        build_scripts.insert(msg.package_id.clone(), msg);
+                        self.build_scripts.insert(msg.package_id.clone(), msg);
                     }
                     CargoMetadataMessage::CompilerArtifact(msg) => {
-                        if let Entry::Vacant(e) = compiler_artifacts.entry(msg.package_id.clone()) {
+                        if let Entry::Vacant(e) =
+                            self.compiler_artifacts.entry(msg.package_id.clone())
+                        {
                             e.insert(vec![msg]);
                         } else {
-                            compiler_artifacts
+                            self.compiler_artifacts
                                 .get_mut(&msg.package_id)
                                 .unwrap()
                                 .push(msg);
@@ -115,21 +112,16 @@ where
         }
     }
 
-    fn finish(
-        &mut self,
-        build_scripts: HashMap<PackageId, BuildScript>,
-        compiler_artifacts: HashMap<PackageId, Vec<Artifact>>,
-        mut result: RustWorkspaceResult,
-        packages: Vec<Package>,
-    ) {
+    pub(super) fn finish(&mut self, mut result: RustWorkspaceResult, packages: Vec<Package>) {
         let packages = result
             .packages
             .into_iter()
             .map(|mut p| {
                 let package_id = PackageId { repr: p.id.clone() };
-                let script = build_scripts.get(&package_id);
+                let script = self.build_scripts.get(&package_id);
                 let default_artifacts = &vec![];
-                let artifacts = compiler_artifacts
+                let artifacts = self
+                    .compiler_artifacts
                     .get(&package_id)
                     .unwrap_or(default_artifacts);
                 // We can unwrap, as there would be no RustWorkspaceResult without this package.
@@ -144,14 +136,7 @@ where
             .collect();
 
         result.packages = packages;
-        self.send(
-            Response {
-                id: self.req_id.clone(),
-                result: Some(to_value(result).unwrap()),
-                error: None,
-            }
-            .into(),
-        );
+        self.send_response(Ok(result));
     }
 
     fn cancel(&mut self) {
@@ -176,6 +161,24 @@ where
                 self.req_id.clone()
             );
         }
+    }
+
+    pub(super) fn send_response(&self, command_result: io::Result<RustWorkspaceResult>) {
+        self.send(
+            Response {
+                id: self.req_id.clone(),
+                result: command_result
+                    .as_ref()
+                    .ok()
+                    .map(|result| to_value(result).unwrap()),
+                error: command_result.as_ref().err().map(|e| ResponseError {
+                    code: ErrorCode::InternalError as i32,
+                    message: e.to_string(),
+                    data: None,
+                }),
+            }
+            .into(),
+        );
     }
 
     fn send(&self, msg: Message) {

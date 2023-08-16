@@ -37,10 +37,10 @@ fn list_target_sources(target_details: TargetDetails) -> Vec<SourceItem> {
     let mut src_sources: Vec<SourceItem> = list_source_files_in_path(package_path.join("src"));
 
     match target_details.kind {
-        CargoTargetKind::Lib | CargoTargetKind::Bin => {}
         CargoTargetKind::Test | CargoTargetKind::Example | CargoTargetKind::Bench => {
             src_sources.append(&mut list_source_files_in_path(package_path.join("tests")))
         }
+        _ => {}
     }
 
     src_sources

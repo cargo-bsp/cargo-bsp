@@ -9,14 +9,26 @@ use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
 use bsp_types;
+use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 pub(crate) fn handle_workspace_build_targets(
     state: GlobalStateSnapshot,
     _: (),
 ) -> Result<bsp_types::requests::WorkspaceBuildTargetsResult> {
-    Ok(bsp_types::requests::WorkspaceBuildTargetsResult {
-        targets: state.workspace.get_bsp_build_targets(),
-    })
+    let mut b = state.workspace.get_bsp_build_targets();
+    b.push(BuildTarget {
+        id: BuildTargetIdentifier {
+            uri: "bsp-workspace-root".to_string(),
+        },
+        display_name: None,
+        base_directory: state.config.root_path().to_str().map(|s| s.to_string()),
+        tags: vec![],
+        capabilities: Default::default(),
+        language_ids: vec![],
+        dependencies: vec![],
+        data: None,
+    });
+    Ok(bsp_types::requests::WorkspaceBuildTargetsResult { targets: b })
 }
 
 pub(crate) fn handle_sources(

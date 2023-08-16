@@ -53,7 +53,7 @@ impl TargetDetails {
 #[derive(
     Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, Ord, PartialOrd, Eq, PartialEq,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum CargoTargetKind {
     #[default]
     Lib,
@@ -61,4 +61,6 @@ pub enum CargoTargetKind {
     Test,
     Bench,
     Example,
+    // TODO add other?
+    ProcMacro,
 }
