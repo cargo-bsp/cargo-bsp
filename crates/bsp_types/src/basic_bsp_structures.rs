@@ -1,4 +1,3 @@
-use cargo_metadata::Edition;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -55,20 +54,37 @@ pub struct BuildTarget {
     /** Language-specific metadata about this target.
     See ScalaBuildTarget as an example. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<RustBuildTargetData>,
+    pub data: Option<BuildTargetData>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum RustBuildTargetData {
-    Rust(RustBuildTarget),
+pub enum BuildTargetData {
+    Cargo(CargoBuildTarget),
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+/** `CargoBuildTarget` is a basic data structure that contains cargo-specific metadata. */
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RustBuildTarget {
+pub struct CargoBuildTarget {
     pub edition: Edition,
     pub required_features: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Edition(pub std::borrow::Cow<'static, str>);
+impl Edition {
+    pub const E2015: Edition = Edition::new("2015");
+    pub const E2018: Edition = Edition::new("2018");
+    pub const E2021: Edition = Edition::new("2021");
+    pub const _E2024: Edition = Edition::new("2024");
+    pub const _E2027: Edition = Edition::new("2027");
+    pub const _E2030: Edition = Edition::new("2030");
+
+    pub const fn new(tag: &'static str) -> Self {
+        Edition(std::borrow::Cow::Borrowed(tag))
+    }
 }
 
 /** A unique identifier for a target, can use any URI-compatible encoding as long as it is unique
@@ -184,7 +200,7 @@ mod tests {
             capabilities: BuildTargetCapabilities::default(),
             language_ids: vec!["test_languageId".to_string()],
             dependencies: vec![BuildTargetIdentifier::default()],
-            data: Some(RustBuildTargetData::Rust(RustBuildTarget::default())),
+            data: Some(BuildTargetData::Cargo(CargoBuildTarget::default())),
         };
 
         assert_json_snapshot!(test_data,
@@ -212,9 +228,9 @@ mod tests {
               "uri": ""
             }
           ],
-          "dataKind": "rust",
+          "dataKind": "cargo",
           "data": {
-            "edition": "2015",
+            "edition": "",
             "requiredFeatures": []
           }
         }
@@ -241,9 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn rust_build_target() {
-        let test_data = RustBuildTarget {
-            edition: Edition::default(),
+    fn cargo_build_target() {
+        let test_data = CargoBuildTarget {
+            edition: Edition::E2015,
             required_features: vec!["test_requiredFeature".to_string()],
         };
 
@@ -257,10 +273,10 @@ mod tests {
         }
         "###
         );
-        assert_json_snapshot!(RustBuildTarget::default(),
+        assert_json_snapshot!(CargoBuildTarget::default(),
             @r###"
         {
-          "edition": "2015",
+          "edition": "",
           "requiredFeatures": []
         }
         "###
@@ -268,13 +284,13 @@ mod tests {
     }
 
     #[test]
-    fn rust_build_target_data() {
-        assert_json_snapshot!(RustBuildTargetData::Rust(RustBuildTarget::default()),
+    fn cargo_build_target_data() {
+        assert_json_snapshot!(BuildTargetData::Cargo(CargoBuildTarget::default()),
             @r###"
         {
-          "dataKind": "rust",
+          "dataKind": "cargo",
           "data": {
-            "edition": "2015",
+            "edition": "",
             "requiredFeatures": []
           }
         }
