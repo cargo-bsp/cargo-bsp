@@ -80,8 +80,8 @@ pub fn bsp_build_target_from_cargo_target(
 ) -> BuildTarget {
     let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
-    let rust_specific_data = RustBuildTargetData::Rust(RustBuildTarget {
-        edition: cargo_target.edition,
+    let rust_specific_data = BuildTargetData::Cargo(CargoBuildTarget {
+        edition: serde_json::from_str(&cargo_target.edition.to_string()).unwrap(),
         required_features: cargo_target.required_features.clone(),
     });
 
