@@ -63,7 +63,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "changes": [
             {
@@ -73,14 +73,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DidChangeBuildTargetParams::default(),
-            @r###"
+            @r#"
         {
           "changes": []
         }
-        "###
+        "#
         );
     }
 
@@ -93,7 +93,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -103,16 +103,16 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(BuildTargetEvent::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           }
         }
-        "###
+        "#
         );
     }
 

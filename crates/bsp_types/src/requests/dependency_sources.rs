@@ -62,7 +62,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -73,14 +73,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DependencySourcesResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -92,7 +92,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -101,17 +101,17 @@ mod tests {
             ""
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DependencySourcesItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           },
           "sources": []
         }
-        "###
+        "#
         );
     }
 }

@@ -72,18 +72,18 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "uri": "test_uri"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DebugSessionAddress::default(),
-            @r###"
+            @r#"
         {
           "uri": ""
         }
-        "###
+        "#
         );
     }
 }

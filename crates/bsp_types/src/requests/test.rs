@@ -99,7 +99,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "originId": "test_originId",
           "statusCode": 0,
@@ -108,14 +108,14 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TestResult::default(),
-            @r###"
+            @r#"
         {
           "statusCode": 0
         }
-        "###
+        "#
         );
     }
 }

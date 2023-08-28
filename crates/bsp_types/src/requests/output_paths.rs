@@ -84,7 +84,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -95,14 +95,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(OutputPathsResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -114,7 +114,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -126,17 +126,17 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(OutputPathsItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           },
           "outputPaths": []
         }
-        "###
+        "#
         );
     }
 
@@ -148,20 +148,20 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "uri": "test_uri",
           "kind": 1
         }
-        "###
+        "#
         );
         assert_json_snapshot!(OutputPathItem::default(),
-            @r###"
+            @r#"
         {
           "uri": "",
           "kind": 1
         }
-        "###
+        "#
         );
     }
 
