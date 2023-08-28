@@ -297,7 +297,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
@@ -311,16 +311,16 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskStartParams::default(),
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
           }
         }
-        "###
+        "#
         );
     }
 
@@ -337,7 +337,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
@@ -354,16 +354,16 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskProgressParams::default(),
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
           }
         }
-        "###
+        "#
         );
     }
 
@@ -378,7 +378,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
@@ -393,24 +393,24 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskFinishParams::default(),
-            @r###"
+            @r#"
         {
           "taskId": {
             "id": ""
           },
           "status": 2
         }
-        "###
+        "#
         );
     }
 
     #[test]
     fn task_data_with_kind() {
         assert_json_snapshot!(TaskDataWithKind::CompileTask(CompileTaskData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "compile-task",
           "data": {
@@ -419,10 +419,10 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskDataWithKind::CompileReport(CompileReportData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "compile-report",
           "data": {
@@ -433,10 +433,10 @@ mod tests {
             "warnings": 0
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskDataWithKind::TestTask(TestTaskData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "test-task",
           "data": {
@@ -445,10 +445,10 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskDataWithKind::TestReport(TestReportData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "test-report",
           "data": {
@@ -462,20 +462,20 @@ mod tests {
             "skipped": 0
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskDataWithKind::TestStart(TestStartData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "test-start",
           "data": {
             "displayName": ""
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskDataWithKind::TestFinish(TestFinishData::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "test-finish",
           "data": {
@@ -483,20 +483,20 @@ mod tests {
             "status": 2
           }
         }
-        "###
+        "#
         );
     }
 
     #[test]
     fn compile_task_data() {
         assert_json_snapshot!(CompileTaskData::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           }
         }
-        "###
+        "#
         );
     }
 
@@ -512,7 +512,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -523,10 +523,10 @@ mod tests {
           "time": 3,
           "noOp": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(CompileReportData::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -534,20 +534,20 @@ mod tests {
           "errors": 0,
           "warnings": 0
         }
-        "###
+        "#
         );
     }
 
     #[test]
     fn test_task_data() {
         assert_json_snapshot!(TestTaskData::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           }
         }
-        "###
+        "#
         );
     }
 
@@ -564,7 +564,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -576,10 +576,10 @@ mod tests {
           "skipped": 5,
           "time": 6
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TestReportData::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -590,7 +590,7 @@ mod tests {
           "cancelled": 0,
           "skipped": 0
         }
-        "###
+        "#
         );
     }
 
@@ -605,7 +605,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "displayName": "test_name",
           "location": {
@@ -622,14 +622,14 @@ mod tests {
             }
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TestStartData::default(),
-            @r###"
+            @r#"
         {
           "displayName": ""
         }
-        "###
+        "#
         );
     }
 
@@ -648,7 +648,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "displayName": "test_name",
           "message": "test_message",
@@ -671,15 +671,15 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TestFinishData::default(),
-            @r###"
+            @r#"
         {
           "displayName": "",
           "status": 2
         }
-        "###
+        "#
         );
     }
 

@@ -175,18 +175,18 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "uri": "test_uri"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TextDocumentIdentifier::default(),
-            @r###"
+            @r#"
         {
           "uri": ""
         }
-        "###
+        "#
         );
     }
 
@@ -204,7 +204,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "id": {
             "uri": ""
@@ -234,10 +234,10 @@ mod tests {
             "requiredFeatures": []
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(BuildTarget::default(),
-            @r###"
+            @r#"
         {
           "id": {
             "uri": ""
@@ -252,7 +252,7 @@ mod tests {
           "languageIds": [],
           "dependencies": []
         }
-        "###
+        "#
         );
     }
 
@@ -264,29 +264,29 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "edition": "2015",
           "requiredFeatures": [
             "test_requiredFeature"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(CargoBuildTarget::default(),
-            @r###"
+            @r#"
         {
           "edition": "",
           "requiredFeatures": []
         }
-        "###
+        "#
         );
     }
 
     #[test]
     fn cargo_build_target_data() {
         assert_json_snapshot!(BuildTargetData::Cargo(CargoBuildTarget::default()),
-            @r###"
+            @r#"
         {
           "dataKind": "cargo",
           "data": {
@@ -294,7 +294,7 @@ mod tests {
             "requiredFeatures": []
           }
         }
-        "###
+        "#
         );
     }
 
@@ -305,30 +305,30 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "uri": "test_uri"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(BuildTargetIdentifier::default(),
-            @r###"
+            @r#"
         {
           "uri": ""
         }
-        "###
+        "#
         );
     }
 
     #[test]
     fn build_target_tag() {
-        assert_json_snapshot!(BuildTargetTag::Library, @r###""library""###);
-        assert_json_snapshot!(BuildTargetTag::Application, @r###""application""###);
-        assert_json_snapshot!(BuildTargetTag::Test, @r###""test""###);
-        assert_json_snapshot!(BuildTargetTag::IntegrationTest, @r###""integration-test""###);
-        assert_json_snapshot!(BuildTargetTag::Benchmark, @r###""benchmark""###);
-        assert_json_snapshot!(BuildTargetTag::NoIde, @r###""no-ide""###);
-        assert_json_snapshot!(BuildTargetTag::Manual, @r###""manual""###);
+        assert_json_snapshot!(BuildTargetTag::Library, @r#""library""#);
+        assert_json_snapshot!(BuildTargetTag::Application, @r#""application""#);
+        assert_json_snapshot!(BuildTargetTag::Test, @r#""test""#);
+        assert_json_snapshot!(BuildTargetTag::IntegrationTest, @r#""integration-test""#);
+        assert_json_snapshot!(BuildTargetTag::Benchmark, @r#""benchmark""#);
+        assert_json_snapshot!(BuildTargetTag::NoIde, @r#""no-ide""#);
+        assert_json_snapshot!(BuildTargetTag::Manual, @r#""manual""#);
     }
 
     #[test]
@@ -341,24 +341,24 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "canCompile": true,
           "canTest": true,
           "canRun": true,
           "canDebug": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(BuildTargetCapabilities::default(),
-            @r###"
+            @r#"
         {
           "canCompile": false,
           "canTest": false,
           "canRun": false,
           "canDebug": false
         }
-        "###
+        "#
         );
     }
 

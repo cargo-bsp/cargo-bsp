@@ -48,7 +48,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "targets": [
             {
@@ -67,14 +67,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(WorkspaceBuildTargetsResult::default(),
-            @r###"
+            @r#"
         {
           "targets": []
         }
-        "###
+        "#
         );
     }
 }

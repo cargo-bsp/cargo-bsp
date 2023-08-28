@@ -60,7 +60,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -71,14 +71,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(ResourcesResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -90,7 +90,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -99,17 +99,17 @@ mod tests {
             ""
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(ResourcesItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           },
           "resources": []
         }
-        "###
+        "#
         );
     }
 }

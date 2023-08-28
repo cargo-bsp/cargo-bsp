@@ -51,7 +51,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "targets": [
             {
@@ -59,14 +59,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(InverseSourcesResult::default(),
-            @r###"
+            @r#"
         {
           "targets": []
         }
-        "###
+        "#
         );
     }
 }

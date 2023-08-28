@@ -208,7 +208,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "displayName": "test_name",
           "version": "1.0.0",
@@ -218,17 +218,17 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(InitializeBuildResult::default(),
-            @r###"
+            @r#"
         {
           "displayName": "",
           "version": "",
           "bspVersion": "",
           "capabilities": {}
         }
-        "###
+        "#
         );
     }
 
@@ -263,7 +263,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "compileProvider": {
             "languageIds": []
@@ -288,7 +288,7 @@ mod tests {
           "cargoFeaturesProvider": true,
           "canReload": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(BuildServerCapabilities::default(),
             @"{}"
@@ -302,20 +302,20 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "languageIds": [
             "test_languageId"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(CompileProvider::default(),
-            @r###"
+            @r#"
         {
           "languageIds": []
         }
-        "###
+        "#
         );
     }
 
@@ -326,20 +326,20 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "languageIds": [
             "test_languageId"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(RunProvider::default(),
-            @r###"
+            @r#"
         {
           "languageIds": []
         }
-        "###
+        "#
         );
     }
 
@@ -350,20 +350,20 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "languageIds": [
             "test_languageId"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DebugProvider::default(),
-            @r###"
+            @r#"
         {
           "languageIds": []
         }
-        "###
+        "#
         );
     }
 
@@ -374,20 +374,20 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "languageIds": [
             "test_languageId"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TestProvider::default(),
-            @r###"
+            @r#"
         {
           "languageIds": []
         }
-        "###
+        "#
         );
     }
 }

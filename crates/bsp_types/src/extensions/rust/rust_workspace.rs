@@ -186,7 +186,7 @@ mod test {
             dependencies: HashMap::from([("source".to_string(), RustDependency::default())]),
         };
 
-        assert_json_snapshot!(result, @r###"
+        assert_json_snapshot!(result, @r#"
         {
           "packages": [
             {
@@ -210,13 +210,13 @@ mod test {
             }
           }
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustWorkspaceParams::default(), @r###"
+        assert_json_snapshot!(RustWorkspaceParams::default(), @r#"
         {
           "targets": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -231,7 +231,7 @@ mod test {
             features: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(dependency, @r###"
+        assert_json_snapshot!(dependency, @r#"
         {
           "name": "test_name",
           "rename": "test_rename",
@@ -243,14 +243,14 @@ mod test {
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustRawDependency::default(), @r###"
+        assert_json_snapshot!(RustRawDependency::default(), @r#"
         {
           "name": "",
           "features": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod test {
             required_features: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(target, @r###"
+        assert_json_snapshot!(target, @r#"
         {
           "name": "test_name",
           "crateRootUrl": "test_crate_url",
@@ -277,16 +277,16 @@ mod test {
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustTarget::default(), @r###"
+        assert_json_snapshot!(RustTarget::default(), @r#"
         {
           "name": "",
           "crateRootUrl": "",
           "packageRootUrl": "",
           "kind": 1
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -296,20 +296,20 @@ mod test {
             deps: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(feature, @r###"
+        assert_json_snapshot!(feature, @r#"
         {
           "name": "test_name",
           "deps": [
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustFeature::default(), @r###"
+        assert_json_snapshot!(RustFeature::default(), @r#"
         {
           "name": ""
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -319,7 +319,7 @@ mod test {
             name_options: vec!["name1".to_string(), "name2".to_string()],
         };
 
-        assert_json_snapshot!(cfg_options, @r###"
+        assert_json_snapshot!(cfg_options, @r#"
         {
           "keyValueOptions": {
             "key": [
@@ -331,11 +331,11 @@ mod test {
             "name2"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustCfgOptions::default(), @r###"
+        assert_json_snapshot!(RustCfgOptions::default(), @r#"
         {}
-        "###);
+        "#);
     }
 
     #[test]
@@ -344,15 +344,15 @@ mod test {
             path: Some("test_path".to_string()),
         };
 
-        assert_json_snapshot!(proc_macro_artifact, @r###"
+        assert_json_snapshot!(proc_macro_artifact, @r#"
         {
           "path": "test_path"
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustProcMacroArtifact::default(), @r###"
+        assert_json_snapshot!(RustProcMacroArtifact::default(), @r#"
         {}
-        "###);
+        "#);
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod test {
             proc_macro_artifact: Some(RustProcMacroArtifact::default()),
         };
 
-        assert_json_snapshot!(package, @r###"
+        assert_json_snapshot!(package, @r#"
         {
           "id": "test_id",
           "version": "test_version",
@@ -412,9 +412,9 @@ mod test {
           "outDirUrl": "test_out_dir_url",
           "procMacroArtifact": {}
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustPackage::default(), @r###"
+        assert_json_snapshot!(RustPackage::default(), @r#"
         {
           "id": "",
           "targets": [],
@@ -423,7 +423,7 @@ mod test {
           "enabledFeatures": [],
           "env": {}
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -433,18 +433,18 @@ mod test {
             target: Some("test_target".to_string()),
         };
 
-        assert_json_snapshot!(dep_kind_info, @r###"
+        assert_json_snapshot!(dep_kind_info, @r#"
         {
           "kind": 3,
           "target": "test_target"
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(DepKind::default(), @r###"
+        assert_json_snapshot!(DepKind::default(), @r#"
         {
           "kind": 3
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -455,7 +455,7 @@ mod test {
             dep_kinds: vec![DepKind::default()],
         };
 
-        assert_json_snapshot!(dependency, @r###"
+        assert_json_snapshot!(dependency, @r#"
         {
           "target": "test_target",
           "name": "test_name",
@@ -465,13 +465,13 @@ mod test {
             }
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustDependency::default(), @r###"
+        assert_json_snapshot!(RustDependency::default(), @r#"
         {
           "target": ""
         }
-        "###);
+        "#);
     }
 
     #[test]

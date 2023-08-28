@@ -23,7 +23,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use bsp_server::Message;
 use bsp_server::RequestId;
@@ -80,7 +80,7 @@ where
         root_path: &Path,
         cargo_handle: C,
         cancel_receiver: Receiver<Event>,
-        workspace: &Arc<ProjectWorkspace>,
+        workspace: &Rc<ProjectWorkspace>,
     ) -> RequestActor<R, C> {
         let build_targets = params.get_targets(workspace);
         RequestActor {
@@ -283,7 +283,7 @@ pub mod tests {
                 Path::new(TEST_ROOT_PATH),
                 cargo_handle,
                 cancel_receiver,
-                &Arc::new(workspace),
+                &Rc::new(workspace),
             ),
             receiver_from_actor,
             _cancel_sender: cancel_sender,
@@ -393,7 +393,7 @@ pub mod tests {
                 settings.add_redaction(".params.eventTime", TIMESTAMP);
                 settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
                 settings.bind(|| {
-                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
                 {
                   "method": "build/taskStart",
                   "params": {
@@ -407,8 +407,8 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
-                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                "#);
+                    assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -423,7 +423,7 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 });
                 no_more_msg(receiver_from_actor);
             }
@@ -458,7 +458,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.eventTime" => TIMESTAMP,
                 }
-                ,@r###"
+                ,@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -473,7 +473,7 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 no_more_msg(receiver_from_actor);
             }
         }
@@ -502,7 +502,7 @@ pub mod tests {
 
             settings.add_redaction(".params.taskId.id", RANDOM_TASK_ID);
             settings.bind(|| {
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
                 {
                   "method": "build/taskStart",
                   "params": {
@@ -516,11 +516,11 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 }
-                ,@r###"
+                ,@r#"
                 {
                   "method": "build/taskStart",
                   "params": {
@@ -537,11 +537,11 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 }
-                ,@r###"
+                ,@r#"
                 {
                   "method": "build/taskStart",
                   "params": {
@@ -558,8 +558,8 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                "#);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -570,8 +570,8 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
-                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+                "#);
+                assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
                 {
                   "id": "test_req_id",
                   "error": {
@@ -579,7 +579,7 @@ pub mod tests {
                     "message": "other error"
                   }
                 }
-                "###);
+                "#);
             });
             no_more_msg(receiver_from_actor);
         }
@@ -605,7 +605,7 @@ pub mod tests {
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),
             {
                 ".params.eventTime" => TIMESTAMP,
-            }, @r###"
+            }, @r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -616,8 +616,8 @@ pub mod tests {
                 }
               }
             }
-            "###);
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+            "#);
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
             {
               "id": "test_req_id",
               "error": {
@@ -625,7 +625,7 @@ pub mod tests {
                 "message": "canceled by client"
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -703,7 +703,7 @@ pub mod tests {
                 {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
-                }, @r###"
+                }, @r#"
                 {
                   "method": "build/taskProgress",
                   "params": {
@@ -718,7 +718,7 @@ pub mod tests {
                     "unit": "compilation_steps"
                   }
                 }
-                "###
+                "#
                 );
                 no_more_msg(receiver_from_actor);
             }
@@ -741,7 +741,7 @@ pub mod tests {
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskProgress",
                   "params": {
@@ -756,7 +756,7 @@ pub mod tests {
                     "unit": "compilation_steps"
                   }
                 }
-                "###);
+                "#);
                 no_more_msg(receiver_from_actor);
             }
 
@@ -779,7 +779,7 @@ pub mod tests {
 
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.task.id" => RANDOM_TASK_ID,
-                },@r###"
+                },@r#"
                 {
                   "method": "build/publishDiagnostics",
                   "params": {
@@ -810,7 +810,7 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 no_more_msg(receiver_from_actor);
             }
 
@@ -834,7 +834,7 @@ pub mod tests {
                     ".params.taskId.id" => RANDOM_TASK_ID,
                     ".params.data.time" => 0,
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -856,13 +856,13 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
                     ".params.data.time" => 0,
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -884,11 +884,11 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -903,7 +903,7 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 no_more_msg(receiver_from_actor);
             }
 
@@ -939,7 +939,7 @@ pub mod tests {
                     ".params.taskId.id" => RANDOM_TASK_ID,
                     ".params.data.time" => 0,
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -961,11 +961,11 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                     ".params.eventTime" => TIMESTAMP,
                     ".params.taskId.id" => RANDOM_TASK_ID,
-                },@r###"
+                },@r#"
                 {
                   "method": "build/taskFinish",
                   "params": {
@@ -980,7 +980,7 @@ pub mod tests {
                     }
                   }
                 }
-                "###);
+                "#);
                 no_more_msg(receiver_from_actor);
             }
 
@@ -1146,7 +1146,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskStart",
               "params": {
@@ -1160,7 +1160,7 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
 
             drop(sender_to_actor);
 
@@ -1168,7 +1168,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -1183,11 +1183,11 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -1198,9 +1198,9 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
             assert_json_snapshot!(receiver_from_actor.recv().unwrap()
-            ,@r###"
+            ,@r#"
             {
               "id": "test_req_id",
               "error": {
@@ -1208,7 +1208,7 @@ pub mod tests {
                 "message": "other error"
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1229,7 +1229,7 @@ pub mod tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.task.id" => RANDOM_TASK_ID,
-            } ,@r###"
+            } ,@r#"
             {
               "method": "build/logMessage",
               "params": {
@@ -1244,7 +1244,7 @@ pub mod tests {
                 "type": 4
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1265,7 +1265,7 @@ pub mod tests {
 
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(), {
                 ".params.task.id" => RANDOM_TASK_ID,
-            } ,@r###"
+            } ,@r#"
             {
               "method": "build/logMessage",
               "params": {
@@ -1280,7 +1280,7 @@ pub mod tests {
                 "type": 1
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
     }
@@ -1360,7 +1360,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskStart",
               "params": {
@@ -1374,7 +1374,7 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
 
             drop(sender_to_actor);
 
@@ -1383,7 +1383,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -1398,13 +1398,13 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
 
             // main task finished
             assert_json_snapshot!(receiver_from_actor.recv().unwrap(),{
                 ".params.eventTime" => TIMESTAMP,
             }
-            ,@r###"
+            ,@r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -1415,10 +1415,10 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
 
             // response
-            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r###"
+            assert_json_snapshot!(receiver_from_actor.recv().unwrap(), @r#"
             {
               "id": "test_req_id",
               "error": {
@@ -1426,7 +1426,7 @@ pub mod tests {
                 "message": "other error"
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1453,7 +1453,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
+            } ,@r#"
             {
               "method": "build/taskStart",
               "params": {
@@ -1470,7 +1470,7 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1512,7 +1512,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
+            } ,@r#"
             {
               "method": "build/taskFinish",
               "params": {
@@ -1536,7 +1536,7 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1564,7 +1564,7 @@ pub mod tests {
                 ".params.taskId.id" => RANDOM_TASK_ID,
                 ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                 ".params.eventTime" => TIMESTAMP,
-            } ,@r###"
+            } ,@r#"
             {
               "method": "build/taskStart",
               "params": {
@@ -1579,7 +1579,7 @@ pub mod tests {
                 }
               }
             }
-            "###);
+            "#);
             no_more_msg(receiver_from_actor);
         }
 
@@ -1618,7 +1618,7 @@ pub mod tests {
                         assert_eq!(value.as_u64().unwrap(), expected_status as u64);
                         "CORRECT_STATUS"
                     }),
-                } ,@r###"
+                } ,@r#"
                   {
                     "method": "build/taskFinish",
                     "params": {
@@ -1635,7 +1635,7 @@ pub mod tests {
                       }
                     }
                   }
-                  "###));
+                  "#));
                 let _ = receiver_from_actor.recv().unwrap(); // test progress message
                 no_more_msg(receiver_from_actor);
             }
