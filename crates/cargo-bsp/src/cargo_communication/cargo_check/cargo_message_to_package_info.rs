@@ -1,3 +1,6 @@
+//! Maps information from Cargo Messages produces by `cargo check` command to
+//! RustPackage information.
+
 use crate::utils::uri::file_uri;
 use bsp_types::extensions::RustCfgOptions;
 use bsp_types::Uri;

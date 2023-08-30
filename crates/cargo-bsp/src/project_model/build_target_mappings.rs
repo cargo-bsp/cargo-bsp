@@ -45,7 +45,7 @@ fn tags_and_capabilities_from_cargo_kind(
         .kind
         .iter()
         .for_each(|kind| match kind.as_str() {
-            "lib" => {
+            "lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro" => {
                 tags.push(BuildTargetTag::Library);
                 capabilities.can_debug = false;
                 capabilities.can_run = false;

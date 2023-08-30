@@ -1,3 +1,6 @@
+//! Creates and spawns `cargo check` command and runs a new [`CheckActor`] in
+//! a new thread. Implementation of [`RequestHandle`].
+
 use std::io;
 use std::io::ErrorKind;
 
@@ -26,7 +29,6 @@ impl RequestHandle {
         R: Request + 'static,
         R::Params: CreateCommand + ParamsTarget + Send,
     {
-        // TODO section off similar parts with spawn method
         let root_path = global_state.config.root_path();
         let build_targets = params.get_targets(&global_state.workspace);
 

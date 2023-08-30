@@ -1,3 +1,7 @@
+//! Handles messages from Cargo check command, parsing them and preparing appropriate
+//! response. Also handles information about the finish of Cargo command and
+//! the cancel request from the client.
+
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io;
@@ -14,7 +18,7 @@ use log::warn;
 use serde::Deserialize;
 use serde_json::to_value;
 
-use crate::cargo_communication::cargo_check::build_script_to_package_info::{
+use crate::cargo_communication::cargo_check::cargo_message_to_package_info::{
     map_cfg_options, map_env, map_out_dir_url, map_proc_macro_artifact,
 };
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};

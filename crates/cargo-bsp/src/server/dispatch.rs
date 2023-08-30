@@ -81,7 +81,6 @@ impl<'a> RequestDispatcher<'a> {
         self
     }
 
-    // TODO change name and documentation
     /// Dispatches a new [`RequestHandle`].
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
@@ -104,7 +103,6 @@ impl<'a> RequestDispatcher<'a> {
         self.update_handlers(request_handle, req)
     }
 
-    // TODO change name
     pub(crate) fn on_cargo_check_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,

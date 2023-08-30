@@ -1,4 +1,4 @@
-//! This module ia an implementation of handling the BSP Rust extension.
+//! This module is an implementation of handling the BSP Rust extension.
 
 mod dependency;
 mod package;

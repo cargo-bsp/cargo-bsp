@@ -1,9 +1,9 @@
-//! CreateCommand trait implementation for the Compile/Run/TestParams.
-//! The trait allows getting origin id and creating commands regardless if it is the compile,
-//! run or test request.
+//! CreateCommand and CreateUnitGraphCommand traits implementation for the
+//! Compile/Run/Test/RustWorkspaceParams. The trait allows getting origin id and creating
+//! commands regardless if it is the compile, run, test or rust_workspace request.
 //!
 //! There are two types of commands:
-//! - requested: standard `cargo build`, `cargo run` and `cargo test` to compile,
+//! - requested: standard `cargo build`, `cargo run`, `cargo test` and `cargo check` to compile,
 //! run and test the project,
 //! - unit graph: the same as before but with `--unit-graph -Z unstable-options` flags
 //! (only available with `+nightly`). These commands are used to get the number of
@@ -17,7 +17,13 @@
 //! `--show-output -Z unstable-options --format=json` for `cargo test`
 //! (only with `+nightly`). These flags format information about the tests to JSON and
 //! allows additional information, such as when each single tests started and finished,
-//! their stdout and stderr.
+//! their stdout and stderr
+//!
+//! `--workspace --all-targets -Z unstable-options --keep-going` for `cargo check`.
+//! `--all-targets` is needed to compile:
+//! - build scripts even if a crate doesn't contain library or binary targets,
+//! - dev dependencies during build script evaluation
+//! `--keep-going` is needed to compile as many proc macro artifacts as possible.
 
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::path::Path;
@@ -55,7 +61,7 @@ impl CreateCommand for CompileParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
-        cmd.arg("--").args(self.arguments.clone());
+        cmd.args(self.arguments.clone());
         cmd
     }
 }
@@ -75,7 +81,7 @@ impl CreateCommand for RunParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let target_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Run, root, target_args);
-        cmd.arg("--").args(self.arguments.clone());
+        cmd.args(self.arguments.clone());
         cmd
     }
 }
@@ -95,14 +101,8 @@ impl CreateCommand for TestParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
-        cmd.args([
-            "--",
-            "--show-output",
-            "-Z",
-            "unstable-options",
-            "--format=json",
-        ])
-        .args(self.arguments.clone());
+        cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
+            .args(self.arguments.clone());
         cmd
     }
 }
@@ -120,10 +120,6 @@ impl CreateUnitGraphCommand for TestParams {
 
 impl CreateCommand for RustWorkspaceParams {
     fn create_requested_command(&self, root: &Path, _: &[TargetDetails]) -> Command {
-        // `--all-targets` is needed here to compile:
-        //   - build scripts even if a crate doesn't contain library or binary targets
-        //   - dev dependencies during build script evaluation
-        // `--keep-going` is needed here to compile as many proc macro artifacts as possible
         let mut cmd = create_requested_command(CommandType::Check, root, vec![]);
         cmd.args([
             "--workspace",
@@ -197,6 +193,12 @@ fn create_requested_command(
     cmd.arg(command_type.to_string());
     cmd.args(targets_args);
     cmd.arg("--message-format=json");
+    match command_type {
+        CommandType::Build | CommandType::Test | CommandType::Run => {
+            cmd.arg("--");
+        }
+        CommandType::Check => {}
+    }
     cmd
 }
 

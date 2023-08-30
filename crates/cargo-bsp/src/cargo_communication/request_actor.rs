@@ -1,4 +1,4 @@
-//! Handles messages from Cargo command, parsing them and preparing appropriate
+//! Handles messages from Cargo build/run/test commands, parsing them and preparing appropriate
 //! notifications and responses. Also handles information about the finish of
 //! Cargo command and the cancel request from the client.
 //!

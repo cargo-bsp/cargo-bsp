@@ -29,7 +29,6 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
         })
         .unwrap();
 
-    // TODO check what it is used for and if we can use "Unknown"
     let version = if let Ok(v) = version() {
         v.to_string()
     } else {
@@ -37,7 +36,6 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
         "Unknown".to_string()
     };
 
-    // TODO check what it is used for and if we can use "Unknown"
     let host = if let Ok(v) = version_meta() {
         v.host
     } else {

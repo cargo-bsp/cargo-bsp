@@ -34,7 +34,6 @@ where
             result: command_result.as_ref().ok().map(|exit_status| {
                 to_value(R::Result::create_result(
                     self.params.origin_id(),
-                    // If there is no exit code, process terminated by signal
                     match exit_status.code() {
                         Some(0) => StatusCode::Ok,
                         _ => StatusCode::Error,

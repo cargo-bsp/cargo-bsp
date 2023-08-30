@@ -1,5 +1,5 @@
-//! ParamsTarget trait implementation for the Compile/Run/TestParams.
-//! Necessary for getting the list of build targets from the compile/run/test requests.
+//! ParamsTarget trait implementation for the Compile/Run/Test/RustWorkspaceParams.
+//! Necessary for getting the list of build targets from the compile/run/test/check requests.
 
 use crate::project_model::workspace::ProjectWorkspace;
 use bsp_types::extensions::RustWorkspaceParams;
