@@ -182,4 +182,18 @@ impl ProjectWorkspace {
             StatusCode::Error
         }
     }
+
+    pub fn is_package_part_of_workspace(&self, package_id: &str) -> bool {
+        self.packages.iter().any(|p| p.id == *package_id)
+    }
+
+    pub fn get_packages_related_to_targets(
+        &self,
+        targets: &[BuildTargetIdentifier],
+    ) -> Vec<&CargoPackage> {
+        targets
+            .iter()
+            .filter_map(|t| self.get_package_related_to_target(t))
+            .collect()
+    }
 }
