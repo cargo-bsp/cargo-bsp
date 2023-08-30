@@ -12,7 +12,7 @@ use rustc_version::version_meta;
 use unzip_n::unzip_n;
 
 use bsp_types::extensions::{Feature, PackageFeatures};
-use bsp_types::{BuildTarget, BuildTargetIdentifier};
+use bsp_types::{BuildTarget, BuildTargetIdentifier, StatusCode};
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
 use crate::project_model::cargo_package::CargoPackage;
@@ -165,55 +165,21 @@ impl ProjectWorkspace {
     }
 
     /// Changes features state for a given package with a given closure
-    pub fn change_features_state_for_package(
+    pub fn set_features_for_the_package(
         &mut self,
         package_id: String,
         features: &BTreeSet<Feature>,
-        state_change: fn(&mut CargoPackage, &BTreeSet<Feature>),
-    ) {
+    ) -> StatusCode {
         let package = self.packages.iter_mut().find(|p| p.id == package_id);
         if let Some(package) = package {
-            state_change(package, features);
+            package.set_features(features);
+            StatusCode::Ok
         } else {
             error!(
                 "Couldn't change features state, package not found for id: {:?}",
                 package_id
             );
+            StatusCode::Error
         }
-    }
-
-    /// Enables features for a given package
-    pub fn enable_features_for_package(
-        &mut self,
-        package_id: String,
-        features: &BTreeSet<Feature>,
-    ) {
-        self.change_features_state_for_package(package_id, features, CargoPackage::enable_features);
-    }
-
-    /// Disables features for a given package
-    pub fn disable_features_for_package(
-        &mut self,
-        package_id: String,
-        features: &BTreeSet<Feature>,
-    ) {
-        self.change_features_state_for_package(
-            package_id,
-            features,
-            CargoPackage::disable_features,
-        );
-    }
-    pub fn is_package_part_of_workspace(&self, package_id: &str) -> bool {
-        self.packages.iter().any(|p| p.id == *package_id)
-    }
-
-    pub fn get_packages_related_to_targets(
-        &self,
-        targets: &[BuildTargetIdentifier],
-    ) -> Vec<&CargoPackage> {
-        targets
-            .iter()
-            .filter_map(|t| self.get_package_related_to_target(t))
-            .collect()
     }
 }
