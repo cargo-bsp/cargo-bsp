@@ -3,6 +3,7 @@
 //! for preparing the data for RustWorkspaceRequest response.
 
 use crate::project_model::rust_extension::metadata_edition_to_rust_extension_edition;
+use crate::utils::uri::file_uri;
 use bsp_types::extensions::{RustBuildTarget, RustCrateType, RustTargetKind};
 use cargo_metadata::camino::Utf8Path;
 
@@ -46,8 +47,8 @@ pub(crate) fn metadata_targets_to_rust_extension_targets(
         .map(|mt| {
             RustBuildTarget {
                 name: mt.name.clone(),
-                crate_root_url: mt.src_path.to_string(),
-                package_root_url: package_root_url.clone(),
+                crate_root_url: file_uri(mt.src_path.to_string()),
+                package_root_url: file_uri(package_root_url.clone()),
                 kind: metadata_kind_to_rust_extension_kind(mt.kind.get(0).unwrap().as_str()), // Cargo metadata target always has at least one kind.
                 crate_types: metadata_crate_types_to_rust_extension_crate_types(
                     mt.crate_types.clone(),

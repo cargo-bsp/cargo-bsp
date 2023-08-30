@@ -57,10 +57,13 @@ impl TargetDetails {
 pub enum CargoTargetKind {
     #[default]
     Lib,
+    Rlib,
+    Dylib,
+    Cdylib,
+    Staticlib,
+    ProcMacro,
     Bin,
     Test,
     Bench,
     Example,
-    // TODO add other?
-    ProcMacro,
 }

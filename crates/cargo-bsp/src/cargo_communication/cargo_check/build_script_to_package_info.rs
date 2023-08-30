@@ -1,3 +1,4 @@
+use crate::utils::uri::file_uri;
 use bsp_types::extensions::RustCfgOptions;
 use bsp_types::Uri;
 use cargo_metadata::{Artifact, BuildScript, Package};
@@ -79,7 +80,7 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMa
         ("CARGO_PKG_VERSION_MAJOR", split_version.major.clone()),
         ("CARGO_PKG_VERSION_MINOR", split_version.minor.clone()),
         ("CARGO_PKG_VERSION_PATCH", split_version.patch.clone()),
-        ("CARGO_PKG_VERSION_PRE", split_version.pre_release.clone()),
+        ("CARGO_PKG_VERSION_PRE", split_version.pre_release),
         ("CARGO_PKG_AUTHORS", package.authors.join(";")),
         ("CARGO_PKG_NAME", package.name.clone()),
         (
@@ -112,7 +113,7 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMa
 }
 
 pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<String> {
-    script.map(|s| s.out_dir.to_string())
+    script.map(|s| file_uri(s.out_dir.to_string()))
 }
 
 pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<Uri> {

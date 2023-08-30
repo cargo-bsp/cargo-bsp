@@ -13,7 +13,6 @@ use bsp_types::BuildTargetIdentifier;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
-    // todo check if it is a stdlib ord stdlib dep in InteliJ rust
     if workspace.is_package_part_of_workspace(&package.id) {
         package.origin = RustPackageOrigin::Workspace;
     } else {
@@ -57,7 +56,7 @@ fn metadata_package_to_rust_extension_package(
         edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
-        // In our case targets = all_targets. This field is needed for Bazel //TODO (Check)
+        // In our case targets = all_targets. This field is needed for Bazel
         targets: all_targets.clone(),
         all_targets,
         // The rest of the fields is resolved later
@@ -74,9 +73,7 @@ pub fn get_rust_packages_related_to_targets(
     let target_related_packages_names: Vec<String> = targets
         .iter()
         .filter_map(|t| workspace.get_package_related_to_target(t))
-        .flat_map(|p| {
-            find_all_packages(p, &metadata.packages)
-        })
+        .flat_map(|p| find_all_packages(p, &metadata.packages))
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
@@ -100,7 +97,7 @@ pub fn get_rust_packages_related_to_targets(
         .collect()
 }
 
-fn find_all_packages(package: &CargoPackage, packages: &Vec<cargo_metadata::Package>) -> Vec<String> {
+fn find_all_packages(package: &CargoPackage, packages: &[cargo_metadata::Package]) -> Vec<String> {
     if let Some(package) = packages.iter().find(|p| p.name == package.name) {
         let mut next_dependencies: VecDeque<&cargo_metadata::Package> = VecDeque::from([package]);
         let mut checked_dependencies: HashSet<String> = HashSet::from([package.name.clone()]);

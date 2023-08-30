@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -16,14 +16,14 @@ impl Request for RustToolchain {
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainParams {
     /** A sequence of build targets for toolchain resolution. */
-    pub targets: Vec<BuildTargetIdentifier>, // targety mogą mieć toolchainy różnego strumienia - stable - nigghtly itp
+    pub targets: Vec<BuildTargetIdentifier>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
     /** A sequence of Rust toolchains. */
-    pub toolchains: BTreeSet<RustToolchainItem>, // toolchain  dostępny systemowo, z którego korzysta cargo
+    pub toolchains: BTreeSet<RustToolchainItem>,
 }
 
 #[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
@@ -33,9 +33,9 @@ pub struct RustToolchainItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
     /** Path to Cargo executable. */
-    pub cargo_bin_path: Uri,
+    pub cargo_bin_path: String,
     /** Location of the source code of procedural macros in the Rust toolchain. */
-    pub proc_macro_srv_path: Uri,
+    pub proc_macro_srv_path: String,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialOrd, PartialEq, Ord, Eq)]
@@ -43,9 +43,9 @@ pub struct RustToolchainItem {
 pub struct RustcInfo {
     /** Root directory where the Rust compiler looks for standard libraries and other
     essential components when building Rust projects. */
-    pub sysroot_path: Uri,
+    pub sysroot_path: String,
     /** Source code for the Rust standard library. */
-    pub src_sysroot_path: Uri,
+    pub src_sysroot_path: String,
     /** `rustc` SemVer (Semantic Versioning) version. */
     pub version: String,
     /** Target architecture and operating system of the Rust compiler. */

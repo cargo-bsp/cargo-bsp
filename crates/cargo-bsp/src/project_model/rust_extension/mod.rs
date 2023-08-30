@@ -54,7 +54,7 @@ pub(crate) fn get_nodes_from_metadata(metadata: &Metadata) -> Vec<Node> {
 }
 
 pub fn get_metadata(project_manifest: &ProjectManifest) -> Result<Metadata, Error> {
-    let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest.file)?;
+    let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest.file, true)?;
     Ok(metadata)
 }
 
@@ -71,6 +71,6 @@ pub fn resolve_rust_workspace_result(
         packages,
         raw_dependencies,
         dependencies,
-        resolved_targets: Vec::from(targets), //Todo this is for Bazel
+        resolved_targets: Vec::from(targets),
     }
 }

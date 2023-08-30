@@ -25,7 +25,7 @@ pub struct TestParams {
     pub origin_id: Option<String>,
 
     /** Optional arguments to the test execution engine. */
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub arguments: Vec<String>,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */

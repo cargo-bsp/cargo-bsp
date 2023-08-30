@@ -8,21 +8,23 @@ use crate::project_model::rust_extension::get_rust_toolchains;
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
-use bsp_types;
-use bsp_types::{BuildTarget, BuildTargetIdentifier};
+use crate::utils::uri::file_uri;
+use bsp_types::{BuildTarget, BuildTargetIdentifier, BuildTargetTag};
 
 pub(crate) fn handle_workspace_build_targets(
     state: GlobalStateSnapshot,
     _: (),
 ) -> Result<bsp_types::requests::WorkspaceBuildTargetsResult> {
     let mut b = state.workspace.get_bsp_build_targets();
+    // This target is used to obtain workspace root URI.
+    // Necessary for connecting with [intellij-rust fork](https://github.com/ZPP-This-is-fine/intellij-rust).
     b.push(BuildTarget {
         id: BuildTargetIdentifier {
             uri: "bsp-workspace-root".to_string(),
         },
         display_name: None,
-        base_directory: state.config.root_path().to_str().map(|s| s.to_string()),
-        tags: vec![],
+        base_directory: state.config.root_path().to_str().map(file_uri),
+        tags: vec![BuildTargetTag::NoIde],
         capabilities: Default::default(),
         language_ids: vec![],
         dependencies: vec![],

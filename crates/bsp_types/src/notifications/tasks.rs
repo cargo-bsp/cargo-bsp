@@ -300,8 +300,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "eventTime": 1,
           "message": "test_message",
@@ -318,8 +317,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           }
         }
         "###
@@ -342,8 +340,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "eventTime": 1,
           "message": "test_message",
@@ -363,8 +360,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           }
         }
         "###
@@ -385,8 +381,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "eventTime": 1,
           "message": "test_message",
@@ -404,8 +399,7 @@ mod tests {
             @r###"
         {
           "taskId": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "status": 2
         }

@@ -8,6 +8,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use cargo_metadata::{CargoOpt, Error, MetadataCommand};
 use log::error;
+use rustc_version::version_meta;
 use unzip_n::unzip_n;
 
 use bsp_types::extensions::{Feature, PackageFeatures};
@@ -22,6 +23,8 @@ pub type TargetIdToTargetData = HashMap<BuildTargetIdentifier, Rc<cargo_metadata
 pub type SrcPathToTargetId = HashMap<Utf8PathBuf, BuildTargetIdentifier>;
 
 unzip_n!(3);
+
+const FILTER_PLATFORM: &str = "--filter-platform";
 
 #[derive(Default, Debug, Clone)]
 pub struct ProjectWorkspace {
@@ -46,7 +49,8 @@ impl ProjectWorkspace {
     ///
     /// Skips unit_tests discovery, see: [get_unit_tests_build_targets](crate::project_model::_unit_tests_discovery::get_unit_tests_build_targets).
     pub fn new(project_manifest_path: PathBuf) -> Result<ProjectWorkspace, Error> {
-        let metadata = ProjectWorkspace::call_cargo_metadata_command(&project_manifest_path)?;
+        let metadata =
+            ProjectWorkspace::call_cargo_metadata_command(&project_manifest_path, false)?;
 
         let bsp_packages: Vec<CargoPackage> = metadata
             .workspace_packages()
@@ -69,10 +73,17 @@ impl ProjectWorkspace {
     // we want the output to contain all the packages - even those feature-dependent
     pub fn call_cargo_metadata_command(
         project_manifest_path: &PathBuf,
+        filter_platform: bool,
     ) -> Result<cargo_metadata::Metadata, Error> {
+        let filter_platform_options = if filter_platform {
+            version_meta().map_or(vec![], |v| vec![FILTER_PLATFORM.to_string(), v.host])
+        } else {
+            vec![]
+        };
         MetadataCommand::new()
             .manifest_path(project_manifest_path)
             .features(CargoOpt::AllFeatures)
+            .other_options(filter_platform_options)
             .exec()
     }
 

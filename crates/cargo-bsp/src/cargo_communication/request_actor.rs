@@ -566,8 +566,7 @@ pub mod tests {
                     "eventTime": "timestamp",
                     "status": 1,
                     "taskId": {
-                      "id": "random_task_id",
-                      "parents": []
+                      "id": "random_task_id"
                     }
                   }
                 }
@@ -613,8 +612,7 @@ pub mod tests {
                 "eventTime": "timestamp",
                 "status": 3,
                 "taskId": {
-                  "id": "test_origin_id",
-                  "parents": []
+                  "id": "test_origin_id"
                 }
               }
             }
@@ -1196,8 +1194,7 @@ pub mod tests {
                 "eventTime": "timestamp",
                 "status": 1,
                 "taskId": {
-                  "id": "test_origin_id",
-                  "parents": []
+                  "id": "test_origin_id"
                 }
               }
             }
@@ -1414,8 +1411,7 @@ pub mod tests {
                 "eventTime": "timestamp",
                 "status": 1,
                 "taskId": {
-                  "id": "test_origin_id",
-                  "parents": []
+                  "id": "test_origin_id"
                 }
               }
             }

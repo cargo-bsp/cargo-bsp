@@ -27,7 +27,7 @@ where
 {
     // sender for notifications and responses to main loop
     sender: Box<dyn Fn(Message) + Send>,
-    pub(super) cargo_handle: Option<C>,
+    cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
     req_id: RequestId,
     build_scripts: HashMap<PackageId, BuildScript>,
@@ -40,12 +40,13 @@ where
 {
     pub fn new(
         sender: Box<dyn Fn(Message) + Send>,
+        cargo_handle: C,
         req_id: RequestId,
         cancel_receiver: Receiver<Event>,
     ) -> CheckActor<C> {
         CheckActor {
             sender,
-            cargo_handle: None,
+            cargo_handle: Some(cargo_handle),
             cancel_receiver,
             req_id,
             build_scripts: HashMap::new(),
@@ -64,7 +65,7 @@ where
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, result: RustWorkspaceResult, packages: Vec<Package>) {
         while let Some(event) = self.next_event() {
             match event {
                 Event::Cancel => {
@@ -72,13 +73,14 @@ where
                     return;
                 }
                 Event::CargoFinish => {
-                    return;
+                    break;
                 }
                 Event::CargoEvent(message) => {
                     self.handle_message(message);
                 }
             }
         }
+        self.finish(result, packages);
     }
 
     fn handle_message(&mut self, message: CargoMessage) {

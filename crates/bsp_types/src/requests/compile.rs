@@ -31,7 +31,7 @@ pub struct CompileParams {
     pub origin_id: Option<String>,
 
     /** Optional arguments to the compilation process. */
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub arguments: Vec<String>,
 }
 

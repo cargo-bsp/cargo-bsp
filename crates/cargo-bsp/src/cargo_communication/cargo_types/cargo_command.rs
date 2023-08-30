@@ -22,7 +22,9 @@
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::path::Path;
 
-use crate::project_model::target_details::CargoTargetKind::{Lib, ProcMacro};
+use crate::project_model::target_details::CargoTargetKind::{
+    Cdylib, Dylib, Lib, ProcMacro, Rlib, Staticlib,
+};
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
@@ -43,25 +45,21 @@ pub trait CreateCommand {
     fn create_requested_command(
         &self,
         root: &Path,
-        targets_details: &Vec<TargetDetails>,
+        targets_details: &[TargetDetails],
     ) -> Vec<Command>;
 }
 
 pub trait CreateUnitGraphCommand {
     fn origin_id(&self) -> Option<String>;
 
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        targets_details: &Vec<TargetDetails>,
-    ) -> Command;
+    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
 }
 
 impl CreateCommand for CompileParams {
     fn create_requested_command(
         &self,
         root: &Path,
-        targets_details: &Vec<TargetDetails>,
+        targets_details: &[TargetDetails],
     ) -> Vec<Command> {
         let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
@@ -75,11 +73,7 @@ impl CreateUnitGraphCommand for CompileParams {
         self.origin_id.clone()
     }
 
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        targets_details: &Vec<TargetDetails>,
-    ) -> Command {
+    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Build, root, targets_args)
     }
@@ -89,7 +83,7 @@ impl CreateCommand for RunParams {
     fn create_requested_command(
         &self,
         root: &Path,
-        targets_details: &Vec<TargetDetails>,
+        targets_details: &[TargetDetails],
     ) -> Vec<Command> {
         let target_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Run, root, target_args);
@@ -103,11 +97,7 @@ impl CreateUnitGraphCommand for RunParams {
         self.origin_id.clone()
     }
 
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        targets_details: &Vec<TargetDetails>,
-    ) -> Command {
+    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Run, root, targets_args)
     }
@@ -117,7 +107,7 @@ impl CreateCommand for TestParams {
     fn create_requested_command(
         &self,
         root: &Path,
-        targets_details: &Vec<TargetDetails>,
+        targets_details: &[TargetDetails],
     ) -> Vec<Command> {
         let targets_args = targets_details_to_args(targets_details);
         let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
@@ -138,50 +128,29 @@ impl CreateUnitGraphCommand for TestParams {
         self.origin_id.clone()
     }
 
-    fn create_unit_graph_command(
-        &self,
-        root: &Path,
-        targets_details: &Vec<TargetDetails>,
-    ) -> Command {
+    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Test, root, targets_args)
     }
 }
 
 impl CreateCommand for RustWorkspaceParams {
-    // TODO decide whether to use --all-targets or not
-    // `--all-targets` is needed here to compile:
-    //   - build scripts even if a crate doesn't contain library or binary targets
-    //   - dev dependencies during build script evaluation
-    // `--keep-going` is needed here to compile as many proc macro artifacts as possible
-    fn create_requested_command(
-        &self,
-        root: &Path,
-        targets_details: &Vec<TargetDetails>,
-    ) -> Vec<Command> {
-        let (libs, other): (Vec<&TargetDetails>, Vec<&TargetDetails>) = targets_details
-            .iter()
-            .partition(|&t| t.kind == Lib || t.kind == ProcMacro);
-        let mut cmds = vec![];
-        cmds.push(create_check_command(
-            &other
-                .iter()
-                .map(|&t| t.clone())
-                .collect::<Vec<TargetDetails>>(),
-            root,
-        ));
-        libs.iter()
-            .for_each(|&l| cmds.push(create_check_command(&vec![l.clone()], root)));
-        cmds
+    fn create_requested_command(&self, root: &Path, _: &[TargetDetails]) -> Vec<Command> {
+        // `--all-targets` is needed here to compile:
+        //   - build scripts even if a crate doesn't contain library or binary targets
+        //   - dev dependencies during build script evaluation
+        // `--keep-going` is needed here to compile as many proc macro artifacts as possible
+        let mut cmd = create_requested_command(CommandType::Check, root, vec![]);
+        cmd.args([
+            "--workspace",
+            "--all-targets",
+            "-Z",
+            "unstable-options",
+            "--keep-going",
+        ]);
+        cmd.env("RUSTC_BOOTSTRAP", "1");
+        vec![cmd]
     }
-}
-
-fn create_check_command(targets_details: &Vec<TargetDetails>, root: &Path) -> Command {
-    let targets_args = targets_details_to_args(targets_details);
-    let mut cmd = create_requested_command(CommandType::Check, root, targets_args);
-    cmd.args(["--workspace", "-Z", "unstable-options", "--keep-going"]);
-    cmd.env("RUSTC_BOOTSTRAP", "1");
-    cmd
 }
 
 impl TargetDetails {
@@ -200,14 +169,20 @@ impl TargetDetails {
 }
 
 /// Creates additional flags for the command to specify the packages, targets and features.
-fn targets_details_to_args(targets_details: &Vec<TargetDetails>) -> Vec<String> {
+fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
     targets_details
         .iter()
         .flat_map(|t| {
             let mut loc_args = Vec::new();
             loc_args.push("--package".to_string());
             loc_args.push(t.package_name.clone());
-            if t.kind == Lib || t.kind == ProcMacro {
+            if t.kind == Lib
+                || t.kind == Rlib
+                || t.kind == Dylib
+                || t.kind == Cdylib
+                || t.kind == Staticlib
+                || t.kind == ProcMacro
+            {
                 loc_args.push("--lib".to_string());
             } else {
                 loc_args.push(format!("--{}", t.kind));
@@ -232,11 +207,8 @@ fn create_requested_command(
 ) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
-    match command_type {
-        CommandType::Test | CommandType::Check => {
-            cmd.arg("+nightly");
-        }
-        _ => {}
+    if let CommandType::Test = command_type {
+        cmd.arg("+nightly");
     }
     cmd.arg(command_type.to_string());
     cmd.args(targets_args);
@@ -359,8 +331,7 @@ mod tests {
     fn test_run_params_create_command() {
         let run_params = test_run_params();
         let target_details = default_target_details();
-        let cmds = run_params
-            .create_requested_command(Path::new(TEST_ROOT), &target_details[0..1].to_vec());
+        let cmds = run_params.create_requested_command(Path::new(TEST_ROOT), &target_details[0..1]);
         let cmd = cmds.first().unwrap();
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
@@ -429,67 +400,31 @@ mod tests {
         let rust_workspace_params = RustWorkspaceParams::default();
         let cmds = rust_workspace_params
             .create_requested_command(Path::new(TEST_ROOT), &default_check_target_details());
-
-        for cmd in &cmds {
-            let cwd = cmd.get_current_dir().unwrap();
-            assert_eq!(cwd, Path::new(TEST_ROOT));
-        }
-
         let cmd = cmds.first().unwrap();
+        let cwd = cmd.get_current_dir().unwrap();
         let args: Vec<&OsStr> = cmd.get_args().collect();
+        let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();
 
         assert_debug_snapshot!(args, @r###"
         [
-            "+nightly",
             "check",
-            "--package",
-            "test_package1",
-            "--bin",
-            "test_bin1",
             "--message-format=json",
             "--workspace",
+            "--all-targets",
             "-Z",
             "unstable-options",
             "--keep-going",
         ]
         "###);
-
-        let cmd = cmds.get(1).unwrap();
-        let args: Vec<&OsStr> = cmd.get_args().collect();
-
-        assert_debug_snapshot!(args, @r###"
+        assert_eq!(cwd, Path::new(TEST_ROOT));
+        assert_debug_snapshot!(envs, @r###"
         [
-            "+nightly",
-            "check",
-            "--package",
-            "test_package2",
-            "--lib",
-            "--feature",
-            "test_feature1",
-            "--no-default-features",
-            "--message-format=json",
-            "--workspace",
-            "-Z",
-            "unstable-options",
-            "--keep-going",
-        ]
-        "###);
-
-        let cmd = cmds.get(2).unwrap();
-        let args: Vec<&OsStr> = cmd.get_args().collect();
-
-        assert_debug_snapshot!(args, @r###"
-        [
-            "+nightly",
-            "check",
-            "--package",
-            "test_package1",
-            "--lib",
-            "--message-format=json",
-            "--workspace",
-            "-Z",
-            "unstable-options",
-            "--keep-going",
+            (
+                "RUSTC_BOOTSTRAP",
+                Some(
+                    "1",
+                ),
+            ),
         ]
         "###);
     }

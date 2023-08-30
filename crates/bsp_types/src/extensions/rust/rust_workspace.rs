@@ -67,11 +67,10 @@ pub struct RustBuildTarget {
     /** The name of the target. */
     pub name: String,
     /** Path to the root module of the crate. */
-    // TODO see if src_path from metadata doesn't need some path resolving
-    pub crate_root_url: String,
+    pub crate_root_url: Uri,
     /** Url of the root of the target's package. */
     //TODO remove this field if possible
-    pub package_root_url: String,
+    pub package_root_url: Uri,
     /** A target's kind. */
     pub kind: RustTargetKind,
     /** Type of output that is produced by a crate during the build process.
@@ -182,7 +181,6 @@ However, it must contain at least one crate, whether that’s a library or binar
 pub struct RustPackage {
     /** The package’s unique identifier. */
     pub id: String,
-    // TODO add name
     pub name: String,
     /** The version of the package. */
     pub version: String,
@@ -214,12 +212,12 @@ pub struct RustPackage {
     /** An absolute path which is used as a value of `OUT_DIR` environmental
     variable when compiling current package. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub out_dir_url: Option<String>,
+    pub out_dir_url: Option<Uri>,
     /** File path to compiled output of a procedural macro crate.
     Procedural macros are macros that generate code at compile time.
     Contains files with file extensions: `.dll`, `.so` or `.dylib`. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proc_macro_artifact: Option<Uri>,
+    pub proc_macro_artifact: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

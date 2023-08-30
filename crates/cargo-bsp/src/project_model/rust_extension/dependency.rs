@@ -62,7 +62,7 @@ fn metadata_node_dep_to_rust_dependency(node_dep: &cargo_metadata::NodeDep) -> R
 
 pub fn resolve_raw_dependencies(
     metadata: &cargo_metadata::Metadata,
-    packages: &Vec<RustPackage>,
+    packages: &[RustPackage],
 ) -> PackageIdToRustRawDependency {
     packages
         .iter()
@@ -81,7 +81,7 @@ pub fn resolve_raw_dependencies(
 
 pub fn resolve_rust_dependencies(
     metadata: &cargo_metadata::Metadata,
-    packages: &Vec<RustPackage>,
+    packages: &[RustPackage],
 ) -> PackageIdToRustDependency {
     let nodes = get_nodes_from_metadata(metadata);
 

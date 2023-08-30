@@ -99,8 +99,7 @@ mod tests {
         {
           "type": 1,
           "task": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "originId": "test_originId",
           "message": "test_message"
@@ -131,8 +130,7 @@ mod tests {
         {
           "type": 1,
           "task": {
-            "id": "",
-            "parents": []
+            "id": ""
           },
           "originId": "test_originId",
           "message": "test_message"
