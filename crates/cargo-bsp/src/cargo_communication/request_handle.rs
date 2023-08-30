@@ -58,8 +58,8 @@ impl RequestHandle {
             cancel_receiver,
             &global_state.workspace,
         );
-        let thread = jod_thread::Builder::new()
-            .spawn(move || run_commands(actor, requested_cmd.first_mut().unwrap()))?;
+        let thread =
+            jod_thread::Builder::new().spawn(move || run_commands(actor, &mut requested_cmd))?;
         Ok(RequestHandle {
             cancel_sender,
             _thread: thread,

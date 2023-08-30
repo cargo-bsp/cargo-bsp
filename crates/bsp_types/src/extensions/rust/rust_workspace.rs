@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, Edition, Uri};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -68,16 +68,13 @@ pub struct RustBuildTarget {
     pub name: String,
     /** Path to the root module of the crate. */
     pub crate_root_url: Uri,
-    /** Url of the root of the target's package. */
-    //TODO remove this field if possible
-    pub package_root_url: Uri,
     /** A target's kind. */
     pub kind: RustTargetKind,
     /** Type of output that is produced by a crate during the build process.
     The crate type determines how the source code is compiled. */
     pub crate_types: Vec<RustCrateType>,
     /** The Rust edition of the target. */
-    pub edition: RustEdition,
+    pub edition: Edition,
     /** Whether or not this target has doc tests enabled, and
     the target is compatible with doc testing. */
     pub doctest: bool,
@@ -135,15 +132,6 @@ pub enum RustPackageOrigin {
     StdlibDependency,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
-#[repr(u16)]
-pub enum RustEdition {
-    Edition2015 = 2015,
-    #[default]
-    Edition2018 = 2018,
-    Edition2021 = 2021,
-}
-
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustFeature {
@@ -181,13 +169,16 @@ However, it must contain at least one crate, whether that’s a library or binar
 pub struct RustPackage {
     /** The package’s unique identifier. */
     pub id: String,
+    /** The package's root path. */
+    pub root_url: Uri,
+    /** The name of the package. */
     pub name: String,
     /** The version of the package. */
     pub version: String,
     /** Defines a reason a package is in a project. */
     pub origin: RustPackageOrigin,
     /** Code edition of the package. */
-    pub edition: RustEdition,
+    pub edition: Edition,
     /** The source ID of the dependency, `null` for the root package and path dependencies. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
@@ -299,10 +290,11 @@ mod test {
           "packages": [
             {
               "id": "",
+              "rootUrl": "",
               "name": "",
               "version": "",
               "origin": "workspace",
-              "edition": 2018,
+              "edition": "",
               "targets": [],
               "allTargets": [],
               "features": [],
@@ -384,10 +376,9 @@ mod test {
         let target = RustBuildTarget {
             name: "test_name".to_string(),
             crate_root_url: "test_crate_url".to_string(),
-            package_root_url: "test_root_url".to_string(),
             kind: RustTargetKind::default(),
             crate_types: vec![RustCrateType::default()],
-            edition: RustEdition::default(),
+            edition: Edition::default(),
             doctest: false,
             required_features: vec!["test_feature".to_string()],
         };
@@ -396,12 +387,11 @@ mod test {
         {
           "name": "test_name",
           "crateRootUrl": "test_crate_url",
-          "packageRootUrl": "test_root_url",
           "kind": 1,
           "crateTypes": [
             2
           ],
-          "edition": 2018,
+          "edition": "",
           "doctest": false,
           "requiredFeatures": [
             "test_feature"
@@ -413,10 +403,9 @@ mod test {
         {
           "name": "",
           "crateRootUrl": "",
-          "packageRootUrl": "",
           "kind": 1,
           "crateTypes": [],
-          "edition": 2018,
+          "edition": "",
           "doctest": false,
           "requiredFeatures": []
         }
@@ -480,10 +469,11 @@ mod test {
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
+            root_url: "test_root_url".to_string(),
             name: "test_name".to_string(),
             version: "test_version".to_string(),
             origin: RustPackageOrigin::default(),
-            edition: RustEdition::default(),
+            edition: Edition::default(),
             source: Some("test_source".to_string()),
             targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
@@ -498,19 +488,19 @@ mod test {
         assert_json_snapshot!(package, @r###"
         {
           "id": "test_id",
+          "rootUrl": "test_root_url",
           "name": "test_name",
           "version": "test_version",
           "origin": "workspace",
-          "edition": 2018,
+          "edition": "",
           "source": "test_source",
           "targets": [
             {
               "name": "",
               "crateRootUrl": "",
-              "packageRootUrl": "",
               "kind": 1,
               "crateTypes": [],
-              "edition": 2018,
+              "edition": "",
               "doctest": false,
               "requiredFeatures": []
             }
@@ -519,10 +509,9 @@ mod test {
             {
               "name": "",
               "crateRootUrl": "",
-              "packageRootUrl": "",
               "kind": 1,
               "crateTypes": [],
-              "edition": 2018,
+              "edition": "",
               "doctest": false,
               "requiredFeatures": []
             }
@@ -551,10 +540,11 @@ mod test {
         assert_json_snapshot!(RustPackage::default(), @r###"
         {
           "id": "",
+          "rootUrl": "",
           "name": "",
           "version": "",
           "origin": "workspace",
-          "edition": 2018,
+          "edition": "",
           "targets": [],
           "allTargets": [],
           "features": [],
@@ -630,13 +620,6 @@ mod test {
         assert_json_snapshot!(RustDepKind::Normal, @"2");
         assert_json_snapshot!(RustDepKind::Dev, @"3");
         assert_json_snapshot!(RustDepKind::Build, @"4");
-    }
-
-    #[test]
-    fn rust_edition() {
-        assert_json_snapshot!(RustEdition::Edition2015, @"2015");
-        assert_json_snapshot!(RustEdition::Edition2018, @"2018");
-        assert_json_snapshot!(RustEdition::Edition2021, @"2021");
     }
 
     #[test]

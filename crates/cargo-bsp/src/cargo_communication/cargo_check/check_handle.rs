@@ -32,9 +32,8 @@ impl RequestHandle {
 
         // The command does not need information about targets, as it is invoked with
         // `--all-targets` flag.
-        let mut commands = params.create_requested_command(root_path, &[]);
-        let command = commands.get_mut(0).unwrap();
-        let cargo_handle = CargoHandle::spawn(command)?;
+        let mut command = params.create_requested_command(root_path, &[]);
+        let cargo_handle = CargoHandle::spawn(&mut command)?;
 
         let metadata = get_metadata(&global_state.config.workspace_manifest)
             .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;

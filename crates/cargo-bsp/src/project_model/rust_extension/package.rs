@@ -3,11 +3,12 @@
 //! for preparing the data for RustWorkspaceRequest response.
 
 use crate::project_model::cargo_package::CargoPackage;
+use crate::project_model::metadata_edition_to_bsp_edition;
 use crate::project_model::rust_extension::{
-    find_node, get_nodes_from_metadata, metadata_edition_to_rust_extension_edition,
-    target::metadata_targets_to_rust_extension_targets,
+    find_node, get_nodes_from_metadata, target::metadata_targets_to_rust_extension_targets,
 };
 use crate::project_model::workspace::ProjectWorkspace;
+use crate::utils::uri::file_uri;
 use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -45,15 +46,13 @@ fn metadata_features_to_rust_extension_features(
 fn metadata_package_to_rust_extension_package(
     metadata_package: cargo_metadata::Package,
 ) -> RustPackage {
-    let all_targets = metadata_targets_to_rust_extension_targets(
-        metadata_package.targets,
-        &metadata_package.manifest_path,
-    );
+    let all_targets = metadata_targets_to_rust_extension_targets(metadata_package.targets);
     RustPackage {
         id: metadata_package.id.clone().to_string(),
+        root_url: file_uri(metadata_package.manifest_path.parent().unwrap().to_string()),
         name: metadata_package.name.clone(),
         version: metadata_package.version.to_string(),
-        edition: metadata_edition_to_rust_extension_edition(metadata_package.edition),
+        edition: metadata_edition_to_bsp_edition(metadata_package.edition),
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
         // In our case targets = all_targets. This field is needed for Bazel

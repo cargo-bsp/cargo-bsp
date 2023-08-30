@@ -6,6 +6,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
 
+use crate::project_model::metadata_edition_to_bsp_edition;
 use bsp_types::basic_bsp_structures::*;
 
 use crate::utils::uri::file_uri;
@@ -82,7 +83,7 @@ pub fn bsp_build_target_from_cargo_target(
     let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
     let rust_specific_data = BuildTargetData::Cargo(CargoBuildTarget {
-        edition: Edition::new(cargo_target.edition.as_str()),
+        edition: metadata_edition_to_bsp_edition(cargo_target.edition),
         required_features: cargo_target.required_features.clone(),
     });
 

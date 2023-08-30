@@ -14,18 +14,10 @@ use crate::project_model::rust_extension::dependency::{
 };
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::Error;
-use bsp_types::extensions::{RustEdition, RustWorkspaceResult};
+use bsp_types::extensions::RustWorkspaceResult;
 use bsp_types::BuildTargetIdentifier;
-use cargo_metadata::{Edition, Metadata, Node};
+use cargo_metadata::{Metadata, Node};
 use log::warn;
-
-pub(crate) fn metadata_edition_to_rust_extension_edition(metadata_edition: Edition) -> RustEdition {
-    match metadata_edition {
-        Edition::E2015 => RustEdition::Edition2015,
-        Edition::E2018 => RustEdition::Edition2018,
-        _ => RustEdition::Edition2021,
-    }
-}
 
 pub(crate) fn find_node<'a>(
     nodes: &'a [Node],
