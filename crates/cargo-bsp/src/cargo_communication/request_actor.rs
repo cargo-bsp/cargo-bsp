@@ -23,7 +23,6 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
-use std::sync::Arc;
 
 use bsp_server::Message;
 use bsp_server::RequestId;
@@ -80,7 +79,7 @@ where
         root_path: &Path,
         cargo_handle: C,
         cancel_receiver: Receiver<Event>,
-        workspace: &Arc<ProjectWorkspace>,
+        workspace: &ProjectWorkspace,
     ) -> RequestActor<R, C> {
         let build_targets = params.get_targets(workspace);
         RequestActor {
@@ -284,7 +283,7 @@ pub mod tests {
                 cargo_handle,
                 cancel_receiver,
                 #[allow(clippy::arc_with_non_send_sync)]
-                &Arc::new(workspace),
+                &workspace,
             ),
             receiver_from_actor,
             _cancel_sender: cancel_sender,
