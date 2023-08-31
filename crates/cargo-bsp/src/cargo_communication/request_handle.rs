@@ -40,7 +40,7 @@ impl RequestHandle {
     {
         let root_path = global_state.config.root_path();
         let targets_details = targets_ids_to_targets_details(
-            params.get_targets(&global_state.workspace),
+            params.get_targets(global_state.workspace),
             &global_state,
         )?;
         let unit_graph_cmd = params.create_unit_graph_command(root_path, &targets_details);
@@ -54,7 +54,7 @@ impl RequestHandle {
             root_path,
             cargo_handle,
             cancel_receiver,
-            &global_state.workspace,
+            global_state.workspace,
         );
         let thread =
             jod_thread::Builder::new().spawn(move || run_commands(actor, requested_cmd))?;

@@ -2,7 +2,6 @@
 //! communication with Cargo (such as compile, run or test requests).
 
 use log::warn;
-use std::sync::Arc;
 
 use bsp_types;
 
@@ -102,7 +101,7 @@ pub(crate) fn handle_set_cargo_features(
     state: &mut GlobalState,
     params: bsp_types::extensions::SetCargoFeaturesParams,
 ) -> Result<bsp_types::extensions::SetCargoFeaturesResult> {
-    let mutable_workspace = Arc::make_mut(&mut state.workspace);
+    let mutable_workspace = &mut state.workspace;
     let status_code =
         mutable_workspace.set_features_for_the_package(params.package_id, &params.features);
     Ok(bsp_types::extensions::SetCargoFeaturesResult { status_code })
