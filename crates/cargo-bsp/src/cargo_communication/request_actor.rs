@@ -664,9 +664,9 @@ pub mod tests {
                 CompilerMessage as CompilerMessageEnum,
             };
             use cargo_metadata::{
-                Artifact, ArtifactBuilder, ArtifactProfile, ArtifactProfileBuilder, BuildScript,
-                BuildScriptBuilder, CompilerMessage, CompilerMessageBuilder, PackageId, Target,
-                TargetBuilder,
+                Artifact, ArtifactBuilder, ArtifactDebuginfo, ArtifactProfile,
+                ArtifactProfileBuilder, BuildScript, BuildScriptBuilder, CompilerMessage,
+                CompilerMessageBuilder, PackageId, Target, TargetBuilder,
             };
 
             const TEST_KIND: &str = "test_kind";
@@ -997,7 +997,7 @@ pub mod tests {
             fn default_artifact_profile() -> ArtifactProfile {
                 ArtifactProfileBuilder::default()
                     .opt_level(TEST_OPT_LEVEL.to_string())
-                    .debuginfo(Some(0))
+                    .debuginfo(ArtifactDebuginfo::default())
                     .debug_assertions(false)
                     .overflow_checks(false)
                     .test(false)
