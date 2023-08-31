@@ -1,7 +1,6 @@
 //! The context or environment in which the server functions.
 
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -30,13 +29,13 @@ pub(crate) struct GlobalState {
     pub(crate) handlers_sender: Sender<Message>,
     pub(crate) handlers_receiver: Receiver<Message>,
 
-    pub(crate) workspace: Rc<ProjectWorkspace>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 /// Snapshot of server state for request handlers.
 pub(crate) struct GlobalStateSnapshot {
     pub(crate) config: Arc<Config>,
-    pub(crate) workspace: Rc<ProjectWorkspace>,
+    pub(crate) workspace: Arc<ProjectWorkspace>,
 }
 
 impl GlobalState {
@@ -50,7 +49,8 @@ impl GlobalState {
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
-            workspace: Rc::new(ProjectWorkspace::default()),
+            #[allow(clippy::arc_with_non_send_sync)]
+            workspace: Arc::new(ProjectWorkspace::default()),
         };
         this.update_workspace_data();
         this
@@ -70,7 +70,7 @@ impl GlobalState {
     pub(crate) fn snapshot(&self) -> GlobalStateSnapshot {
         GlobalStateSnapshot {
             config: Arc::clone(&self.config),
-            workspace: Rc::clone(&self.workspace),
+            workspace: Arc::clone(&self.workspace),
         }
     }
 
@@ -104,9 +104,10 @@ impl GlobalState {
         let mutable_config = Arc::make_mut(&mut self.config);
         mutable_config.update_project_manifest();
 
+        #[allow(clippy::arc_with_non_send_sync)]
         match ProjectWorkspace::new(self.config.workspace_manifest.file.clone()) {
             Ok(updated_workspace) => {
-                self.workspace = Rc::new(updated_workspace);
+                self.workspace = Arc::new(updated_workspace);
             }
             Err(e) => {
                 error!("Updating workspace state failed: {}", e);
