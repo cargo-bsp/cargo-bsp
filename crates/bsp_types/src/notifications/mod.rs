@@ -35,6 +35,22 @@ pub struct TaskId {
     pub parents: Vec<String>,
 }
 
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Position {
+    /** Line position within a file. First line of a file is 0. */
+    pub line: i32,
+    /** Character position within a line. First character of a line is 0. */
+    pub character: i32,
+}
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Range {
+    pub start: Position,
+    pub end: Position,
+}
+
 #[cfg(test)]
 mod tests {
     use insta::assert_json_snapshot;

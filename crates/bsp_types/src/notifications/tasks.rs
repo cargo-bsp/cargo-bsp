@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::notifications::{Notification, TaskId};
-use crate::{BuildTargetIdentifier, StatusCode};
+use crate::notifications::{Notification, Range, TaskId};
+use crate::{BuildTargetIdentifier, StatusCode, URI};
 
 #[derive(Debug)]
 pub enum OnBuildTaskStart {}
@@ -250,7 +250,12 @@ pub struct TestFinishData {
     pub data: Option<Value>,
 }
 
-pub type Location = lsp_types::Location;
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Location {
+    pub uri: URI,
+    pub range: Range,
+}
 
 #[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone, Copy)]
 #[repr(u8)]
@@ -271,7 +276,6 @@ pub enum TestStatus {
 #[cfg(test)]
 mod tests {
     use insta::assert_json_snapshot;
-    use url::Url;
 
     use super::*;
 
@@ -602,10 +606,10 @@ mod tests {
     fn test_start_data() {
         let test_data = TestStartData {
             display_name: "test_name".to_string(),
-            location: Some(Location::new(
-                Url::from_file_path("/test").unwrap(),
-                lsp_types::Range::default(),
-            )),
+            location: Some(Location {
+                uri: "file:///test".to_string(),
+                range: Range::default(),
+            }),
         };
 
         assert_json_snapshot!(test_data,
@@ -643,10 +647,10 @@ mod tests {
             display_name: "test_name".to_string(),
             message: Some("test_message".to_string()),
             status: TestStatus::default(),
-            location: Some(Location::new(
-                Url::from_file_path("/test").unwrap(),
-                lsp_types::Range::default(),
-            )),
+            location: Some(Location {
+                uri: "file:///test".to_string(),
+                range: Range::default(),
+            }),
             data_kind: Some("test_dataKind".to_string()),
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };

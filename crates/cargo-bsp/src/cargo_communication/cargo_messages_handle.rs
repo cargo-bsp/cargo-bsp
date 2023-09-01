@@ -4,13 +4,13 @@
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
 use log::warn;
-use lsp_types::DiagnosticSeverity;
 use path_absolutize::*;
 use paths::AbsPath;
 
 use bsp_types::notifications::{
-    CompileReportData, LogMessageParams, MessageType, OnBuildLogMessage, OnBuildPublishDiagnostics,
-    PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
+    CompileReportData, DiagnosticSeverity, LogMessageParams, MessageType, OnBuildLogMessage,
+    OnBuildPublishDiagnostics, PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData,
+    TestStatus, TestTaskData,
 };
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
@@ -112,10 +112,10 @@ where
         diagnostics.into_iter().for_each(|diagnostic| {
             // Count errors and warnings.
             diagnostic.diagnostics.iter().for_each(|d| {
-                if let Some(severity) = d.severity {
+                if let Some(severity) = &d.severity {
                     match severity {
-                        DiagnosticSeverity::ERROR => self.state.compile_state.errors += 1,
-                        DiagnosticSeverity::WARNING => self.state.compile_state.warnings += 1,
+                        DiagnosticSeverity::Error => self.state.compile_state.errors += 1,
+                        DiagnosticSeverity::Warning => self.state.compile_state.warnings += 1,
                         _ => (),
                     }
                 }

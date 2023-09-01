@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::notifications::Notification;
-use crate::{BuildTargetIdentifier, TextDocumentIdentifier};
+use crate::notifications::{Location, Notification, Range};
+use crate::{BuildTargetIdentifier, TextDocumentIdentifier, URI};
 
 #[derive(Debug)]
 pub enum OnBuildPublishDiagnostics {}
@@ -36,7 +38,87 @@ pub struct PublishDiagnosticsParams {
     pub reset: bool,
 }
 
-pub type Diagnostic = lsp_types::Diagnostic;
+/** Represents a diagnostic, such as a compiler error or warning.
+Diagnostic objects are only valid in the scope of a resource. */
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Diagnostic {
+    /** The range at which the message applies. */
+    pub range: Range,
+    /** The diagnostic's severity. Can be omitted. If omitted it is up to the
+    client to interpret diagnostics as error, warning, info or hint. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub severity: Option<DiagnosticSeverity>,
+    /** The diagnostic's code, which might appear in the user interface. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    /** An optional property to describe the error code. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_description: Option<CodeDescription>,
+    /** A human-readable string describing the source of this
+    diagnostic, e.g. 'typescript' or 'super lint'. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /** The diagnostic's message. */
+    pub message: String,
+    /** An array of related diagnostic information, e.g. when symbol-names within
+    a scope collide all definitions can be marked via this property. */
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related_information: Vec<DiagnosticRelatedInformation>,
+    /** Additional metadata about the diagnostic. */
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<DiagnosticTag>,
+    /** A data entry field that is preserved between a `textDocument/publishDiagnostics` notification
+    and a `textDocument/codeAction` request. */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeDescription {
+    pub href: URI,
+}
+
+/** Represents a related message and source code location for a diagnostic.
+This should be used to point to code locations that cause or are related to
+a diagnostics, e.g when duplicating a symbol in a scope. */
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosticRelatedInformation {
+    /** The location of this related diagnostic information. */
+    pub location: Location,
+    /** The message of this related diagnostic information. */
+    pub message: String,
+}
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum DiagnosticSeverity {
+    #[default]
+    Error = 1,
+    Warning = 2,
+    Information = 3,
+    Hint = 4,
+}
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DiagnosticTag(pub i32);
+impl DiagnosticTag {
+    /** Unused or unnecessary code.
+
+    Clients are allowed to render diagnostics with this tag faded out instead of having an error squiggle. */
+    pub const UNNECESSARY: DiagnosticTag = DiagnosticTag::new(1);
+    /** Deprecated or obsolete code.
+
+    Clients are allowed to rendered diagnostics with this tag strike through. */
+    pub const DEPRECATED: DiagnosticTag = DiagnosticTag::new(2);
+
+    pub const fn new(tag: i32) -> Self {
+        DiagnosticTag(tag)
+    }
+}
 
 #[cfg(test)]
 mod tests {
