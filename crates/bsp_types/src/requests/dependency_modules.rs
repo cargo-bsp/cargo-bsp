@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
 #[derive(Debug)]
 pub enum BuildTargetDependencyModules {}
@@ -38,15 +37,24 @@ pub struct DependencyModule {
     /** Module version */
     pub version: String,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
     /** Language-specific metadata about this module.
     See MavenDependencyModule as an example. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<DependencyModuleData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedDependencyModuleData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DependencyModuleData {
+    Named(NamedDependencyModuleData),
+    Other(OtherData),
+}
+
+impl DependencyModuleData {}
 
 #[cfg(test)]
 mod tests {
@@ -143,8 +151,10 @@ mod tests {
         let test_data = DependencyModule {
             name: "test_name".to_string(),
             version: "test_version".to_string(),
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(DependencyModuleData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,

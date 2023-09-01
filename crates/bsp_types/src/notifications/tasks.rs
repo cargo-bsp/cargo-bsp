@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Notification, Range, TaskId};
-use crate::{BuildTargetIdentifier, StatusCode, URI};
+use crate::{BuildTargetIdentifier, OtherData, StatusCode, URI};
 
 #[derive(Debug)]
 pub enum OnBuildTaskStart {}
@@ -53,7 +52,40 @@ pub struct TaskStartParams {
     and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
     etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TaskDataWithKind>,
+    pub data: Option<TaskStartData>,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedTaskStartData {
+    CompileTask(CompileTask),
+    TestStart(TestStart),
+    TestTask(TestTask),
+}
+
+/** Task start notifications may contain an arbitrary interface in their `data`
+field. The kind of interface that is contained in a notification must be
+specified in the `dataKind` field.
+
+There are predefined kinds of objects for compile and test tasks, as described
+in [[bsp#BuildTargetCompile]] and [[bsp#BuildTargetTest]] */
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TaskStartData {
+    Named(NamedTaskStartData),
+    Other(OtherData),
+}
+
+impl TaskStartData {
+    pub fn compile_task(data: CompileTask) -> Self {
+        TaskStartData::Named(NamedTaskStartData::CompileTask(data))
+    }
+    pub fn test_start(data: TestStart) -> Self {
+        TaskStartData::Named(NamedTaskStartData::TestStart(data))
+    }
+    pub fn test_task(data: TestTask) -> Self {
+        TaskStartData::Named(NamedTaskStartData::TestTask(data))
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -93,8 +125,24 @@ pub struct TaskProgressParams {
     and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
     etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TaskDataWithKind>,
+    pub data: Option<TaskProgressData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedTaskProgressData {}
+
+/** Task progress notifications may contain an arbitrary interface in their `data`
+field. The kind of interface that is contained in a notification must be
+specified in the `dataKind` field. */
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TaskProgressData {
+    Named(NamedTaskProgressData),
+    Other(OtherData),
+}
+
+impl TaskProgressData {}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -123,25 +171,47 @@ pub struct TaskFinishParams {
     and data is: Optional metadata about the task. Objects for specific tasks like compile, test,
     etc are specified in the protocol. */
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub data: Option<TaskDataWithKind>,
+    pub data: Option<TaskFinishData>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum TaskDataWithKind {
-    CompileTask(CompileTaskData),
-    CompileReport(CompileReportData),
-    TestTask(TestTaskData),
-    TestReport(TestReportData),
-    TestStart(TestStartData),
-    TestFinish(TestFinishData),
+pub enum NamedTaskFinishData {
+    CompileReport(CompileReport),
+    TestFinish(TestFinish),
+    TestReport(TestReport),
+}
+
+/** Task finish notifications may contain an arbitrary interface in their `data`
+field. The kind of interface that is contained in a notification must be
+specified in the `dataKind` field.
+
+There are predefined kinds of objects for compile and test tasks, as described
+in [[bsp#BuildTargetCompile]] and [[bsp#BuildTargetTest]] */
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TaskFinishData {
+    Named(NamedTaskFinishData),
+    Other(OtherData),
+}
+
+impl TaskFinishData {
+    pub fn compile_report(data: CompileReport) -> Self {
+        TaskFinishData::Named(NamedTaskFinishData::CompileReport(data))
+    }
+    pub fn test_finish(data: TestFinish) -> Self {
+        TaskFinishData::Named(NamedTaskFinishData::TestFinish(data))
+    }
+    pub fn test_report(data: TestReport) -> Self {
+        TaskFinishData::Named(NamedTaskFinishData::TestReport(data))
+    }
 }
 
 /** The beginning of a compilation unit may be signalled to the client with a build/taskStart
 notification. When the compilation unit is a build target, the notification's dataKind field
 must be "compile-task" and the data field must include a CompileTask object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct CompileTaskData {
+pub struct CompileTask {
     pub target: BuildTargetIdentifier,
 }
 
@@ -150,7 +220,7 @@ When the compilation unit is a build target, the notification's dataKind field m
 compile-report and the data field must include a CompileReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CompileReportData {
+pub struct CompileReport {
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
 
@@ -177,7 +247,7 @@ pub struct CompileReportData {
 When the testing unit is a build target, the notification's dataKind field must be
 test-task and the data field must include a TestTask object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct TestTaskData {
+pub struct TestTask {
     pub target: BuildTargetIdentifier,
 }
 
@@ -185,7 +255,7 @@ pub struct TestTaskData {
 When the testing unit is a build target, the notification's dataKind field must be
 test-report and the data field must include a TestReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct TestReportData {
+pub struct TestReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<String>,
 
@@ -214,7 +284,7 @@ pub struct TestReportData {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TestStartData {
+pub struct TestStart {
     /** Name or description of the test. */
     pub display_name: String,
 
@@ -225,7 +295,7 @@ pub struct TestStartData {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct TestFinishData {
+pub struct TestFinish {
     /** Name or description of the test. */
     pub display_name: String,
 
@@ -240,15 +310,24 @@ pub struct TestFinishData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
     /** Optionally, structured metadata about the test completion.
      * For example: stack traces, expected/actual values. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestFinishData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedTestFinishData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TestFinishData {
+    Named(NamedTestFinishData),
+    Other(OtherData),
+}
+
+impl TestFinishData {}
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -300,7 +379,7 @@ mod tests {
             task_id: TaskId::default(),
             event_time: Some(1),
             message: Some("test_message".to_string()),
-            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+            data: Some(TaskStartData::compile_task(CompileTask::default())),
         };
 
         assert_json_snapshot!(test_data,
@@ -340,7 +419,10 @@ mod tests {
             total: Some(2),
             progress: Some(3),
             unit: Some("test_unit".to_string()),
-            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+            data: Some(TaskProgressData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,
@@ -354,11 +436,9 @@ mod tests {
           "total": 2,
           "progress": 3,
           "unit": "test_unit",
-          "dataKind": "compile-task",
+          "dataKind": "test_dataKind",
           "data": {
-            "target": {
-              "uri": ""
-            }
+            "dataKey": "dataValue"
           }
         }
         "#
@@ -381,7 +461,7 @@ mod tests {
             event_time: Some(1),
             message: Some("test_message".to_string()),
             status: StatusCode::default(),
-            data: Some(TaskDataWithKind::CompileTask(CompileTaskData::default())),
+            data: Some(TaskFinishData::compile_report(CompileReport::default())),
         };
 
         assert_json_snapshot!(test_data,
@@ -393,11 +473,13 @@ mod tests {
           "eventTime": 1,
           "message": "test_message",
           "status": 2,
-          "dataKind": "compile-task",
+          "dataKind": "compile-report",
           "data": {
             "target": {
               "uri": ""
-            }
+            },
+            "errors": 0,
+            "warnings": 0
           }
         }
         "#
@@ -415,8 +497,8 @@ mod tests {
     }
 
     #[test]
-    fn task_data_with_kind() {
-        assert_json_snapshot!(TaskDataWithKind::CompileTask(CompileTaskData::default()),
+    fn task_start_data() {
+        assert_json_snapshot!(TaskStartData::compile_task(CompileTask::default()),
             @r#"
         {
           "dataKind": "compile-task",
@@ -428,7 +510,33 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TaskDataWithKind::CompileReport(CompileReportData::default()),
+        assert_json_snapshot!(TaskStartData::test_task(TestTask::default()),
+            @r#"
+        {
+          "dataKind": "test-task",
+          "data": {
+            "target": {
+              "uri": ""
+            }
+          }
+        }
+        "#
+        );
+        assert_json_snapshot!(TaskStartData::test_start(TestStart::default()),
+            @r#"
+        {
+          "dataKind": "test-start",
+          "data": {
+            "displayName": ""
+          }
+        }
+        "#
+        );
+    }
+
+    #[test]
+    fn task_finish_data() {
+        assert_json_snapshot!(TaskFinishData::compile_report(CompileReport::default()),
             @r#"
         {
           "dataKind": "compile-report",
@@ -442,19 +550,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TaskDataWithKind::TestTask(TestTaskData::default()),
-            @r#"
-        {
-          "dataKind": "test-task",
-          "data": {
-            "target": {
-              "uri": ""
-            }
-          }
-        }
-        "#
-        );
-        assert_json_snapshot!(TaskDataWithKind::TestReport(TestReportData::default()),
+        assert_json_snapshot!(TaskFinishData::test_report(TestReport::default()),
             @r#"
         {
           "dataKind": "test-report",
@@ -471,17 +567,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TaskDataWithKind::TestStart(TestStartData::default()),
-            @r#"
-        {
-          "dataKind": "test-start",
-          "data": {
-            "displayName": ""
-          }
-        }
-        "#
-        );
-        assert_json_snapshot!(TaskDataWithKind::TestFinish(TestFinishData::default()),
+        assert_json_snapshot!(TaskFinishData::test_finish(TestFinish::default()),
             @r#"
         {
           "dataKind": "test-finish",
@@ -496,7 +582,7 @@ mod tests {
 
     #[test]
     fn compile_task_data() {
-        assert_json_snapshot!(CompileTaskData::default(),
+        assert_json_snapshot!(CompileTask::default(),
             @r#"
         {
           "target": {
@@ -509,7 +595,7 @@ mod tests {
 
     #[test]
     fn compile_report_data() {
-        let test_data = CompileReportData {
+        let test_data = CompileReport {
             target: BuildTargetIdentifier::default(),
             origin_id: Some("test_originId".to_string()),
             errors: 1,
@@ -532,7 +618,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(CompileReportData::default(),
+        assert_json_snapshot!(CompileReport::default(),
             @r#"
         {
           "target": {
@@ -547,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_task_data() {
-        assert_json_snapshot!(TestTaskData::default(),
+        assert_json_snapshot!(TestTask::default(),
             @r#"
         {
           "target": {
@@ -560,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_report_data() {
-        let test_data = TestReportData {
+        let test_data = TestReport {
             origin_id: None,
             target: BuildTargetIdentifier::default(),
             passed: 1,
@@ -586,7 +672,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TestReportData::default(),
+        assert_json_snapshot!(TestReport::default(),
             @r#"
         {
           "target": {
@@ -604,7 +690,7 @@ mod tests {
 
     #[test]
     fn test_start_data() {
-        let test_data = TestStartData {
+        let test_data = TestStart {
             display_name: "test_name".to_string(),
             location: Some(Location {
                 uri: "file:///test".to_string(),
@@ -632,7 +718,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TestStartData::default(),
+        assert_json_snapshot!(TestStart::default(),
             @r#"
         {
           "displayName": ""
@@ -643,7 +729,7 @@ mod tests {
 
     #[test]
     fn test_finish_data() {
-        let test_data = TestFinishData {
+        let test_data = TestFinish {
             display_name: "test_name".to_string(),
             message: Some("test_message".to_string()),
             status: TestStatus::default(),
@@ -651,8 +737,10 @@ mod tests {
                 uri: "file:///test".to_string(),
                 range: Range::default(),
             }),
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(TestFinishData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,
@@ -681,7 +769,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(TestFinishData::default(),
+        assert_json_snapshot!(TestFinish::default(),
             @r#"
         {
           "displayName": "",

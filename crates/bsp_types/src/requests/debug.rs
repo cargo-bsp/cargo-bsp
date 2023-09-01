@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, URI};
+use crate::{BuildTargetIdentifier, OtherData, URI};
 
 #[derive(Debug)]
 pub enum DebugSession {}
@@ -13,18 +12,35 @@ impl Request for DebugSession {
     const METHOD: &'static str = "debugSession/start";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugSessionParams {
     /** A sequence of build targets affected by the debugging action. */
     pub targets: Vec<BuildTargetIdentifier>,
 
-    /** The kind of data to expect in the `data` field. */
-    pub data_kind: String,
-
     /** Language-specific metadata for this execution.
     See ScalaMainClass as an example. */
-    pub data: Value,
+    #[serde(flatten)]
+    pub data: DebugSessionParamsData,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedDebugSessionParamsData {
+    ScalaTestSuites(Vec<String>),
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DebugSessionParamsData {
+    Named(NamedDebugSessionParamsData),
+    Other(OtherData),
+}
+
+impl DebugSessionParamsData {
+    pub fn scala_test_suites(data: Vec<String>) -> Self {
+        DebugSessionParamsData::Named(NamedDebugSessionParamsData::ScalaTestSuites(data))
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -48,10 +64,12 @@ mod tests {
 
     #[test]
     fn debug_session_params() {
-        let test_data = DebugSessionParams {
+        let mut test_data = DebugSessionParams {
             targets: vec![BuildTargetIdentifier::default()],
-            data_kind: "test_dataKind".to_string(),
-            data: serde_json::json!({"dataKey": "dataValue"}),
+            data: DebugSessionParamsData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            }),
         };
 
         test_deserialization(
@@ -59,10 +77,12 @@ mod tests {
             &test_data,
         );
 
-        test_deserialization(
-            r#"{"targets":[],"dataKind":"","data":null}"#,
-            &DebugSessionParams::default(),
-        );
+        test_data.targets = vec![];
+        test_data.data = DebugSessionParamsData::Other(OtherData {
+            data_kind: "".to_string(),
+            data: serde_json::Value::Null,
+        });
+        test_deserialization(r#"{"targets":[],"dataKind":"","data":null}"#, &test_data);
     }
 
     #[test]

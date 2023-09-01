@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Location, Notification, Range};
-use crate::{BuildTargetIdentifier, TextDocumentIdentifier, URI};
+use crate::{BuildTargetIdentifier, OtherData, TextDocumentIdentifier, URI};
 
 #[derive(Debug)]
 pub enum OnBuildPublishDiagnostics {}
@@ -70,9 +69,22 @@ pub struct Diagnostic {
     pub tags: Vec<DiagnosticTag>,
     /** A data entry field that is preserved between a `textDocument/publishDiagnostics` notification
     and a `textDocument/codeAction` request. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<DiagnosticData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedDiagnosticData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DiagnosticData {
+    Named(NamedDiagnosticData),
+    Other(OtherData),
+}
+
+impl DiagnosticData {}
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

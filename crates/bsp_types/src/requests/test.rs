@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
 #[derive(Debug)]
 pub enum BuildTargetTest {}
@@ -28,15 +27,24 @@ pub struct TestParams {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub arguments: Vec<String>,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
     /** Language-specific metadata about for this test execution.
     See ScalaTestParams as an example. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestParamsData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedTestParamsData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TestParamsData {
+    Named(NamedTestParamsData),
+    Other(OtherData),
+}
+
+impl TestParamsData {}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -48,13 +56,22 @@ pub struct TestResult {
     /** A status code for the execution. */
     pub status_code: i32,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<TestResultData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedTestResultData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TestResultData {
+    Named(NamedTestResultData),
+    Other(OtherData),
+}
+
+impl TestResultData {}
 
 #[cfg(test)]
 mod tests {
@@ -77,8 +94,10 @@ mod tests {
             targets: vec![BuildTargetIdentifier::default()],
             origin_id: Some("test_originId".to_string()),
             arguments: vec!["test_argument".to_string()],
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(TestParamsData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         test_deserialization(
@@ -94,8 +113,10 @@ mod tests {
         let test_data = TestResult {
             origin_id: Some("test_originId".to_string()),
             status_code: i32::default(),
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(TestResultData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,

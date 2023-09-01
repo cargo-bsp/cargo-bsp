@@ -13,7 +13,6 @@ impl CargoResult for CompileResult {
         CompileResult {
             origin_id,
             status_code,
-            data_kind: None,
             data: None,
         }
     }
@@ -33,7 +32,6 @@ impl CargoResult for TestResult {
         TestResult {
             origin_id,
             status_code,
-            data_kind: None,
             data: None,
         }
     }

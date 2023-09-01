@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::URI;
+use crate::{OtherData, URI};
 
 #[derive(Debug)]
 pub enum BuildInitialize {}
@@ -33,9 +32,22 @@ pub struct InitializeBuildParams {
     pub capabilities: BuildClientCapabilities,
 
     /** Additional metadata about the client */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<InitializeBuildParamsData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedInitializeBuildParamsData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InitializeBuildParamsData {
+    Named(NamedInitializeBuildParamsData),
+    Other(OtherData),
+}
+
+impl InitializeBuildParamsData {}
 
 /** Server's response for client's InitializeBuildParams request */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -54,9 +66,22 @@ pub struct InitializeBuildResult {
     pub capabilities: BuildServerCapabilities,
 
     /** Additional metadata about the server */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<InitializeBuildResultData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedInitializeBuildResultData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InitializeBuildResultData {
+    Named(NamedInitializeBuildResultData),
+    Other(OtherData),
+}
+
+impl InitializeBuildResultData {}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -183,11 +208,14 @@ mod tests {
             bsp_version: "2.0.0".to_string(),
             root_uri: URI::from("file:///test"),
             capabilities: BuildClientCapabilities::default(),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(InitializeBuildParamsData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         test_deserialization(
-            r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","rootUri":"file:///test","capabilities":{"languageIds":[]},"data":{"dataKey":"dataValue"}}"#,
+            r#"{"displayName":"test_name","version":"1.0.0","bspVersion":"2.0.0","rootUri":"file:///test","capabilities":{"languageIds":[]},"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
             &test_data,
         );
 
@@ -204,7 +232,10 @@ mod tests {
             version: "1.0.0".to_string(),
             bsp_version: "2.0.0".to_string(),
             capabilities: BuildServerCapabilities::default(),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(InitializeBuildResultData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,
@@ -214,6 +245,7 @@ mod tests {
           "version": "1.0.0",
           "bspVersion": "2.0.0",
           "capabilities": {},
+          "dataKind": "test_dataKind",
           "data": {
             "dataKey": "dataValue"
           }

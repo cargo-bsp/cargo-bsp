@@ -9,8 +9,8 @@ use serde_json::to_value;
 
 use bsp_types::notifications::{
     LogMessageParams, MessageType, Notification as NotificationTrait, OnBuildLogMessage,
-    OnBuildTaskFinish, OnBuildTaskProgress, OnBuildTaskStart, TaskDataWithKind, TaskFinishParams,
-    TaskId, TaskProgressParams, TaskStartParams,
+    OnBuildTaskFinish, OnBuildTaskProgress, OnBuildTaskStart, TaskFinishData, TaskFinishParams,
+    TaskId, TaskProgressParams, TaskStartData, TaskStartParams,
 };
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
@@ -77,7 +77,7 @@ where
         &self,
         task_id: TaskId,
         message: Option<String>,
-        data: Option<TaskDataWithKind>,
+        data: Option<TaskStartData>,
     ) {
         self.send_notification::<OnBuildTaskStart>(TaskStartParams {
             task_id,
@@ -111,7 +111,7 @@ where
         task_id: TaskId,
         status: StatusCode,
         message: Option<String>,
-        data: Option<TaskDataWithKind>,
+        data: Option<TaskFinishData>,
     ) {
         self.send_notification::<OnBuildTaskFinish>(TaskFinishParams {
             task_id,

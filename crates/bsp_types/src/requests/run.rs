@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
 #[derive(Debug)]
 pub enum BuildTargetRun {}
@@ -28,15 +27,24 @@ pub struct RunParams {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub arguments: Vec<String>,
 
-    /** Kind of data to expect in the data field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
     /** Language-specific metadata for this execution.
     See ScalaMainClass as an example. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<RunParamsData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedRunParamsData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RunParamsData {
+    Named(NamedRunParamsData),
+    Other(OtherData),
+}
+
+impl RunParamsData {}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -68,8 +76,10 @@ mod tests {
             target: BuildTargetIdentifier::default(),
             origin_id: Some("test_originId".to_string()),
             arguments: vec!["test_argument".to_string()],
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(RunParamsData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         test_deserialization(

@@ -42,7 +42,7 @@ use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
 use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
-use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
+use bsp_types::notifications::{CompileTask, MessageType, TaskStartData};
 use bsp_types::requests::Request;
 use bsp_types::{BuildTargetIdentifier, StatusCode};
 
@@ -148,7 +148,7 @@ where
             self.report_task_start(
                 self.state.compile_state.get_target_task_id(id),
                 None,
-                Some(TaskDataWithKind::CompileTask(CompileTaskData {
+                Some(TaskStartData::compile_task(CompileTask {
                     target: id.clone(),
                 })),
             );
@@ -1098,7 +1098,6 @@ pub mod tests {
                 },
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: vec![TEST_ARGUMENTS.into()],
-                data_kind: None,
                 data: None,
             }
         }
@@ -1311,7 +1310,6 @@ pub mod tests {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: vec![TEST_ARGUMENTS.into()],
-                data_kind: None,
                 data: None,
             }
         }

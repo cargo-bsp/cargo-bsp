@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::Notification;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
 #[derive(Debug)]
 pub enum DidChangeBuildTarget {}
@@ -29,9 +28,22 @@ pub struct BuildTargetEvent {
     pub kind: Option<BuildTargetEventKind>,
 
     /** Any additional metadata about what information changed. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<BuildTargetEventData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedBuildTargetEventData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum BuildTargetEventData {
+    Named(NamedBuildTargetEventData),
+    Other(OtherData),
+}
+
+impl BuildTargetEventData {}
 
 #[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
@@ -89,7 +101,10 @@ mod tests {
         let test_data = BuildTargetEvent {
             target: BuildTargetIdentifier::default(),
             kind: Some(BuildTargetEventKind::default()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(BuildTargetEventData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,
@@ -99,6 +114,7 @@ mod tests {
             "uri": ""
           },
           "kind": 1,
+          "dataKind": "test_dataKind",
           "data": {
             "dataKey": "dataValue"
           }

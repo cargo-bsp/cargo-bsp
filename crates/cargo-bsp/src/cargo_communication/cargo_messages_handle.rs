@@ -8,9 +8,9 @@ use path_absolutize::*;
 use paths::AbsPath;
 
 use bsp_types::notifications::{
-    CompileReportData, DiagnosticSeverity, LogMessageParams, MessageType, OnBuildLogMessage,
-    OnBuildPublishDiagnostics, PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData,
-    TestStatus, TestTaskData,
+    CompileReport, DiagnosticSeverity, LogMessageParams, MessageType, OnBuildLogMessage,
+    OnBuildPublishDiagnostics, PublishDiagnosticsParams, TaskFinishData, TaskId, TaskStartData,
+    TestStart, TestStatus, TestTask,
 };
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
@@ -145,7 +145,7 @@ where
         self.build_targets.iter().for_each(|id| {
             // We can unwrap here, as for all iterated ids, the target state was created.
             let compile_target_state = self.state.compile_state.target_states.get(id).unwrap();
-            let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
+            let compile_report = TaskFinishData::compile_report(CompileReport {
                 target: id.clone(),
                 origin_id: self.params.origin_id(),
                 errors: self.state.compile_state.errors,
@@ -219,7 +219,7 @@ where
                     self.report_task_start(
                         task_id,
                         None,
-                        Some(TaskDataWithKind::TestTask(TestTaskData { target })),
+                        Some(TaskStartData::test_task(TestTask { target })),
                     );
                 }
                 SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
@@ -259,7 +259,7 @@ where
                     self.report_task_start(
                         test_task_id,
                         None,
-                        Some(TaskDataWithKind::TestStart(TestStartData {
+                        Some(TaskStartData::test_start(TestStart {
                             display_name: started.name,
                             // TODO add location of build target
                             location: None,
@@ -288,7 +288,7 @@ where
                     id,
                     StatusCode::Ok,
                     None,
-                    Some(TaskDataWithKind::TestFinish(
+                    Some(TaskFinishData::test_finish(
                         test_result.map_to_test_notification(status),
                     )),
                 );

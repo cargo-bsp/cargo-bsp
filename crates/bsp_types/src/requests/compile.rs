@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
 /*
 NOTE THAT:
@@ -45,15 +44,24 @@ pub struct CompileResult {
     /** A status code for the execution. */
     pub status_code: i32,
 
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
     /** A field containing language-specific information, like products
     of compilation or compiler-specific metadata the client needs to know. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<CompileResultData>,
 }
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedCompileResultData {}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CompileResultData {
+    Named(NamedCompileResultData),
+    Other(OtherData),
+}
+
+impl CompileResultData {}
 
 #[cfg(test)]
 mod tests {
@@ -89,8 +97,10 @@ mod tests {
         let test_data = CompileResult {
             origin_id: Some("test_message".to_string()),
             status_code: i32::default(),
-            data_kind: Some("test_data_kind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(CompileResultData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,
@@ -98,7 +108,7 @@ mod tests {
         {
           "originId": "test_message",
           "statusCode": 0,
-          "dataKind": "test_data_kind",
+          "dataKind": "test_dataKind",
           "data": {
             "dataKey": "dataValue"
           }

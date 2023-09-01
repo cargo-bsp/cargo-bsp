@@ -1,11 +1,20 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::extensions::CargoBuildTarget;
+
 /** A resource identifier that is a valid URI according
 to rfc3986: https://tools.ietf.org/html/rfc3986 */
 pub type URI = String;
 
 pub const RUST_ID: &str = "rust";
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OtherData {
+    pub data_kind: String,
+    pub data: serde_json::Value,
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TextDocumentIdentifier {
@@ -59,28 +68,20 @@ pub struct BuildTarget {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum BuildTargetData {
+pub enum NamedBuildTargetData {
     Cargo(CargoBuildTarget),
 }
 
-/** `CargoBuildTarget` is a basic data structure that contains cargo-specific metadata. */
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CargoBuildTarget {
-    pub edition: Edition,
-    pub required_features: Vec<String>,
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum BuildTargetData {
+    Named(NamedBuildTargetData),
+    Other(OtherData),
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Edition(pub std::borrow::Cow<'static, str>);
-impl Edition {
-    pub const E2015: Edition = Edition::new("2015");
-    pub const E2018: Edition = Edition::new("2018");
-    pub const E2021: Edition = Edition::new("2021");
-
-    pub const fn new(tag: &'static str) -> Self {
-        Edition(std::borrow::Cow::Borrowed(tag))
+impl BuildTargetData {
+    pub fn cargo(data: CargoBuildTarget) -> Self {
+        BuildTargetData::Named(NamedBuildTargetData::Cargo(data))
     }
 }
 
@@ -201,7 +202,7 @@ mod tests {
             capabilities: BuildTargetCapabilities::default(),
             language_ids: vec!["test_languageId".to_string()],
             dependencies: vec![BuildTargetIdentifier::default()],
-            data: Some(BuildTargetData::Cargo(CargoBuildTarget::default())),
+            data: Some(BuildTargetData::cargo(CargoBuildTarget::default())),
         };
 
         assert_json_snapshot!(test_data,
@@ -248,35 +249,8 @@ mod tests {
     }
 
     #[test]
-    fn cargo_build_target() {
-        let test_data = CargoBuildTarget {
-            edition: Edition::E2015,
-            required_features: vec!["test_requiredFeature".to_string()],
-        };
-
-        assert_json_snapshot!(test_data,
-            @r#"
-        {
-          "edition": "2015",
-          "requiredFeatures": [
-            "test_requiredFeature"
-          ]
-        }
-        "#
-        );
-        assert_json_snapshot!(CargoBuildTarget::default(),
-            @r#"
-        {
-          "edition": "",
-          "requiredFeatures": []
-        }
-        "#
-        );
-    }
-
-    #[test]
     fn cargo_build_target_data() {
-        assert_json_snapshot!(BuildTargetData::Cargo(CargoBuildTarget::default()),
+        assert_json_snapshot!(BuildTargetData::cargo(CargoBuildTarget::default()),
             @r#"
         {
           "dataKind": "cargo",
