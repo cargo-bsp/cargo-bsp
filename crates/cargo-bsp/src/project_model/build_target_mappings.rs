@@ -6,6 +6,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
 
+use crate::project_model::RUST_ID;
 use bsp_types::basic_bsp_structures::*;
 use bsp_types::extensions::{CargoBuildTarget, Edition};
 

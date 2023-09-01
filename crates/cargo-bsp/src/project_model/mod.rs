@@ -8,3 +8,5 @@ pub(crate) mod project_manifest;
 pub(crate) mod sources;
 pub(crate) mod target_details;
 pub mod workspace;
+
+pub const RUST_ID: &str = "rust";

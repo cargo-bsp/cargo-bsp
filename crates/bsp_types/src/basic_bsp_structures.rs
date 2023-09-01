@@ -15,8 +15,6 @@ impl From<&str> for URI {
     }
 }
 
-pub const RUST_ID: &str = "rust";
-
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OtherData {
