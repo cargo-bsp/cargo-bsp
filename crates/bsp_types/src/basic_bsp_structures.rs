@@ -3,13 +3,13 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /** A resource identifier that is a valid URI according
 to rfc3986: https://tools.ietf.org/html/rfc3986 */
-pub type Uri = String;
+pub type URI = String;
 
 pub const RUST_ID: &str = "rust";
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TextDocumentIdentifier {
-    pub uri: Uri,
+    pub uri: URI,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -29,7 +29,7 @@ pub struct BuildTarget {
     to the same base directory, and a build target is not required to have a base directory.
     A base directory does not determine the sources of a target, see buildTarget/sources. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub base_directory: Option<Uri>,
+    pub base_directory: Option<URI>,
 
     /** Free-form string tags to categorize or label this build target.
     For example, can be used by the client to:
@@ -90,7 +90,7 @@ or query parameters, use BuildTarget instead.*/
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone, Hash)]
 pub struct BuildTargetIdentifier {
     /** The target’s Uri */
-    pub uri: Uri,
+    pub uri: URI,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -137,13 +137,17 @@ pub enum BuildTargetTag {
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetCapabilities {
     /** This target can be compiled by the BSP server. */
-    pub can_compile: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_compile: Option<bool>,
     /** This target can be tested by the BSP server. */
-    pub can_test: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_test: Option<bool>,
     /** This target can be run by the BSP server. */
-    pub can_run: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_run: Option<bool>,
     /** This target can be debugged by the BSP server. */
-    pub can_debug: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_debug: Option<bool>,
 }
 
 /** Included in notifications of tasks or requests to signal the completion state. */
@@ -211,12 +215,7 @@ mod tests {
           "tags": [
             "test"
           ],
-          "capabilities": {
-            "canCompile": false,
-            "canTest": false,
-            "canRun": false,
-            "canDebug": false
-          },
+          "capabilities": {},
           "languageIds": [
             "test_languageId"
           ],
@@ -240,12 +239,7 @@ mod tests {
             "uri": ""
           },
           "tags": [],
-          "capabilities": {
-            "canCompile": false,
-            "canTest": false,
-            "canRun": false,
-            "canDebug": false
-          },
+          "capabilities": {},
           "languageIds": [],
           "dependencies": []
         }
@@ -331,10 +325,10 @@ mod tests {
     #[test]
     fn build_target_capabilities() {
         let test_data = BuildTargetCapabilities {
-            can_compile: true,
-            can_test: true,
-            can_run: true,
-            can_debug: true,
+            can_compile: Some(true),
+            can_test: Some(true),
+            can_run: Some(true),
+            can_debug: Some(true),
         };
 
         assert_json_snapshot!(test_data,
@@ -349,12 +343,7 @@ mod tests {
         );
         assert_json_snapshot!(BuildTargetCapabilities::default(),
             @r#"
-        {
-          "canCompile": false,
-          "canTest": false,
-          "canRun": false,
-          "canDebug": false
-        }
+        {}
         "#
         );
     }

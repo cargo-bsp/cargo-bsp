@@ -56,12 +56,7 @@ mod tests {
                 "uri": ""
               },
               "tags": [],
-              "capabilities": {
-                "canCompile": false,
-                "canTest": false,
-                "canRun": false,
-                "canDebug": false
-              },
+              "capabilities": {},
               "languageIds": [],
               "dependencies": []
             }

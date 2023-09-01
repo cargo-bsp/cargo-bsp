@@ -1,9 +1,9 @@
 use crate::requests::Request;
 
 #[derive(Debug)]
-pub enum Reload {}
+pub enum WorkspaceReload {}
 
-impl Request for Reload {
+impl Request for WorkspaceReload {
     type Params = ();
     type Result = ();
     const METHOD: &'static str = "workspace/reload";
@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn reload_method() {
-        assert_eq!(Reload::METHOD, "workspace/reload");
+        assert_eq!(WorkspaceReload::METHOD, "workspace/reload");
     }
 
     #[test]

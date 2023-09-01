@@ -4,9 +4,9 @@ use crate::requests::Request;
 use crate::{BuildTargetIdentifier, TextDocumentIdentifier};
 
 #[derive(Debug)]
-pub enum InverseSources {}
+pub enum BuildTargetInverseSources {}
 
-impl Request for InverseSources {
+impl Request for BuildTargetInverseSources {
     type Params = InverseSourcesParams;
     type Result = InverseSourcesResult;
     const METHOD: &'static str = "textDocument/inverseSources";
@@ -33,7 +33,10 @@ mod tests {
 
     #[test]
     fn inverse_sources_method() {
-        assert_eq!(InverseSources::METHOD, "textDocument/inverseSources");
+        assert_eq!(
+            BuildTargetInverseSources::METHOD,
+            "textDocument/inverseSources"
+        );
     }
 
     #[test]

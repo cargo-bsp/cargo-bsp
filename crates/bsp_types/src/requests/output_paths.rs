@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
-pub enum OutputPaths {}
+pub enum BuildTargetOutputPaths {}
 
-impl Request for OutputPaths {
+impl Request for BuildTargetOutputPaths {
     type Params = OutputPathsParams;
     type Result = OutputPathsResult;
     const METHOD: &'static str = "buildTarget/outputPaths";
@@ -37,7 +37,7 @@ pub struct OutputPathItem {
     /** Either a file or a directory. A directory entry must end with a forward
     slash "/" and a directory entry implies that every nested path within the
     directory belongs to this output item. */
-    pub uri: Uri,
+    pub uri: URI,
 
     /** Type of file of the output item, such as whether it is file or directory. */
     pub kind: OutputPathItemKind,
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn output_paths_method() {
-        assert_eq!(OutputPaths::METHOD, "buildTarget/outputPaths");
+        assert_eq!(BuildTargetOutputPaths::METHOD, "buildTarget/outputPaths");
     }
 
     #[test]

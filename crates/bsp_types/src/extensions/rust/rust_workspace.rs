@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -93,7 +93,7 @@ pub struct RustCfgOptions {
 #[serde(rename_all = "camelCase")]
 pub struct RustProcMacroArtifact {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<Uri>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
+    pub path: Option<URI>, // path to compiled lib of proc macro .so on linux, .dll on windows .dylib on mac
                            // RUSTC_BOOTSTRAP=1 cargo check --message-format json --workspace --all-targets -Z unstable-options --keep-going | grep ""
                            // we don't need hash. It is calculated by IntelliJ-Rust
                            //pub hash: String, // ignore

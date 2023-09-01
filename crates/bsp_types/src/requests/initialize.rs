@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::requests::Request;
-use crate::Uri;
+use crate::URI;
 
 #[derive(Debug)]
-pub enum InitializeBuild {}
+pub enum BuildInitialize {}
 
-impl Request for InitializeBuild {
+impl Request for BuildInitialize {
     type Params = InitializeBuildParams;
     type Result = InitializeBuildResult;
     const METHOD: &'static str = "build/initialize";
@@ -27,7 +27,7 @@ pub struct InitializeBuildParams {
     pub bsp_version: String,
 
     /** The rootUri of the workspace */
-    pub root_uri: Uri,
+    pub root_uri: URI,
 
     /** The capabilities of the client */
     pub capabilities: BuildClientCapabilities,
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn initialize_build_method() {
-        assert_eq!(InitializeBuild::METHOD, "build/initialize");
+        assert_eq!(BuildInitialize::METHOD, "build/initialize");
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
             display_name: "test_name".to_string(),
             version: "1.0.0".to_string(),
             bsp_version: "2.0.0".to_string(),
-            root_uri: Uri::from("file:///test"),
+            root_uri: URI::from("file:///test"),
             capabilities: BuildClientCapabilities::default(),
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };

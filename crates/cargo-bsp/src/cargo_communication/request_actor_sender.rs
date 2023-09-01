@@ -8,9 +8,9 @@ use bsp_server::{ErrorCode, Message, Notification, Response, ResponseError};
 use serde_json::to_value;
 
 use bsp_types::notifications::{
-    LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
-    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
-    TaskStartParams,
+    LogMessageParams, MessageType, Notification as NotificationTrait, OnBuildLogMessage,
+    OnBuildTaskFinish, OnBuildTaskProgress, OnBuildTaskStart, TaskDataWithKind, TaskFinishParams,
+    TaskId, TaskProgressParams, TaskStartParams,
 };
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
@@ -79,7 +79,7 @@ where
         message: Option<String>,
         data: Option<TaskDataWithKind>,
     ) {
-        self.send_notification::<TaskStart>(TaskStartParams {
+        self.send_notification::<OnBuildTaskStart>(TaskStartParams {
             task_id,
             event_time: Some(get_current_time()),
             message,
@@ -95,7 +95,7 @@ where
         progress: Option<i64>,
         unit: Option<String>,
     ) {
-        self.send_notification::<TaskProgress>(TaskProgressParams {
+        self.send_notification::<OnBuildTaskProgress>(TaskProgressParams {
             task_id,
             event_time: Some(get_current_time()),
             message,
@@ -113,7 +113,7 @@ where
         message: Option<String>,
         data: Option<TaskDataWithKind>,
     ) {
-        self.send_notification::<TaskFinish>(TaskFinishParams {
+        self.send_notification::<OnBuildTaskFinish>(TaskFinishParams {
             task_id,
             event_time: Some(get_current_time()),
             message,
@@ -129,7 +129,7 @@ where
         task_id: Option<TaskId>,
     ) {
         let task_id = task_id.unwrap_or(self.state.get_task_id());
-        self.send_notification::<LogMessage>(LogMessageParams {
+        self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             message_type,
             task: Some(task_id),
             origin_id: self.params.origin_id(),

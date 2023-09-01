@@ -7,7 +7,7 @@ use bsp_types::BuildTargetIdentifier;
 use std::collections::HashMap;
 
 use bsp_types::notifications::TaskId;
-use bsp_types::requests::{Request, Run, Test};
+use bsp_types::requests::{BuildTargetRun, BuildTargetTest, Request};
 
 use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
 
@@ -111,10 +111,10 @@ impl CompileState {
 impl TaskState {
     fn new<R: Request>(root_task_id: TaskId) -> TaskState {
         match R::METHOD {
-            Run::METHOD => TaskState::Run(RunState {
+            BuildTargetRun::METHOD => TaskState::Run(RunState {
                 task_id: generate_task_id(&root_task_id),
             }),
-            Test::METHOD => {
+            BuildTargetTest::METHOD => {
                 let test_task_id = generate_task_id(&root_task_id);
                 TaskState::Test(TestState {
                     suite_task_id: generate_task_id(&test_task_id),

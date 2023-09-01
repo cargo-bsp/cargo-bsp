@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
-pub enum DependencySources {}
+pub enum BuildTargetDependencySources {}
 
-impl Request for DependencySources {
+impl Request for BuildTargetDependencySources {
     type Params = DependencySourcesParams;
     type Result = DependencySourcesResult;
     const METHOD: &'static str = "buildTarget/dependencySources";
@@ -28,7 +28,7 @@ pub struct DependencySourcesItem {
     /** List of resources containing source files of the
     target's dependencies.
     Can be source files, jar files, zip files, or directories. */
-    pub sources: Vec<Uri>,
+    pub sources: Vec<URI>,
 }
 
 #[cfg(test)]
@@ -41,7 +41,10 @@ mod tests {
 
     #[test]
     fn dependency_sources_method() {
-        assert_eq!(DependencySources::METHOD, "buildTarget/dependencySources");
+        assert_eq!(
+            BuildTargetDependencySources::METHOD,
+            "buildTarget/dependencySources"
+        );
     }
 
     #[test]
@@ -88,7 +91,7 @@ mod tests {
     fn dependency_sources_item() {
         let test_data = DependencySourcesItem {
             target: BuildTargetIdentifier::default(),
-            sources: vec![Uri::default()],
+            sources: vec![URI::default()],
         };
 
         assert_json_snapshot!(test_data,

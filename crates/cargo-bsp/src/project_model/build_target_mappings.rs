@@ -26,7 +26,7 @@ pub fn parent_path(path: &Utf8PathBuf) -> Utf8PathBuf {
     parent_directory
 }
 
-pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> Uri {
+pub fn path_parent_directory_uri(path: &Utf8PathBuf) -> URI {
     file_uri(parent_path(path))
 }
 
@@ -35,10 +35,10 @@ fn tags_and_capabilities_from_cargo_kind(
 ) -> (Vec<BuildTargetTag>, BuildTargetCapabilities) {
     let mut tags = vec![];
     let mut capabilities = BuildTargetCapabilities {
-        can_compile: true,
-        can_test: true,
-        can_run: true,
-        can_debug: true,
+        can_compile: Some(true),
+        can_test: Some(true),
+        can_run: Some(true),
+        can_debug: Some(true),
     };
     cargo_target
         .kind
@@ -46,23 +46,23 @@ fn tags_and_capabilities_from_cargo_kind(
         .for_each(|kind| match kind.as_str() {
             "lib" => {
                 tags.push(BuildTargetTag::Library);
-                capabilities.can_debug = false;
-                capabilities.can_run = false;
+                capabilities.can_debug = Some(false);
+                capabilities.can_run = Some(false);
             }
             "bin" => {
                 tags.push(BuildTargetTag::Application);
             }
             "example" => {
                 tags.push(BuildTargetTag::Application);
-                capabilities.can_test = false;
+                capabilities.can_test = Some(false);
             }
             "test" => {
                 tags.push(BuildTargetTag::IntegrationTest);
-                capabilities.can_run = false;
+                capabilities.can_run = Some(false);
             }
             "bench" => {
                 tags.push(BuildTargetTag::Benchmark);
-                capabilities.can_run = false;
+                capabilities.can_run = Some(false);
             }
             "custom-build" => {
                 todo!("Custom-build target is unsupported by BSP server yet.");

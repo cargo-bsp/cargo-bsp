@@ -32,7 +32,7 @@ impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
             if let Event::Bsp(Message::Notification(not)) = &event {
-                if not.method == bsp_types::notifications::ExitBuild::METHOD {
+                if not.method == bsp_types::notifications::OnBuildExit::METHOD {
                     if !self.shutdown_requested {
                         break;
                     }
@@ -88,7 +88,7 @@ impl GlobalState {
             req: Some(req),
             global_state: self,
         };
-        dispatcher.on_sync_mut::<bsp_types::requests::ShutdownBuild>(|s, ()| {
+        dispatcher.on_sync_mut::<bsp_types::requests::BuildShutdown>(|s, ()| {
             s.shutdown_requested = true;
             Ok(())
         });
@@ -109,26 +109,32 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync_mut::<bsp_types::requests::WorkspaceReload>(handlers::handle_reload)
             .on_sync_mut::<bsp_types::extensions::SetCargoFeatures>(
                 handlers::handle_set_cargo_features,
             )
             .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
                 handlers::handle_workspace_build_targets,
             )
-            .on_sync::<bsp_types::requests::Sources>(handlers::handle_sources)
-            .on_sync::<bsp_types::requests::Resources>(handlers::handle_resources)
-            .on_sync::<bsp_types::requests::CleanCache>(handlers::handle_clean_cache)
-            .on_sync::<bsp_types::requests::DependencyModules>(handlers::handle_dependency_modules)
-            .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
-            .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
-            .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
+            .on_sync::<bsp_types::requests::BuildTargetSources>(handlers::handle_sources)
+            .on_sync::<bsp_types::requests::BuildTargetResources>(handlers::handle_resources)
+            .on_sync::<bsp_types::requests::BuildTargetCleanCache>(handlers::handle_clean_cache)
+            .on_sync::<bsp_types::requests::BuildTargetDependencyModules>(
+                handlers::handle_dependency_modules,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetDependencySources>(
+                handlers::handle_dependency_sources,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetInverseSources>(
+                handlers::handle_inverse_sources,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetOutputPaths>(handlers::handle_output_paths)
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
-            .on_cargo_run::<bsp_types::requests::Compile>()
-            .on_cargo_run::<bsp_types::requests::Run>()
-            .on_cargo_run::<bsp_types::requests::Test>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetCompile>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetRun>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetTest>()
             .finish();
     }
 

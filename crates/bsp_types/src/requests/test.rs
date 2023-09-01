@@ -5,9 +5,9 @@ use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
 #[derive(Debug)]
-pub enum Test {}
+pub enum BuildTargetTest {}
 
-impl Request for Test {
+impl Request for BuildTargetTest {
     type Params = TestParams;
     type Result = TestResult;
     const METHOD: &'static str = "buildTarget/test";
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_method() {
-        assert_eq!(Test::METHOD, "buildTarget/test");
+        assert_eq!(BuildTargetTest::METHOD, "buildTarget/test");
     }
 
     #[test]

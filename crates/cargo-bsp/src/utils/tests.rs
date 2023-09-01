@@ -7,10 +7,12 @@ use bsp_server::{Connection, Message};
 use crossbeam_channel::Receiver;
 use serde_json::to_value;
 
-use bsp_types::notifications::{ExitBuild, InitializedBuild, InitializedBuildParams, Notification};
+use bsp_types::notifications::{
+    InitializedBuild, InitializedBuildParams, Notification, OnBuildExit,
+};
 use bsp_types::requests::{
-    InitializeBuild, InitializeBuildParams, InitializeBuildResult, Request, ShutdownBuild, Sources,
-    SourcesParams, SourcesResult,
+    BuildInitialize, BuildShutdown, BuildTargetSources, InitializeBuildParams,
+    InitializeBuildResult, Request, SourcesParams, SourcesResult,
 };
 
 use crate::server::Result;
@@ -92,7 +94,7 @@ pub fn test_init_params() -> InitializeBuildParams {
 pub fn test_init_req(params: &InitializeBuildParams, id: i32) -> bsp_server::Request {
     bsp_server::Request {
         id: id.into(),
-        method: InitializeBuild::METHOD.to_string(),
+        method: BuildInitialize::METHOD.to_string(),
         params: to_value(params).unwrap(),
     }
 }
@@ -115,7 +117,7 @@ pub fn test_init_notif() -> bsp_server::Notification {
 pub fn test_sources_req(id: i32) -> bsp_server::Request {
     bsp_server::Request {
         id: id.into(),
-        method: Sources::METHOD.to_string(),
+        method: BuildTargetSources::METHOD.to_string(),
         params: to_value(SourcesParams::default()).unwrap(),
     }
 }
@@ -131,7 +133,7 @@ pub fn test_sources_resp(id: i32) -> bsp_server::Response {
 pub fn test_shutdown_req(id: i32) -> bsp_server::Request {
     bsp_server::Request {
         id: id.into(),
-        method: ShutdownBuild::METHOD.to_string(),
+        method: BuildShutdown::METHOD.to_string(),
         params: Default::default(),
     }
 }
@@ -146,7 +148,7 @@ pub fn test_shutdown_resp(id: i32) -> bsp_server::Response {
 
 pub fn test_exit_notif() -> bsp_server::Notification {
     bsp_server::Notification {
-        method: ExitBuild::METHOD.to_string(),
+        method: OnBuildExit::METHOD.to_string(),
         params: Default::default(),
     }
 }

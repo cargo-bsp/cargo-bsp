@@ -4,9 +4,9 @@ use crate::notifications::Notification;
 use crate::{BuildTargetIdentifier, TextDocumentIdentifier};
 
 #[derive(Debug)]
-pub enum PublishDiagnostics {}
+pub enum OnBuildPublishDiagnostics {}
 
-impl Notification for PublishDiagnostics {
+impl Notification for OnBuildPublishDiagnostics {
     type Params = PublishDiagnosticsParams;
     const METHOD: &'static str = "build/publishDiagnostics";
 }
@@ -46,7 +46,10 @@ mod tests {
 
     #[test]
     fn publish_diagnostics_method() {
-        assert_eq!(PublishDiagnostics::METHOD, "build/publishDiagnostics");
+        assert_eq!(
+            OnBuildPublishDiagnostics::METHOD,
+            "build/publishDiagnostics"
+        );
     }
 
     #[test]

@@ -6,25 +6,25 @@ use crate::notifications::{Notification, TaskId};
 use crate::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
-pub enum TaskStart {}
+pub enum OnBuildTaskStart {}
 
-impl Notification for TaskStart {
+impl Notification for OnBuildTaskStart {
     type Params = TaskStartParams;
     const METHOD: &'static str = "build/taskStart";
 }
 
 #[derive(Debug)]
-pub enum TaskProgress {}
+pub enum OnBuildTaskProgress {}
 
-impl Notification for TaskProgress {
+impl Notification for OnBuildTaskProgress {
     type Params = TaskProgressParams;
     const METHOD: &'static str = "build/taskProgress";
 }
 
 #[derive(Debug)]
-pub enum TaskFinish {}
+pub enum OnBuildTaskFinish {}
 
-impl Notification for TaskFinish {
+impl Notification for OnBuildTaskFinish {
     type Params = TaskFinishParams;
     const METHOD: &'static str = "build/taskFinish";
 }
@@ -166,7 +166,7 @@ pub struct CompileReportData {
 
     /** The total number of milliseconds it took to compile the target. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<i32>,
+    pub time: Option<i64>,
 
     /** The compilation was a noOp compilation. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,6 +186,9 @@ When the testing unit is a build target, the notification's dataKind field must 
 test-report and the data field must include a TestReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestReportData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin_id: Option<String>,
+
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
 
@@ -206,7 +209,7 @@ pub struct TestReportData {
 
     /** The total number of milliseconds tests take to run (e.g. doesn't include compile times). */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<i32>,
+    pub time: Option<i64>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -274,17 +277,17 @@ mod tests {
 
     #[test]
     fn task_start_method() {
-        assert_eq!(TaskStart::METHOD, "build/taskStart");
+        assert_eq!(OnBuildTaskStart::METHOD, "build/taskStart");
     }
 
     #[test]
     fn task_progress_method() {
-        assert_eq!(TaskProgress::METHOD, "build/taskProgress");
+        assert_eq!(OnBuildTaskProgress::METHOD, "build/taskProgress");
     }
 
     #[test]
     fn task_finish_method() {
-        assert_eq!(TaskFinish::METHOD, "build/taskFinish");
+        assert_eq!(OnBuildTaskFinish::METHOD, "build/taskFinish");
     }
 
     #[test]
@@ -554,6 +557,7 @@ mod tests {
     #[test]
     fn test_report_data() {
         let test_data = TestReportData {
+            origin_id: None,
             target: BuildTargetIdentifier::default(),
             passed: 1,
             failed: 2,

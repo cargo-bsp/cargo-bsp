@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -28,16 +28,16 @@ pub struct RustToolchainResult {
 pub struct RustToolchainsItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
-    pub cargo_bin_path: Uri,
-    pub proc_macro_srv_path: Uri, // scieżka do binraki rozwijającej makra proceduralne
+    pub cargo_bin_path: URI,
+    pub proc_macro_srv_path: URI, // scieżka do binraki rozwijającej makra proceduralne
 }
 ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
-    pub sysroot_path: Uri,
-    pub src_sysroot_path: Uri,
+    pub sysroot_path: URI,
+    pub src_sysroot_path: URI,
     ///home/tudny/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/libexec/rust-analyzer-proc-macro-srv
     pub version: String,
     pub host: String, //example: x86_64-unknown-linux-gnu rustc --version --verbose

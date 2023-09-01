@@ -43,13 +43,14 @@ pub struct SuiteResults {
 impl SuiteResults {
     pub fn to_test_report(&self, target: BuildTargetIdentifier) -> TaskDataWithKind {
         TaskDataWithKind::TestReport(TestReportData {
+            origin_id: None,
             target,
             passed: self.passed,
             failed: self.failed,
             ignored: self.ignored,
             cancelled: 0,
             skipped: self.filtered_out,
-            time: Some((self.exec_time * 1000.0) as i32),
+            time: Some((self.exec_time * 1000.0) as i64),
         })
     }
 }

@@ -11,9 +11,9 @@ error: JSON-RPC code and message set in case an exception happens during the req
 */
 
 #[derive(Debug)]
-pub struct Compile {}
+pub struct BuildTargetCompile {}
 
-impl Request for Compile {
+impl Request for BuildTargetCompile {
     type Params = CompileParams;
     type Result = CompileResult;
     const METHOD: &'static str = "buildTarget/compile";
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn compile_method() {
-        assert_eq!(Compile::METHOD, "buildTarget/compile");
+        assert_eq!(BuildTargetCompile::METHOD, "buildTarget/compile");
     }
 
     #[test]

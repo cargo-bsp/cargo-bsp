@@ -9,7 +9,7 @@ use path_absolutize::*;
 use paths::AbsPath;
 
 use bsp_types::notifications::{
-    CompileReportData, LogMessage, LogMessageParams, MessageType, PublishDiagnostics,
+    CompileReportData, LogMessageParams, MessageType, OnBuildLogMessage, OnBuildPublishDiagnostics,
     PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
 };
 use bsp_types::requests::Request;
@@ -120,7 +120,7 @@ where
                     }
                 }
             });
-            self.send_notification::<PublishDiagnostics>(diagnostic);
+            self.send_notification::<OnBuildPublishDiagnostics>(diagnostic);
         })
     }
 
@@ -133,7 +133,7 @@ where
             }
             _ => MessageType::Log,
         };
-        self.send_notification::<LogMessage>(LogMessageParams {
+        self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             message_type,
             task: Some(self.state.compile_state.task_id.clone()),
             origin_id: self.params.origin_id(),
@@ -150,7 +150,7 @@ where
                 origin_id: self.params.origin_id(),
                 errors: self.state.compile_state.errors,
                 warnings: self.state.compile_state.warnings,
-                time: Some((get_current_time() - compile_target_state.start_time) as i32),
+                time: Some(get_current_time() - compile_target_state.start_time),
                 no_op: None,
             });
             self.report_task_finish(

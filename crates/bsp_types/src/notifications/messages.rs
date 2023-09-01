@@ -12,9 +12,9 @@ impl Notification for ShowMessage {
 }
 
 #[derive(Debug)]
-pub enum LogMessage {}
+pub enum OnBuildLogMessage {}
 
-impl Notification for LogMessage {
+impl Notification for OnBuildLogMessage {
     type Params = LogMessageParams;
     const METHOD: &'static str = "build/logMessage";
 }
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn log_message_method() {
-        assert_eq!(LogMessage::METHOD, "build/logMessage");
+        assert_eq!(OnBuildLogMessage::METHOD, "build/logMessage");
     }
 
     #[test]

@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
 pub enum JavaExtensions {}
@@ -38,10 +38,10 @@ pub struct JavacOptionsItem {
     identical to what is passed as arguments to
     the -classpath flag in the command line interface
     of javac. */
-    classpath: Vec<Uri>,
+    classpath: Vec<URI>,
 
     /** The output directory for classfiles produced by this target */
-    class_directory: Uri,
+    class_directory: URI,
 }
 
 #[cfg(test)]
@@ -104,7 +104,7 @@ mod tests {
         let test_data = JavacOptionsItem {
             target: BuildTargetIdentifier::default(),
             options: vec!["test_options".to_string()],
-            classpath: vec![Uri::default()],
+            classpath: vec![URI::default()],
             class_directory: "test_uri".into(),
         };
 

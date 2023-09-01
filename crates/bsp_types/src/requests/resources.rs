@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
-pub enum Resources {}
+pub enum BuildTargetResources {}
 
-impl Request for Resources {
+impl Request for BuildTargetResources {
     type Params = ResourcesParams;
     type Result = ResourcesResult;
     const METHOD: &'static str = "buildTarget/resources";
@@ -26,7 +26,7 @@ pub struct ResourcesResult {
 pub struct ResourcesItem {
     pub target: BuildTargetIdentifier,
     /** List of resource files. */
-    pub resources: Vec<Uri>,
+    pub resources: Vec<URI>,
 }
 
 #[cfg(test)]
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn resources_method() {
-        assert_eq!(Resources::METHOD, "buildTarget/resources");
+        assert_eq!(BuildTargetResources::METHOD, "buildTarget/resources");
     }
 
     #[test]
@@ -86,7 +86,7 @@ mod tests {
     fn resources_item() {
         let test_data = ResourcesItem {
             target: BuildTargetIdentifier::default(),
-            resources: vec![Uri::default()],
+            resources: vec![URI::default()],
         };
 
         assert_json_snapshot!(test_data,

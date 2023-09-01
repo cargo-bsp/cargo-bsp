@@ -1,9 +1,9 @@
 use crate::notifications::Notification;
 
 #[derive(Debug)]
-pub enum ExitBuild {}
+pub enum OnBuildExit {}
 
-impl Notification for ExitBuild {
+impl Notification for OnBuildExit {
     type Params = ();
     const METHOD: &'static str = "build/exit";
 }
@@ -16,7 +16,7 @@ mod tests {
 
     #[test]
     fn exit_build_method() {
-        assert_eq!(ExitBuild::METHOD, "build/exit");
+        assert_eq!(OnBuildExit::METHOD, "build/exit");
     }
 
     #[test]

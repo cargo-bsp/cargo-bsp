@@ -218,7 +218,7 @@ pub mod tests {
     use crate::cargo_communication::utils::{test_package, test_target, test_target_id};
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
-    use bsp_types::requests::{Compile, CompileParams};
+    use bsp_types::requests::CompileParams;
     use bsp_types::BuildTargetIdentifier;
     use cargo_metadata::camino::Utf8PathBuf;
     use cargo_metadata::Message::BuildFinished as BuildFinishedEnum;
@@ -332,6 +332,7 @@ pub mod tests {
     mod compile_request_tests {
         use super::*;
         use crate::cargo_communication::utils::test_target_id;
+        use bsp_types::requests::BuildTargetCompile;
 
         fn default_compile_params(test_case: TestCase) -> CompileParams {
             let mut targets = vec![test_target_id(TEST_TARGET)];
@@ -347,7 +348,7 @@ pub mod tests {
 
         fn mock_cargo_handler(
             receiver_from_cargo: Receiver<CargoMessage>,
-        ) -> TestEndpoints<Compile> {
+        ) -> TestEndpoints<BuildTargetCompile> {
             let mut mock_cargo_handle = MockCargoHandler::new();
             // There is no robust way to return ExitStatus hence we return Error. In consequence the
             // status code of response is 2(Error).
@@ -357,7 +358,7 @@ pub mod tests {
             mock_cargo_handle
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
-            default_req_actor::<Compile>(
+            default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -593,7 +594,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(
+            } = default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -640,7 +641,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(
+            } = default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -690,7 +691,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -729,7 +730,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -766,7 +767,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -820,7 +821,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::MultipleTargets),
                     TestCase::MultipleTargets,
@@ -915,7 +916,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -1083,7 +1084,7 @@ pub mod tests {
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
-        use bsp_types::requests::{Run, RunParams};
+        use bsp_types::requests::{BuildTargetRun, RunParams};
         use cargo_metadata::Message::TextLine;
         use serde_json::to_string;
 
@@ -1118,7 +1119,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 mock_cargo_handle,
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1218,7 +1219,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 MockCargoHandler::new(),
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1254,7 +1255,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 MockCargoHandler::new(),
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1294,7 +1295,7 @@ pub mod tests {
         };
         use crate::cargo_communication::request_actor::CargoMessage::CargoStdout;
         use crate::cargo_communication::utils::test_target_id;
-        use bsp_types::requests::{Test, TestParams};
+        use bsp_types::requests::{BuildTargetTest, TestParams};
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
         use serde_json::to_string;
@@ -1331,7 +1332,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 mock_cargo_handle,
                 default_test_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -1436,7 +1437,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -1491,7 +1492,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -1546,7 +1547,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -1593,7 +1594,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Test>(
+                } = default_req_actor::<BuildTargetTest>(
                     MockCargoHandler::new(),
                     default_test_params(TestCase::OneTarget),
                     TestCase::OneTarget,

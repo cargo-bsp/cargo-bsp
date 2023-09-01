@@ -4,9 +4,9 @@ use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
 #[derive(Debug)]
-pub enum CleanCache {}
+pub enum BuildTargetCleanCache {}
 
-impl Request for CleanCache {
+impl Request for BuildTargetCleanCache {
     type Params = CleanCacheParams;
     type Result = CleanCacheResult;
     const METHOD: &'static str = "buildTarget/cleanCache";
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn clean_cache_method() {
-        assert_eq!(CleanCache::METHOD, "buildTarget/cleanCache");
+        assert_eq!(BuildTargetCleanCache::METHOD, "buildTarget/cleanCache");
     }
 
     #[test]

@@ -5,9 +5,9 @@ use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
 #[derive(Debug)]
-pub enum DependencyModules {}
+pub enum BuildTargetDependencyModules {}
 
-impl Request for DependencyModules {
+impl Request for BuildTargetDependencyModules {
     type Params = DependencyModulesParams;
     type Result = DependencyModulesResult;
     const METHOD: &'static str = "buildTarget/dependencyModules";
@@ -58,7 +58,10 @@ mod tests {
 
     #[test]
     fn dependency_modules_method() {
-        assert_eq!(DependencyModules::METHOD, "buildTarget/dependencyModules");
+        assert_eq!(
+            BuildTargetDependencyModules::METHOD,
+            "buildTarget/dependencyModules"
+        );
     }
 
     #[test]

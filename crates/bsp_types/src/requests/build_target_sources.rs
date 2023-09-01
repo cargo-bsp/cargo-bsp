@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
-pub enum Sources {}
+pub enum BuildTargetSources {}
 
-impl Request for Sources {
+impl Request for BuildTargetSources {
     type Params = SourcesParams;
     type Result = SourcesResult;
     const METHOD: &'static str = "buildTarget/sources";
@@ -33,7 +33,7 @@ pub struct SourcesItem {
     /** The root directories from where source files should be relativized.
     Example: ["file://Users/name/dev/metals/src/main/scala"] */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roots: Vec<Uri>,
+    pub roots: Vec<URI>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone, Eq, Hash)]
@@ -41,7 +41,7 @@ pub struct SourceItem {
     /** Either a text document or a directory. A directory entry must end with a forward
     slash "/" and a directory entry implies that every nested text document within the
     directory belongs to this source item. */
-    pub uri: Uri,
+    pub uri: URI,
 
     /** Type of file of the source item, such as whether it is file or directory. */
     pub kind: SourceItemKind,
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn sources_method() {
-        assert_eq!(Sources::METHOD, "buildTarget/sources");
+        assert_eq!(BuildTargetSources::METHOD, "buildTarget/sources");
     }
 
     #[test]
@@ -119,7 +119,7 @@ mod tests {
         let test_data = SourcesItem {
             target: BuildTargetIdentifier::default(),
             sources: vec![SourceItem::default()],
-            roots: vec![Uri::default()],
+            roots: vec![URI::default()],
         };
 
         assert_json_snapshot!(test_data,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
 #[derive(Debug)]
 pub enum DebugSession {}
@@ -30,7 +30,7 @@ pub struct DebugSessionParams {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct DebugSessionAddress {
     /** The Debug Adapter Protocol server's connection uri */
-    pub uri: Uri,
+    pub uri: URI,
 }
 
 #[cfg(test)]

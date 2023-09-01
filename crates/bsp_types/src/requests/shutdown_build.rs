@@ -1,9 +1,9 @@
 use crate::requests::Request;
 
 #[derive(Debug)]
-pub enum ShutdownBuild {}
+pub enum BuildShutdown {}
 
-impl Request for ShutdownBuild {
+impl Request for BuildShutdown {
     type Params = ();
     type Result = ();
     const METHOD: &'static str = "build/shutdown";
@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn shutdown_build_method() {
-        assert_eq!(ShutdownBuild::METHOD, "build/shutdown");
+        assert_eq!(BuildShutdown::METHOD, "build/shutdown");
     }
 
     #[test]
