@@ -11,7 +11,7 @@ use crate::project_model::workspace::ProjectWorkspace;
 use crate::utils::uri::file_uri;
 use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     if workspace.is_package_part_of_workspace(&package.id) {
@@ -32,7 +32,7 @@ fn resolve_enabled_features(package: &mut RustPackage, nodes: &[cargo_metadata::
 }
 
 fn metadata_features_to_rust_extension_features(
-    metadata_features: HashMap<String, Vec<String>>,
+    metadata_features: BTreeMap<String, Vec<String>>,
 ) -> Vec<RustFeature> {
     metadata_features
         .into_iter()

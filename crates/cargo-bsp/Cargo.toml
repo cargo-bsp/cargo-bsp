@@ -11,7 +11,7 @@ path = "src/bin/server.rs"
 anyhow = { version = "1.0.69", default-features = false }
 bsp-server = { git = "https://github.com/KatKlo/rust-analyzer.git", package = "lsp-server", rev = "1ca0d234e1a80eee2b2487374cac8fa93228b14a", features = ["bsp"] }
 bsp-types = { path = "../bsp_types", version = "0.1.0" }
-cargo_metadata = { version = "0.15.4", features = ["builder"] }
+cargo_metadata = { version = "0.17.0", features = ["builder"] }
 cargo-platform = "0.1.3"
 command-group = "2.1.0"
 crossbeam-channel = "0.5.6"
