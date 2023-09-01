@@ -24,7 +24,7 @@ fn package_dependency_to_rust_raw_dependency(
         name: package_dependency.name,
         optional: package_dependency.optional,
         uses_default_features: package_dependency.uses_default_features,
-        features: package_dependency.features,
+        features: package_dependency.features.into_iter().collect(),
         rename: package_dependency.rename,
         kind: metadata_dependency_kind_to_string(package_dependency.kind),
         target: package_dependency.target.map(|p| p.to_string()),

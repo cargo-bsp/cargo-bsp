@@ -24,8 +24,6 @@ pub type SrcPathToTargetId = HashMap<Utf8PathBuf, BuildTargetIdentifier>;
 
 unzip_n!(3);
 
-const FILTER_PLATFORM: &str = "--filter-platform";
-
 #[derive(Default, Debug, Clone)]
 pub struct ProjectWorkspace {
     /// List of all packages in a workspace (no external packages)
@@ -70,13 +68,17 @@ impl ProjectWorkspace {
     }
 
     // Cargo metadata is called with `--all-features`, so we can get all features because
-    // we want the output to contain all the packages - even those feature-dependent
+    // we want the output to contain all the packages - even those feature-dependent.
+    // `--filter-platform` flag filters the output based on the target platform which allows obtaining
+    // more specific information about project's dependencies. The flag is used for `Rust Workspace`
+    // Request.
     pub fn call_cargo_metadata_command(
         project_manifest_path: &PathBuf,
         filter_platform: bool,
     ) -> Result<cargo_metadata::Metadata, Error> {
-        let filter_platform_options = if filter_platform {
-            version_meta().map_or(vec![], |v| vec![FILTER_PLATFORM.to_string(), v.host])
+        let host = version_meta().map(|v| v.host);
+        let filter_platform_options = if filter_platform && host.is_ok() {
+            vec!["--filter-platform".to_string(), host.unwrap()]
         } else {
             vec![]
         };

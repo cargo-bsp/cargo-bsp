@@ -1,6 +1,6 @@
 //! Handles messages from Cargo check command, parsing them and preparing appropriate
 //! response. Also handles information about the finish of Cargo command and
-//! the cancel request from the client.
+//! the cancel request from the client. Works as [`RequestActor`] but for `cargo check` command.
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

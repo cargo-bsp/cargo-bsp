@@ -7,6 +7,7 @@
 //! Currently fields: `features`, `uses_default_features`, `rename`, `kind`, `target` and `source`
 //! are used only to handle the BSP Rust extension.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use cargo_metadata::{Dependency, DependencyKind, Package};
@@ -26,7 +27,7 @@ pub struct PackageDependency {
     /// Whether this dependency is optional and needs to be enabled by feature
     pub optional: bool,
     /// Features which are enabled for this dependency
-    pub features: Vec<Feature>,
+    pub features: BTreeSet<Feature>,
     /// Whether this dependency uses the default features
     pub uses_default_features: bool,
     /// Name to which this dependency is renamed when declared in Cargo.toml

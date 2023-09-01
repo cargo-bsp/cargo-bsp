@@ -2,7 +2,7 @@ use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Edition, Uri};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 #[derive(Debug)]
 pub enum RustWorkspace {}
@@ -56,7 +56,7 @@ pub struct RustRawDependency {
     /** Indicates whether default features are enabled. */
     pub uses_default_features: bool,
     /** A sequence of enabled features. **/
-    pub features: Vec<String>,
+    pub features: BTreeSet<String>,
 }
 
 /** This structure is embedded in the `data?: BuildTargetData` field, when the
@@ -79,7 +79,7 @@ pub struct RustBuildTarget {
     the target is compatible with doc testing. */
     pub doctest: bool,
     /** A sequence of required features. */
-    pub required_features: Vec<String>,
+    pub required_features: BTreeSet<String>,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
@@ -344,7 +344,7 @@ mod test {
             target: Some("test_target".to_string()),
             optional: false,
             uses_default_features: false,
-            features: vec!["test_feature".to_string()],
+            features: BTreeSet::from(["test_feature".to_string()]),
         };
 
         assert_json_snapshot!(dependency, @r#"
@@ -380,7 +380,7 @@ mod test {
             crate_types: vec![RustCrateType::default()],
             edition: Edition::default(),
             doctest: false,
-            required_features: vec!["test_feature".to_string()],
+            required_features: BTreeSet::from(["test_feature".to_string()]),
         };
 
         assert_json_snapshot!(target, @r#"

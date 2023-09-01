@@ -49,7 +49,7 @@ pub(crate) fn metadata_targets_to_rust_extension_targets(
                 crate_types: metadata_crate_types_to_rust_extension_crate_types(
                     mt.crate_types.clone(),
                 ),
-                required_features: mt.required_features.clone(),
+                required_features: mt.required_features.clone().into_iter().collect(),
                 doctest: mt.doctest,
                 edition: metadata_edition_to_bsp_edition(mt.edition),
             }

@@ -11,8 +11,7 @@ use std::ops::Add;
 
 fn get_sysroot() -> Option<String> {
     let output = std::process::Command::new(toolchain::rustc())
-        .arg("--print")
-        .arg("sysroot")
+        .args(["--print", "sysroot"])
         .output()
         .ok()?;
     let stdout = String::from_utf8(output.stdout).ok()?;
