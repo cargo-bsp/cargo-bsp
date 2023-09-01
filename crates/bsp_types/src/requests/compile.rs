@@ -94,7 +94,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "originId": "test_message",
           "statusCode": 2,
@@ -103,14 +103,14 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(CompileResult::default(),
-            @r###"
+            @r#"
         {
           "statusCode": 2
         }
-        "###
+        "#
         );
     }
 }

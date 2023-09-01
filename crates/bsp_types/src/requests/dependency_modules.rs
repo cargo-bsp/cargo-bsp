@@ -79,7 +79,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -90,14 +90,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DependencyModulesResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -109,7 +109,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -121,17 +121,17 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DependencyModulesItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           },
           "modules": []
         }
-        "###
+        "#
         );
     }
 
@@ -145,7 +145,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "name": "test_name",
           "version": "test_version",
@@ -154,15 +154,15 @@ mod tests {
             "dataKey": "dataValue"
           }
         }
-        "###
+        "#
         );
         assert_json_snapshot!(DependencyModule::default(),
-            @r###"
+            @r#"
         {
           "name": "",
           "version": ""
         }
-        "###
+        "#
         );
     }
 }

@@ -2,7 +2,6 @@
 //! communication with Cargo (such as compile, run or test requests).
 
 use log::warn;
-use std::{ops::Deref, sync::Arc};
 
 use crate::project_model::rust_extension::get_rust_toolchains;
 use crate::project_model::sources::get_sources_for_target;
@@ -101,7 +100,7 @@ pub(crate) fn handle_set_cargo_features(
     state: &mut GlobalState,
     params: bsp_types::extensions::SetCargoFeaturesParams,
 ) -> Result<bsp_types::extensions::SetCargoFeaturesResult> {
-    let mutable_workspace = Arc::make_mut(&mut state.workspace);
+    let mutable_workspace = &mut state.workspace;
     let status_code =
         mutable_workspace.set_features_for_the_package(params.package_id, &params.features);
     Ok(bsp_types::extensions::SetCargoFeaturesResult { status_code })
@@ -123,6 +122,6 @@ pub(crate) fn handle_rust_toolchain(
     params: bsp_types::extensions::RustToolchainParams,
 ) -> Result<bsp_types::extensions::RustToolchainResult> {
     Ok(bsp_types::extensions::RustToolchainResult {
-        toolchains: get_rust_toolchains(state.workspace.deref(), params.targets),
+        toolchains: get_rust_toolchains(state.workspace, params.targets),
     })
 }

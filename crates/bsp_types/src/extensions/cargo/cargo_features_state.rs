@@ -69,15 +69,15 @@ mod tests {
     fn package_features() {
         let test_data = example_package_features(PACKAGE_ID, FEATURE);
 
-        assert_json_snapshot!(PackageFeatures::default(), @r###"
+        assert_json_snapshot!(PackageFeatures::default(), @r#"
         {
           "packageId": "",
           "targets": [],
           "enabledFeatures": [],
           "availableFeatures": {}
         }
-        "###);
-        assert_json_snapshot!(test_data, @r###"
+        "#);
+        assert_json_snapshot!(test_data, @r#"
         {
           "packageId": "package_id",
           "targets": [
@@ -95,7 +95,7 @@ mod tests {
             "feature": []
           }
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -107,12 +107,12 @@ mod tests {
             ],
         };
 
-        assert_json_snapshot!(CargoFeaturesStateResult::default(), @r###"
+        assert_json_snapshot!(CargoFeaturesStateResult::default(), @r#"
         {
           "packagesFeatures": []
         }
-        "###);
-        assert_json_snapshot!(test_data, @r###"
+        "#);
+        assert_json_snapshot!(test_data, @r#"
         {
           "packagesFeatures": [
             {
@@ -151,6 +151,6 @@ mod tests {
             }
           ]
         }
-        "###);
+        "#);
     }
 }

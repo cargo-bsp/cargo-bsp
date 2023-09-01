@@ -60,7 +60,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "textDocument": {
             "uri": ""
@@ -86,10 +86,10 @@ mod tests {
           ],
           "reset": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(PublishDiagnosticsParams::default(),
-            @r###"
+            @r#"
         {
           "textDocument": {
             "uri": ""
@@ -100,7 +100,7 @@ mod tests {
           "diagnostics": [],
           "reset": false
         }
-        "###
+        "#
         );
     }
 }

@@ -285,7 +285,7 @@ mod test {
             resolved_targets: vec![BuildTargetIdentifier::default()],
         };
 
-        assert_json_snapshot!(result, @r###"
+        assert_json_snapshot!(result, @r#"
         {
           "packages": [
             {
@@ -326,13 +326,13 @@ mod test {
             }
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustWorkspaceParams::default(), @r###"
+        assert_json_snapshot!(RustWorkspaceParams::default(), @r#"
         {
           "targets": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -347,7 +347,7 @@ mod test {
             features: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(dependency, @r###"
+        assert_json_snapshot!(dependency, @r#"
         {
           "name": "test_name",
           "rename": "test_rename",
@@ -359,16 +359,16 @@ mod test {
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustRawDependency::default(), @r###"
+        assert_json_snapshot!(RustRawDependency::default(), @r#"
         {
           "name": "",
           "optional": false,
           "usesDefaultFeatures": false,
           "features": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod test {
             required_features: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(target, @r###"
+        assert_json_snapshot!(target, @r#"
         {
           "name": "test_name",
           "crateRootUrl": "test_crate_url",
@@ -397,9 +397,9 @@ mod test {
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustBuildTarget::default(), @r###"
+        assert_json_snapshot!(RustBuildTarget::default(), @r#"
         {
           "name": "",
           "crateRootUrl": "",
@@ -409,7 +409,7 @@ mod test {
           "doctest": false,
           "requiredFeatures": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -419,21 +419,21 @@ mod test {
             dependencies: vec!["test_feature".to_string()],
         };
 
-        assert_json_snapshot!(feature, @r###"
+        assert_json_snapshot!(feature, @r#"
         {
           "name": "test_name",
           "dependencies": [
             "test_feature"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustFeature::default(), @r###"
+        assert_json_snapshot!(RustFeature::default(), @r#"
         {
           "name": "",
           "dependencies": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -443,7 +443,7 @@ mod test {
             name_options: vec!["name1".to_string(), "name2".to_string()],
         };
 
-        assert_json_snapshot!(cfg_options, @r###"
+        assert_json_snapshot!(cfg_options, @r#"
         {
           "keyValueOptions": {
             "key": [
@@ -455,14 +455,14 @@ mod test {
             "name2"
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustCfgOptions::default(), @r###"
+        assert_json_snapshot!(RustCfgOptions::default(), @r#"
         {
           "keyValueOptions": {},
           "nameOptions": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -485,7 +485,7 @@ mod test {
             proc_macro_artifact: Some(Uri::default()),
         };
 
-        assert_json_snapshot!(package, @r###"
+        assert_json_snapshot!(package, @r#"
         {
           "id": "test_id",
           "rootUrl": "test_root_url",
@@ -535,9 +535,9 @@ mod test {
           "outDirUrl": "test_out_dir_url",
           "procMacroArtifact": ""
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustPackage::default(), @r###"
+        assert_json_snapshot!(RustPackage::default(), @r#"
         {
           "id": "",
           "rootUrl": "",
@@ -551,7 +551,7 @@ mod test {
           "enabledFeatures": [],
           "env": {}
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -561,18 +561,18 @@ mod test {
             target: Some("test_target".to_string()),
         };
 
-        assert_json_snapshot!(dep_kind_info, @r###"
+        assert_json_snapshot!(dep_kind_info, @r#"
         {
           "kind": 2,
           "target": "test_target"
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustDepKindInfo::default(), @r###"
+        assert_json_snapshot!(RustDepKindInfo::default(), @r#"
         {
           "kind": 2
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -583,7 +583,7 @@ mod test {
             dep_kinds: vec![RustDepKindInfo::default()],
         };
 
-        assert_json_snapshot!(dependency, @r###"
+        assert_json_snapshot!(dependency, @r#"
         {
           "pkg": "test_target",
           "name": "test_name",
@@ -593,14 +593,14 @@ mod test {
             }
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustDependency::default(), @r###"
+        assert_json_snapshot!(RustDependency::default(), @r#"
         {
           "pkg": "",
           "depKinds": []
         }
-        "###);
+        "#);
     }
 
     #[test]

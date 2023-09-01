@@ -59,19 +59,19 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "message": "test_message",
           "cleaned": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(CleanCacheResult::default(),
-            @r###"
+            @r#"
         {
           "cleaned": false
         }
-        "###
+        "#
         );
     }
 }

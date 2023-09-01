@@ -95,7 +95,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "type": 1,
           "task": {
@@ -104,15 +104,15 @@ mod tests {
           "originId": "test_originId",
           "message": "test_message"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(ShowMessageParams::default(),
-            @r###"
+            @r#"
         {
           "type": 1,
           "message": ""
         }
-        "###
+        "#
         );
     }
 
@@ -126,7 +126,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "type": 1,
           "task": {
@@ -135,15 +135,15 @@ mod tests {
           "originId": "test_originId",
           "message": "test_message"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(LogMessageParams::default(),
-            @r###"
+            @r#"
         {
           "type": 1,
           "message": ""
         }
-        "###
+        "#
         );
     }
 

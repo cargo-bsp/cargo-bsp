@@ -88,19 +88,19 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "originId": "test_originId",
           "statusCode": 2
         }
-        "###
+        "#
         );
         assert_json_snapshot!(RunResult::default(),
-            @r###"
+            @r#"
         {
           "statusCode": 2
         }
-        "###
+        "#
         );
     }
 }

@@ -79,7 +79,7 @@ mod test {
         let result = RustToolchainResult {
             toolchains: BTreeSet::from([RustToolchainItem::default()]),
         };
-        assert_json_snapshot!(result, @r###"
+        assert_json_snapshot!(result, @r#"
         {
           "toolchains": [
             {
@@ -88,13 +88,13 @@ mod test {
             }
           ]
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustToolchainResult::default(), @r###"
+        assert_json_snapshot!(RustToolchainResult::default(), @r#"
         {
           "toolchains": []
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -105,7 +105,7 @@ mod test {
             proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
         };
 
-        assert_json_snapshot!(rust_toolchain, @r###"
+        assert_json_snapshot!(rust_toolchain, @r#"
         {
           "rustStdLib": {
             "sysrootPath": "",
@@ -116,14 +116,14 @@ mod test {
           "cargoBinPath": "test_cargo_bin_path",
           "procMacroSrvPath": "test_proc_macro_srv_path"
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustToolchainItem::default(), @r###"
+        assert_json_snapshot!(RustToolchainItem::default(), @r#"
         {
           "cargoBinPath": "",
           "procMacroSrvPath": ""
         }
-        "###);
+        "#);
     }
 
     #[test]
@@ -134,22 +134,22 @@ mod test {
             version: "test_version".to_string(),
             host: "test_host".to_string(),
         };
-        assert_json_snapshot!(rustc_info, @r###"
+        assert_json_snapshot!(rustc_info, @r#"
         {
           "sysrootPath": "test_sysroot",
           "srcSysrootPath": "test_src_sysroot",
           "version": "test_version",
           "host": "test_host"
         }
-        "###);
+        "#);
 
-        assert_json_snapshot!(RustcInfo::default(), @r###"
+        assert_json_snapshot!(RustcInfo::default(), @r#"
         {
           "sysrootPath": "",
           "srcSysrootPath": "",
           "version": "",
           "host": ""
         }
-        "###);
+        "#);
     }
 }

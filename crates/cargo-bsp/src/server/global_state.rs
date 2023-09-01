@@ -1,7 +1,6 @@
 //! The context or environment in which the server functions.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Instant;
 
 use bsp_server;
@@ -23,19 +22,24 @@ pub(crate) struct GlobalState {
     sender: Sender<Message>,
     req_queue: ReqQueue,
     pub(crate) shutdown_requested: bool,
-    pub(crate) config: Arc<Config>,
+    pub(crate) config: Config,
 
     pub(crate) handlers: HashMap<RequestId, RequestHandle>,
     pub(crate) handlers_sender: Sender<Message>,
     pub(crate) handlers_receiver: Receiver<Message>,
 
-    pub(crate) workspace: Arc<ProjectWorkspace>,
+    pub(crate) workspace: ProjectWorkspace,
 }
 
 /// Snapshot of server state for request handlers.
-pub(crate) struct GlobalStateSnapshot {
-    pub(crate) config: Arc<Config>,
-    pub(crate) workspace: Arc<ProjectWorkspace>,
+/// At this point, the server is not concurrent (except for the Compile/Run/Test requests),
+/// so the data in this snapshot doesn't hneed to be thread-safe and can be normal references.
+/// Prior to the 2023-09-01 commit, these fields were `Arc`s for future planned concurrency support.
+/// Since there are no actual plans to develop this server further, we've decided to drop these
+/// `Arc`s to simplify the code and fix the problem with ProjectWorkspace not being thread-safe.
+pub(crate) struct GlobalStateSnapshot<'a> {
+    pub(crate) config: &'a Config,
+    pub(crate) workspace: &'a ProjectWorkspace,
 }
 
 impl GlobalState {
@@ -45,11 +49,11 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: Arc::new(config),
+            config: config.clone(),
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,
-            workspace: Arc::new(ProjectWorkspace::default()),
+            workspace: ProjectWorkspace::default(),
         };
         this.update_workspace_data();
         this
@@ -68,8 +72,8 @@ impl GlobalState {
 
     pub(crate) fn snapshot(&self) -> GlobalStateSnapshot {
         GlobalStateSnapshot {
-            config: Arc::clone(&self.config),
-            workspace: Arc::clone(&self.workspace),
+            config: &self.config,
+            workspace: &self.workspace,
         }
     }
 
@@ -100,12 +104,12 @@ impl GlobalState {
 
     // update the workspace data - called when (to be yet added) cargo watch discovers changes
     pub(crate) fn update_workspace_data(&mut self) {
-        let mutable_config = Arc::make_mut(&mut self.config);
+        let mutable_config = &mut self.config;
         mutable_config.update_project_manifest();
 
         match ProjectWorkspace::new(self.config.workspace_manifest.file.clone()) {
             Ok(updated_workspace) => {
-                self.workspace = Arc::new(updated_workspace);
+                self.workspace = updated_workspace;
             }
             Err(e) => {
                 error!("Updating workspace state failed: {}", e);
