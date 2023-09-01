@@ -341,7 +341,7 @@ mod test {
     #[test]
     fn rust_proc_macro_artifact() {
         let proc_macro_artifact = RustProcMacroArtifact {
-            path: Some("test_path".to_string()),
+            path: Some("test_path".into()),
         };
 
         assert_json_snapshot!(proc_macro_artifact, @r#"

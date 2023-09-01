@@ -16,7 +16,7 @@ pub fn build_target_id_from_name_and_path<T: Display, R: Display>(
     path: R,
 ) -> BuildTargetIdentifier {
     BuildTargetIdentifier {
-        uri: format!("targetId:/{}:{}", path, name),
+        uri: URI(format!("targetId:/{}:{}", path, name)),
     }
 }
 

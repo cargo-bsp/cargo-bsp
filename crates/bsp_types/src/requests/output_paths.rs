@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn output_path_item() {
         let test_data = OutputPathItem {
-            uri: "test_uri".to_string(),
+            uri: "test_uri".into(),
             kind: OutputPathItemKind::File,
         };
 

@@ -693,7 +693,7 @@ mod tests {
         let test_data = TestStart {
             display_name: "test_name".to_string(),
             location: Some(Location {
-                uri: "file:///test".to_string(),
+                uri: "file:///test".into(),
                 range: Range::default(),
             }),
         };
@@ -734,7 +734,7 @@ mod tests {
             message: Some("test_message".to_string()),
             status: TestStatus::default(),
             location: Some(Location {
-                uri: "file:///test".to_string(),
+                uri: "file:///test".into(),
                 range: Range::default(),
             }),
             data: Some(TestFinishData::Other(OtherData {

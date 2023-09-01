@@ -5,7 +5,15 @@ use crate::extensions::CargoBuildTarget;
 
 /** A resource identifier that is a valid URI according
 to rfc3986: https://tools.ietf.org/html/rfc3986 */
-pub type URI = String;
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[serde(transparent)]
+pub struct URI(pub String);
+
+impl From<&str> for URI {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
 
 pub const RUST_ID: &str = "rust";
 
@@ -173,7 +181,7 @@ mod tests {
     #[test]
     fn text_document_identifier() {
         let test_data = TextDocumentIdentifier {
-            uri: "test_uri".to_string(),
+            uri: "test_uri".into(),
         };
 
         assert_json_snapshot!(test_data,
@@ -197,7 +205,7 @@ mod tests {
         let test_data = BuildTarget {
             id: BuildTargetIdentifier::default(),
             display_name: Some("test_displayName".to_string()),
-            base_directory: Some("test_baseDirectory".to_string()),
+            base_directory: Some("test_baseDirectory".into()),
             tags: vec![BuildTargetTag::TEST],
             capabilities: BuildTargetCapabilities::default(),
             language_ids: vec!["test_languageId".to_string()],
@@ -266,7 +274,7 @@ mod tests {
     #[test]
     fn build_target_identifier() {
         let test_data = BuildTargetIdentifier {
-            uri: "test_uri".to_string(),
+            uri: "test_uri".into(),
         };
 
         assert_json_snapshot!(test_data,

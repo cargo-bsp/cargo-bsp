@@ -1498,7 +1498,7 @@ pub mod tests {
 
             if let TaskState::Test(ref mut test_state) = req_actor.state.task_state {
                 test_state.current_build_target = Some(BuildTargetIdentifier {
-                    uri: TEST_TARGET2.to_string(),
+                    uri: TEST_TARGET2.into(),
                 })
             }
 

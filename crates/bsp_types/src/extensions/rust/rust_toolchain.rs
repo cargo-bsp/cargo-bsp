@@ -92,8 +92,8 @@ mod test {
     fn rust_toolchain() {
         let rust_toolchain = RustToolchainsItem {
             rust_std_lib: Some(RustcInfo::default()),
-            cargo_bin_path: "test_cargo_bin_path".to_string(),
-            proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
+            cargo_bin_path: "test_cargo_bin_path".into(),
+            proc_macro_srv_path: "test_proc_macro_srv_path".into(),
         };
 
         assert_json_snapshot!(rust_toolchain, @r#"
@@ -120,8 +120,8 @@ mod test {
     #[test]
     fn rustc_info() {
         let rustc_info = RustcInfo {
-            sysroot_path: "test_sysroot".to_string(),
-            src_sysroot_path: "test_src_sysroot".to_string(),
+            sysroot_path: "test_sysroot".into(),
+            src_sysroot_path: "test_src_sysroot".into(),
             version: "test_version".to_string(),
             host: "test_host".to_string(),
         };

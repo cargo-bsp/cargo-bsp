@@ -266,7 +266,7 @@ fn rustc_code_description(code: Option<&str>) -> Option<CodeDescription> {
         ))
         .ok()
         .map(|href| CodeDescription {
-            href: href.to_string(),
+            href: URI(href.to_string()),
         })
     })
 }
@@ -279,7 +279,7 @@ fn clippy_code_description(code: Option<&str>) -> Option<CodeDescription> {
         ))
         .ok()
         .map(|href| CodeDescription {
-            href: href.to_string(),
+            href: URI(href.to_string()),
         })
     })
 }
@@ -384,7 +384,7 @@ fn location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> Location {
         }
     };
     Location {
-        uri: uri.to_string(),
+        uri: URI(uri.to_string()),
         range,
     }
 }
