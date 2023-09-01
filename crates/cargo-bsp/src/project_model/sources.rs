@@ -352,7 +352,7 @@ mod tests {
 
         assert_json_snapshot!(
             get_sources_for_target(&test_id, test_target_details),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": "testId"
@@ -362,7 +362,7 @@ mod tests {
             "file:///test_project_path"
           ]
         }
-        "###
+        "#
         );
     }
 }

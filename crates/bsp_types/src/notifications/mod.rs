@@ -49,21 +49,21 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "id": "test_id",
           "parents": [
             "test_parent"
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(TaskId::default(),
-            @r###"
+            @r#"
         {
           "id": ""
         }
-        "###
+        "#
         );
     }
 }

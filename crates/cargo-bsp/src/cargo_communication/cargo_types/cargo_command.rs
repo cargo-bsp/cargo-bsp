@@ -227,7 +227,7 @@ mod tests {
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 
-        assert_debug_snapshot!(args, @r###"
+        assert_debug_snapshot!(args, @r#"
         [
             "build",
             "--package",
@@ -245,7 +245,7 @@ mod tests {
             "--arg1",
             "--arg2",
         ]
-        "###);
+        "#);
         assert_eq!(cwd, Path::new(TEST_ROOT));
     }
 
@@ -264,7 +264,7 @@ mod tests {
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 
-        assert_debug_snapshot!(args, @r###"
+        assert_debug_snapshot!(args, @r#"
         [
             "run",
             "--package",
@@ -276,7 +276,7 @@ mod tests {
             "--arg1",
             "--arg2",
         ]
-        "###);
+        "#);
         assert_eq!(cwd, Path::new(TEST_ROOT));
     }
 
@@ -295,7 +295,7 @@ mod tests {
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let cwd = cmd.get_current_dir().unwrap();
 
-        assert_debug_snapshot!(args, @r###"
+        assert_debug_snapshot!(args, @r#"
         [
             "+nightly",
             "test",
@@ -318,7 +318,7 @@ mod tests {
             "--arg1",
             "--arg2",
         ]
-        "###);
+        "#);
         assert_eq!(cwd, Path::new(TEST_ROOT));
     }
 }

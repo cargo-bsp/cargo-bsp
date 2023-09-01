@@ -75,7 +75,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -88,14 +88,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(JavacOptionsResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -109,7 +109,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -122,10 +122,10 @@ mod tests {
           ],
           "classDirectory": "test_uri"
         }
-        "###
+        "#
         );
         assert_json_snapshot!(JavacOptionsItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -134,7 +134,7 @@ mod tests {
           "classpath": [],
           "classDirectory": ""
         }
-        "###
+        "#
         );
     }
 }

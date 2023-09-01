@@ -92,7 +92,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "items": [
             {
@@ -103,14 +103,14 @@ mod tests {
             }
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(SourcesResult::default(),
-            @r###"
+            @r#"
         {
           "items": []
         }
-        "###
+        "#
         );
     }
 
@@ -123,7 +123,7 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
@@ -139,17 +139,17 @@ mod tests {
             ""
           ]
         }
-        "###
+        "#
         );
         assert_json_snapshot!(SourcesItem::default(),
-            @r###"
+            @r#"
         {
           "target": {
             "uri": ""
           },
           "sources": []
         }
-        "###
+        "#
         );
     }
 
@@ -162,22 +162,22 @@ mod tests {
         };
 
         assert_json_snapshot!(test_data,
-            @r###"
+            @r#"
         {
           "uri": "test_uri",
           "kind": 1,
           "generated": true
         }
-        "###
+        "#
         );
         assert_json_snapshot!(SourceItem::default(),
-            @r###"
+            @r#"
         {
           "uri": "",
           "kind": 1,
           "generated": false
         }
-        "###
+        "#
         );
     }
 

@@ -41,12 +41,12 @@ mod tests {
         );
 
         assert_json_snapshot!(UnitGraph::default(),
-            @r###"
+            @r#"
         {
           "version": 0,
           "units": []
         }
-        "###
+        "#
         );
     }
 }

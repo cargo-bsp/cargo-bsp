@@ -61,10 +61,10 @@ mod tests {
         let test_data = SetCargoFeaturesResult {
             status_code: StatusCode::Ok,
         };
-        assert_json_snapshot!(test_data, @r###"
+        assert_json_snapshot!(test_data, @r#"
         {
           "statusCode": 1
         }
-        "###);
+        "#);
     }
 }
