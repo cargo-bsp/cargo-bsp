@@ -30,7 +30,7 @@ impl RequestHandle {
         R::Params: CreateCommand + ParamsTarget + Send,
     {
         let root_path = global_state.config.root_path();
-        let build_targets = params.get_targets(&global_state.workspace);
+        let build_targets = params.get_targets(global_state.workspace);
 
         // The command does not need information about targets, as it is invoked with
         // `--all-targets` flag.
@@ -40,7 +40,7 @@ impl RequestHandle {
         let metadata = get_metadata(&global_state.config.workspace_manifest)
             .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
         let result =
-            resolve_rust_workspace_result(&global_state.workspace, &build_targets, &metadata);
+            resolve_rust_workspace_result(global_state.workspace, &build_targets, &metadata);
 
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let mut actor: CheckActor<CargoHandle> =
