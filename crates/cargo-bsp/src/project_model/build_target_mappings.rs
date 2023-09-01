@@ -45,26 +45,27 @@ fn tags_and_capabilities_from_cargo_kind(
         .iter()
         .for_each(|kind| match kind.as_str() {
             "lib" => {
-                tags.push(BuildTargetTag::Library);
+                tags.push(BuildTargetTag::LIBRARY);
                 capabilities.can_debug = Some(false);
                 capabilities.can_run = Some(false);
             }
             "bin" => {
-                tags.push(BuildTargetTag::Application);
+                tags.push(BuildTargetTag::APPLICATION);
             }
             "example" => {
-                tags.push(BuildTargetTag::Application);
+                tags.push(BuildTargetTag::APPLICATION);
                 capabilities.can_test = Some(false);
             }
             "test" => {
-                tags.push(BuildTargetTag::IntegrationTest);
+                tags.push(BuildTargetTag::INTEGRATION_TEST);
                 capabilities.can_run = Some(false);
             }
             "bench" => {
-                tags.push(BuildTargetTag::Benchmark);
+                tags.push(BuildTargetTag::BENCHMARK);
                 capabilities.can_run = Some(false);
             }
             "custom-build" => {
+                tags.push(BuildTargetTag(std::borrow::Cow::from(kind.clone())));
                 todo!("Custom-build target is unsupported by BSP server yet.");
             }
             _ => {
