@@ -76,9 +76,8 @@ impl ProjectWorkspace {
         project_manifest_path: &PathBuf,
         filter_platform: bool,
     ) -> Result<cargo_metadata::Metadata, Error> {
-        let host = version_meta().map(|v| v.host);
-        let filter_platform_options = if filter_platform && host.is_ok() {
-            vec!["--filter-platform".to_string(), host.unwrap()]
+        let filter_platform_options = if filter_platform {
+            version_meta().map_or(vec![], |v| vec!["--filter-platform".to_string(), v.host])
         } else {
             vec![]
         };

@@ -19,7 +19,6 @@ fn get_sysroot() -> Option<String> {
     Some(stdout.trim().to_string())
 }
 
-// TODO establishment really based on build target id
 fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> RustcInfo {
     let sysroot_path = get_sysroot()
         .or_else(|| {
@@ -50,7 +49,9 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
     }
 }
 
-// TODO Currently responds with toolchain used in a root of the directory.
+// Currently responds with toolchain used in a root of the directory, as
+// [intellij-rust fork](https://github.com/ZPP-This-is-fine/intellij-rust) does not
+// support toolchain resolution for specific targets.
 // In the future it should respond with the list of toolchains which are used within the project.
 // This can be done by calling the `rustc --version --verbose` in the directory where each of the targets is located.
 pub fn get_rust_toolchains(
