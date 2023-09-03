@@ -1613,7 +1613,7 @@ pub mod tests {
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                     ".params.eventTime" => TIMESTAMP,
                     ".params.data.status" => dynamic_redaction(move |value, _path| {
-                        assert_eq!(value.as_u64().unwrap(), expected_status as u64);
+                        assert_eq!(value.as_u64().unwrap(), expected_status.clone() as u64);
                         "CORRECT_STATUS"
                     }),
                 } ,@r#"

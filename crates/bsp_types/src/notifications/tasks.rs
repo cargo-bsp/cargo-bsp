@@ -336,7 +336,7 @@ pub struct Location {
     pub range: Range,
 }
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone, Copy)]
+#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
 pub enum TestStatus {
     /** The test was successful. */
