@@ -1,6 +1,6 @@
 //! [`ProjectModel`] obtains and stores information about the Rust project.
 
-use bsp_types::basic_bsp_structures::Edition as BspEdition;
+use bsp_types::basic_bsp_structures::RustEdition;
 use cargo_metadata::Edition;
 
 mod _unit_tests_discovery;
@@ -13,6 +13,6 @@ pub(crate) mod sources;
 pub(crate) mod target_details;
 pub mod workspace;
 
-pub(crate) fn metadata_edition_to_bsp_edition(metadata_edition: Edition) -> BspEdition {
-    BspEdition::new(metadata_edition.as_str())
+pub(crate) fn metadata_edition_to_bsp_edition(metadata_edition: Edition) -> RustEdition {
+    RustEdition::new(metadata_edition.as_str())
 }

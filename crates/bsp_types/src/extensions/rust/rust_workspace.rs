@@ -1,5 +1,5 @@
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Edition, Uri};
+use crate::{BuildTargetIdentifier, RustEdition, Uri};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::{BTreeSet, HashMap};
@@ -74,7 +74,7 @@ pub struct RustBuildTarget {
     The crate type determines how the source code is compiled. */
     pub crate_types: Vec<RustCrateType>,
     /** The Rust edition of the target. */
-    pub edition: Edition,
+    pub edition: RustEdition,
     /** Whether or not this target has doc tests enabled, and
     the target is compatible with doc testing. */
     pub doctest: bool,
@@ -178,7 +178,7 @@ pub struct RustPackage {
     /** Defines a reason a package is in a project. */
     pub origin: RustPackageOrigin,
     /** Code edition of the package. */
-    pub edition: Edition,
+    pub edition: RustEdition,
     /** The source ID of the dependency, `null` for the root package and path dependencies. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
@@ -378,7 +378,7 @@ mod test {
             crate_root_url: "test_crate_url".to_string(),
             kind: RustTargetKind::default(),
             crate_types: vec![RustCrateType::default()],
-            edition: Edition::default(),
+            edition: RustEdition::default(),
             doctest: false,
             required_features: BTreeSet::from(["test_feature".to_string()]),
         };
@@ -473,7 +473,7 @@ mod test {
             name: "test_name".to_string(),
             version: "test_version".to_string(),
             origin: RustPackageOrigin::default(),
-            edition: Edition::default(),
+            edition: RustEdition::default(),
             source: Some("test_source".to_string()),
             targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
