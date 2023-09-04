@@ -49,7 +49,7 @@ impl GlobalState {
             sender,
             req_queue: ReqQueue::default(),
             shutdown_requested: false,
-            config: config.clone(),
+            config,
             handlers: HashMap::new(),
             handlers_sender,
             handlers_receiver,

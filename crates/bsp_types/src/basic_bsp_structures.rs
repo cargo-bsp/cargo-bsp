@@ -67,20 +67,20 @@ pub enum BuildTargetData {
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CargoBuildTarget {
-    pub edition: Edition,
+    pub edition: RustEdition,
     pub required_features: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Edition(pub std::borrow::Cow<'static, str>);
-impl Edition {
-    pub const E2015: Edition = Edition::new("2015");
-    pub const E2018: Edition = Edition::new("2018");
-    pub const E2021: Edition = Edition::new("2021");
+pub struct RustEdition(pub std::borrow::Cow<'static, str>);
+impl RustEdition {
+    pub const E2015: RustEdition = RustEdition::new("2015");
+    pub const E2018: RustEdition = RustEdition::new("2018");
+    pub const E2021: RustEdition = RustEdition::new("2021");
 
     pub const fn new(tag: &'static str) -> Self {
-        Edition(std::borrow::Cow::Borrowed(tag))
+        RustEdition(std::borrow::Cow::Borrowed(tag))
     }
 }
 
@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn cargo_build_target() {
         let test_data = CargoBuildTarget {
-            edition: Edition::E2015,
+            edition: RustEdition::E2015,
             required_features: vec!["test_requiredFeature".to_string()],
         };
 
