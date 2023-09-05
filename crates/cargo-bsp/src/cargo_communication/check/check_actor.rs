@@ -118,11 +118,7 @@ where
         }
     }
 
-    pub(in crate::cargo_communication) fn finish(
-        &mut self,
-        mut result: RustWorkspaceResult,
-        packages: Vec<Package>,
-    ) {
+    pub(super) fn finish(&mut self, mut result: RustWorkspaceResult, packages: Vec<Package>) {
         let packages = result
             .packages
             .into_iter()
@@ -173,10 +169,7 @@ where
         }
     }
 
-    pub(in crate::cargo_communication) fn send_response(
-        &self,
-        command_result: io::Result<RustWorkspaceResult>,
-    ) {
+    pub(super) fn send_response(&self, command_result: io::Result<RustWorkspaceResult>) {
         self.send(
             Response {
                 id: self.req_id.clone(),

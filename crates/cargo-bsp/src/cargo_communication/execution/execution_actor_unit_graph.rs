@@ -58,7 +58,7 @@ where
         UnitGraphStatusCode::Ok
     }
 
-    pub(in crate::cargo_communication) fn handle_unit_graph_message(
+    pub(super) fn handle_unit_graph_message(
         &mut self,
         message: CargoMessage,
         received_unit_graph: &mut bool,

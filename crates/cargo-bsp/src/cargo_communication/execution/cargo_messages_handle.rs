@@ -39,7 +39,7 @@ where
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
-    pub(in crate::cargo_communication) fn handle_cargo_information(&mut self, message: Message) {
+    pub(super) fn handle_cargo_information(&mut self, message: Message) {
         match message {
             Message::CompilerArtifact(msg) => {
                 self.report_compile_step(serde_json::to_string(&msg).ok());

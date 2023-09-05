@@ -29,10 +29,7 @@ where
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
-    pub(in crate::cargo_communication) fn send_response(
-        &self,
-        command_result: io::Result<ExitStatus>,
-    ) {
+    pub(super) fn send_response(&self, command_result: io::Result<ExitStatus>) {
         self.send(Message::Response(Response {
             id: self.req_id.clone(),
             result: command_result.as_ref().ok().map(|exit_status| {
@@ -53,7 +50,7 @@ where
         }));
     }
 
-    pub(in crate::cargo_communication) fn send_cancel_response(&self) {
+    pub(super) fn send_cancel_response(&self) {
         self.report_task_finish(
             self.state.root_task_id.clone(),
             StatusCode::Cancelled,
@@ -75,11 +72,11 @@ where
         );
     }
 
-    pub(in crate::cargo_communication) fn report_root_task_start(&self) {
+    pub(super) fn report_root_task_start(&self) {
         self.report_task_start(self.state.root_task_id.clone(), None, None);
     }
 
-    pub(in crate::cargo_communication) fn report_task_start(
+    pub(super) fn report_task_start(
         &self,
         task_id: TaskId,
         message: Option<String>,
@@ -93,7 +90,7 @@ where
         });
     }
 
-    pub(in crate::cargo_communication) fn report_task_progress(
+    pub(super) fn report_task_progress(
         &self,
         task_id: TaskId,
         message: Option<String>,
@@ -112,7 +109,7 @@ where
         });
     }
 
-    pub(in crate::cargo_communication) fn report_task_finish(
+    pub(super) fn report_task_finish(
         &self,
         task_id: TaskId,
         status: StatusCode,
@@ -128,7 +125,7 @@ where
         });
     }
 
-    pub(in crate::cargo_communication) fn log_message(
+    pub(super) fn log_message(
         &self,
         message_type: MessageType,
         message: String,
@@ -143,7 +140,7 @@ where
         });
     }
 
-    pub(in crate::cargo_communication) fn send_notification<T>(&self, notification: T::Params)
+    pub(super) fn send_notification<T>(&self, notification: T::Params)
     where
         T: NotificationTrait,
     {
@@ -156,7 +153,7 @@ where
         );
     }
 
-    pub(in crate::cargo_communication) fn send(&self, msg: Message) {
+    pub(super) fn send(&self, msg: Message) {
         (self.sender)(msg);
     }
 }

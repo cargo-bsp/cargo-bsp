@@ -57,15 +57,15 @@ where
     C: CargoHandler<CargoMessage>,
 {
     // sender for notifications and responses to main loop
-    pub(in crate::cargo_communication) sender: Box<dyn Fn(Message) + Send>,
-    pub(in crate::cargo_communication) cargo_handle: Option<C>,
+    pub(super) sender: Box<dyn Fn(Message) + Send>,
+    pub(super) cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
-    pub(in crate::cargo_communication) req_id: RequestId,
-    pub(in crate::cargo_communication) params: R::Params,
-    pub(in crate::cargo_communication) root_path: PathBuf,
-    pub(in crate::cargo_communication) build_targets: Vec<BuildTargetIdentifier>,
-    pub(in crate::cargo_communication) src_path_to_target_id: SrcPathToTargetId,
-    pub(in crate::cargo_communication) state: ExecutionActorState,
+    pub(super) req_id: RequestId,
+    pub(super) params: R::Params,
+    pub(super) root_path: PathBuf,
+    pub(super) build_targets: Vec<BuildTargetIdentifier>,
+    pub(super) src_path_to_target_id: SrcPathToTargetId,
+    pub(super) state: ExecutionActorState,
 }
 
 impl<R, C> ExecutionActor<R, C>
