@@ -115,12 +115,11 @@ impl<'a> RequestDispatcher<'a> {
             None => return self,
         };
         let sender_to_main = self.global_state.handlers_sender.clone();
-        let global_state_snapshot = self.global_state.snapshot();
         let request_handle = RequestHandle::spawn_check::<R>(
             Box::new(move |msg| sender_to_main.send(msg).unwrap()),
             req.id.clone(),
             params,
-            global_state_snapshot,
+            self.global_state,
         );
         self.update_handlers(request_handle, req)
     }

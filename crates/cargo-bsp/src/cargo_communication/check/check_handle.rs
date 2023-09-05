@@ -16,21 +16,21 @@ use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::project_model::rust_extension::{get_metadata, resolve_rust_workspace_result};
-use crate::server::global_state::GlobalStateSnapshot;
+use crate::server::global_state::GlobalState;
 
 impl RequestHandle {
     pub fn spawn_check<R>(
         sender_to_main: Box<dyn Fn(Message) + Send>,
         req_id: RequestId,
         params: R::Params,
-        global_state: GlobalStateSnapshot,
+        global_state: &mut GlobalState,
     ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
         R::Params: CreateCommand + ParamsTarget + Send,
     {
         let root_path = global_state.config.root_path();
-        let build_targets = params.get_targets(global_state.workspace);
+        let build_targets = params.get_targets(&global_state.workspace);
 
         // The command does not need information about targets, as it is invoked with
         // `--all-targets` flag.
@@ -40,7 +40,7 @@ impl RequestHandle {
         let metadata = get_metadata(&global_state.config.workspace_manifest)
             .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
         let result =
-            resolve_rust_workspace_result(global_state.workspace, &build_targets, &metadata);
+            resolve_rust_workspace_result(&mut global_state.workspace, &build_targets, &metadata);
 
         let (cancel_sender, cancel_receiver) = unbounded::<Event>();
         let mut actor: CheckActor<CargoHandle> =

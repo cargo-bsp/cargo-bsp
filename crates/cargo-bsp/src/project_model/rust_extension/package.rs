@@ -9,9 +9,9 @@ use crate::project_model::rust_extension::{
 };
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::{RustFeature, RustPackage, RustPackageOrigin};
+use bsp_types::extensions::{Feature, RustFeature, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     if workspace.is_package_part_of_workspace(&package.id) {
@@ -21,13 +21,25 @@ fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     }
 }
 
-fn resolve_enabled_features(package: &mut RustPackage, nodes: &[cargo_metadata::Node]) {
+fn set_and_resolve_enabled_features(
+    workspace: &mut ProjectWorkspace,
+    package: &mut RustPackage,
+    nodes: &[cargo_metadata::Node],
+) {
     if let Some(n) = find_node(
         nodes,
         &package.id,
         "Proceeding with empty enabled features.",
     ) {
-        package.enabled_features = n.features.clone()
+        package.enabled_features = n.features.clone();
+        // Set enabled features in server's state.
+        let features = n
+            .features
+            .clone()
+            .into_iter()
+            .map(Feature)
+            .collect::<BTreeSet<Feature>>();
+        workspace.set_features_for_the_package(package.id.clone(), &features);
     }
 }
 
@@ -65,7 +77,7 @@ fn metadata_package_to_rust_extension_package(
 
 /// Returns a list of rust extension packages from which provided targets depend on
 pub fn get_rust_packages_related_to_targets(
-    workspace: &ProjectWorkspace,
+    workspace: &mut ProjectWorkspace,
     metadata: &cargo_metadata::Metadata,
     targets: &[BuildTargetIdentifier],
 ) -> Vec<RustPackage> {
@@ -90,7 +102,7 @@ pub fn get_rust_packages_related_to_targets(
                 .clone();
             let mut rust_package = metadata_package_to_rust_extension_package(package);
             resolve_origin(&mut rust_package, workspace);
-            resolve_enabled_features(&mut rust_package, &nodes);
+            set_and_resolve_enabled_features(workspace, &mut rust_package, &nodes);
             rust_package
         })
         .collect()

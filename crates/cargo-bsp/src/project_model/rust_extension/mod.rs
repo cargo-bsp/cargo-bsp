@@ -51,7 +51,7 @@ pub fn get_metadata(project_manifest: &ProjectManifest) -> Result<Metadata, Erro
 }
 
 pub fn resolve_rust_workspace_result(
-    workspace: &ProjectWorkspace,
+    workspace: &mut ProjectWorkspace,
     targets: &[BuildTargetIdentifier],
     metadata: &Metadata,
 ) -> RustWorkspaceResult {
