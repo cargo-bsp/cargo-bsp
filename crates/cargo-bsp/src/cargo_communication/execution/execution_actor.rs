@@ -36,17 +36,20 @@ use log::warn;
 use mockall::*;
 use serde::Deserialize;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
-use crate::cargo_communication::request_actor_state::{RequestActorState, TaskState};
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_actor_state::{
+    ExecutionActorState, TaskState,
+};
 use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
 use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
 use bsp_types::requests::Request;
 use bsp_types::{BuildTargetIdentifier, StatusCode};
 
-pub(crate) struct RequestActor<R, C>
+pub(crate) struct ExecutionActor<R, C>
 where
     R: Request,
     R::Params: CreateUnitGraphCommand,
@@ -54,21 +57,21 @@ where
     C: CargoHandler<CargoMessage>,
 {
     // sender for notifications and responses to main loop
-    pub(super) sender: Box<dyn Fn(Message) + Send>,
-    pub(super) cargo_handle: Option<C>,
+    pub(in crate::cargo_communication) sender: Box<dyn Fn(Message) + Send>,
+    pub(in crate::cargo_communication) cargo_handle: Option<C>,
     cancel_receiver: Receiver<Event>,
-    pub(super) req_id: RequestId,
-    pub(super) params: R::Params,
-    pub(super) root_path: PathBuf,
-    pub(super) build_targets: Vec<BuildTargetIdentifier>,
-    pub(super) src_path_to_target_id: SrcPathToTargetId,
-    pub(super) state: RequestActorState,
+    pub(in crate::cargo_communication) req_id: RequestId,
+    pub(in crate::cargo_communication) params: R::Params,
+    pub(in crate::cargo_communication) root_path: PathBuf,
+    pub(in crate::cargo_communication) build_targets: Vec<BuildTargetIdentifier>,
+    pub(in crate::cargo_communication) src_path_to_target_id: SrcPathToTargetId,
+    pub(in crate::cargo_communication) state: ExecutionActorState,
 }
 
-impl<R, C> RequestActor<R, C>
+impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -80,14 +83,14 @@ where
         cargo_handle: C,
         cancel_receiver: Receiver<Event>,
         workspace: &ProjectWorkspace,
-    ) -> RequestActor<R, C> {
+    ) -> ExecutionActor<R, C> {
         let build_targets = params.get_targets(workspace);
-        RequestActor {
+        ExecutionActor {
             sender,
             cargo_handle: Some(cargo_handle),
             cancel_receiver,
             req_id,
-            state: RequestActorState::new::<R>(params.origin_id(), &build_targets),
+            state: ExecutionActorState::new::<R>(params.origin_id(), &build_targets),
             build_targets,
             params,
             root_path: root_path.to_path_buf(),
@@ -252,7 +255,7 @@ pub mod tests {
         R::Params: CreateUnitGraphCommand,
         R::Result: CargoResult,
     {
-        req_actor: RequestActor<R, MockCargoHandler<CargoMessage>>,
+        req_actor: ExecutionActor<R, MockCargoHandler<CargoMessage>>,
         receiver_from_actor: Receiver<Message>,
         _cancel_sender: Sender<Event>,
     }
@@ -264,7 +267,7 @@ pub mod tests {
     ) -> TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateUnitGraphCommand + ParamsTarget,
+        R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
         R::Result: CargoResult,
     {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
@@ -275,7 +278,7 @@ pub mod tests {
             TestCase::MultipleTargets => test_complex_workspace(),
         };
         TestEndpoints {
-            req_actor: RequestActor::new(
+            req_actor: ExecutionActor::new(
                 Box::new(move |msg| sender_to_main.send(msg).unwrap()),
                 TEST_REQ_ID.to_string().into(),
                 params,
@@ -366,7 +369,7 @@ pub mod tests {
 
         mod unit_graph_tests {
             use super::*;
-            use crate::cargo_communication::cargo_types::unit_graph::UnitGraph;
+            use crate::cargo_communication::execution::cargo_types::unit_graph::UnitGraph;
             use serde_json::to_string;
 
             #[test]
@@ -1287,12 +1290,12 @@ pub mod tests {
     #[cfg(test)]
     mod test_request_tests {
         use super::*;
-        use crate::cargo_communication::cargo_types::test::TestEvent::Started;
-        use crate::cargo_communication::cargo_types::test::{
-            SuiteEvent, SuiteResults, SuiteStarted, TestEvent, TestName,
-            TestResult as TestResultEnum, TestType,
+        use crate::cargo_communication::cargo_types::event::CargoMessage::CargoStdout;
+        use crate::cargo_communication::execution::cargo_types::test::TestEvent::Started;
+        use crate::cargo_communication::execution::cargo_types::test::{
+            SuiteEvent, SuiteResults, SuiteStarted, TestName, TestResult as TestResultEnum,
+            TestType,
         };
-        use crate::cargo_communication::request_actor::CargoMessage::CargoStdout;
         use crate::cargo_communication::utils::test_target_id;
         use bsp_types::requests::{Test, TestParams};
         use cargo_metadata::Message::TextLine;
@@ -1584,6 +1587,7 @@ pub mod tests {
 
         mod test_finish_status {
             use super::*;
+            use crate::cargo_communication::execution::cargo_types::test::TestEvent;
             use bsp_types::notifications::TestStatus;
             use insta::{allow_duplicates, dynamic_redaction};
 

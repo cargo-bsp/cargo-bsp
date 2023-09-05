@@ -12,7 +12,9 @@ fn metadata_dependency_kind_to_string(metadata_dependency_kind: DependencyKind) 
     match metadata_dependency_kind {
         DependencyKind::Build => Some("build".to_string()),
         DependencyKind::Development => Some("dev".to_string()),
-        DependencyKind::Normal => None, // Cargo metadata output defaults to Null, when dependency is normal
+        // Cargo metadata output defaults to Null, when dependency is normal. Since we want to have
+        // the same behavior as cargo metadata, we return None for normal dependency kind.
+        DependencyKind::Normal => None,
         _ => None,
     }
 }

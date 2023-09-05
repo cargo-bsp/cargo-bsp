@@ -1,4 +1,4 @@
-//! Implementation of [`RequestActor`]. Parses messages from Cargo, handles them
+//! Implementation of [`ExecutionActor`]. Parses messages from Cargo, handles them
 //! and creates the appropriate notifications for the client.
 
 use cargo_metadata::diagnostic::DiagnosticLevel;
@@ -15,28 +15,31 @@ use bsp_types::notifications::{
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
-use crate::cargo_communication::cargo_types::publish_diagnostics::{
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
+use crate::cargo_communication::execution::cargo_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
-use crate::cargo_communication::cargo_types::test::{
+use crate::cargo_communication::execution::cargo_types::test::{
     SuiteEvent, SuiteResults, TestEvent, TestResult, TestType,
 };
-use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
-use crate::cargo_communication::request_actor_state::{SuiteTaskProgress, TaskState};
-use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
+use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
+use crate::cargo_communication::execution::execution_actor_state::{SuiteTaskProgress, TaskState};
+use crate::cargo_communication::execution::utils::{
+    generate_random_id, generate_task_id, get_current_time,
+};
 
-impl<R, C> RequestActor<R, C>
+impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
-    pub(super) fn handle_cargo_information(&mut self, message: Message) {
+    pub(in crate::cargo_communication) fn handle_cargo_information(&mut self, message: Message) {
         match message {
             Message::CompilerArtifact(msg) => {
                 self.report_compile_step(serde_json::to_string(&msg).ok());

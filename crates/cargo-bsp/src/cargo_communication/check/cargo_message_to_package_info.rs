@@ -19,7 +19,9 @@ struct SplitVersion {
     patch: String,
 }
 
-pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOptions> {
+pub(in crate::cargo_communication) fn map_cfg_options(
+    script: Option<&BuildScript>,
+) -> Option<RustCfgOptions> {
     script.map(|s| {
         let mut key_value_options: HashMap<String, Vec<String>> = HashMap::new();
         let mut name_options = Vec::new();
@@ -67,7 +69,10 @@ fn split_version(version: String) -> SplitVersion {
     SplitVersion::default()
 }
 
-pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMap<String, String> {
+pub(in crate::cargo_communication) fn map_env(
+    script: Option<&BuildScript>,
+    package: &Package,
+) -> HashMap<String, String> {
     let split_version = split_version(package.version.to_string());
     let mut env: HashMap<String, String> = HashMap::from([
         (
@@ -115,11 +120,15 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMa
     env
 }
 
-pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<String> {
+pub(in crate::cargo_communication) fn map_out_dir_url(
+    script: Option<&BuildScript>,
+) -> Option<String> {
     script.map(|s| file_uri(s.out_dir.to_string()))
 }
 
-pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<Uri> {
+pub(in crate::cargo_communication) fn map_proc_macro_artifact(
+    artifacts: &[Artifact],
+) -> Option<Uri> {
     artifacts
         .iter()
         .filter(|a| {

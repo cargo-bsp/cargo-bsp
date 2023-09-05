@@ -1,18 +1,19 @@
-//! Implementation of [`RequestActor`]. Handles messages from Cargo command with
+//! Implementation of [`ExecutionActor`]. Handles messages from Cargo command with
 //! `--unit-graph` flag. If the command executes successfully, sets the total compilation
-//! steps in [`RequestActorState`].
+//! steps in [`ExecutionActorState`].
 
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 use log::warn;
 use serde::Deserialize;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
-use crate::cargo_communication::cargo_types::unit_graph::UnitGraph;
-use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
+use crate::cargo_communication::execution::cargo_types::unit_graph::UnitGraph;
+use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
 
 // There is no Err StatusCode, as even if the unit graph command did not end up
 // successfully, it does not change the execution of the requested command.
@@ -23,10 +24,10 @@ pub enum UnitGraphStatusCode {
     Cancelled,
 }
 
-impl<R, C> RequestActor<R, C>
+impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -57,7 +58,7 @@ where
         UnitGraphStatusCode::Ok
     }
 
-    pub(super) fn handle_unit_graph_message(
+    pub(in crate::cargo_communication) fn handle_unit_graph_message(
         &mut self,
         message: CargoMessage,
         received_unit_graph: &mut bool,

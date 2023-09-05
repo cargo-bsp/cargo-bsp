@@ -7,7 +7,7 @@ use std::io::ErrorKind;
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::unbounded;
 
-use crate::cargo_communication::cargo_check::check_actor::CheckActor;
+use crate::cargo_communication::check::check_actor::CheckActor;
 use bsp_types::requests::Request;
 
 use crate::cargo_communication::cargo_handle::CargoHandle;

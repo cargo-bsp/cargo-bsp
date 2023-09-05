@@ -20,7 +20,7 @@ use log::info;
 
 use crate::cargo_communication::cargo_actor::CargoActor;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::CargoHandler;
+use crate::cargo_communication::execution::execution_actor::CargoHandler;
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with

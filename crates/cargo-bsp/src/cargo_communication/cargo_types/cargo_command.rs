@@ -1,15 +1,10 @@
-//! CreateCommand and CreateUnitGraphCommand traits implementation for the
-//! Compile/Run/Test/RustWorkspaceParams. The trait allows getting origin id and creating
-//! commands regardless if it is the compile, run, test or rust_workspace request.
+//! CreateCommand trait implementation for the Compile/Run/Test/RustWorkspaceParams.
+//! The trait allows creating commands regardless if it is the compile, run, test or rust_workspace request.
 //!
-//! There are two types of commands:
-//! - requested: standard `cargo build`, `cargo run`, `cargo test` and `cargo check` to compile,
-//! run and test the project,
-//! - unit graph: the same as before but with `--unit-graph -Z unstable-options` flags
-//! (only available with `+nightly`). These commands are used to get the number of
-//! compilation steps.
+//! The created commands are: `cargo build`, `cargo run`, `cargo test` and `cargo check` to compile,
+//! run and test the project.
 //!
-//! The requested commands may have additional flags:
+//! The requested commands have additional flags:
 //!
 //! `--message-format=json` for all commands. This flag formats information to JSON and
 //! provides [additional information about build](https://doc.rust-lang.org/cargo/reference/external-tools.html)
@@ -25,36 +20,18 @@
 //! - dev dependencies during build script evaluation
 //! `--keep-going` is needed to compile as many proc macro artifacts as possible.
 
-use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 use std::path::Path;
 
-use crate::project_model::target_details::CargoTargetKind::{
-    Cdylib, Dylib, Lib, ProcMacro, Rlib, Staticlib,
+use crate::cargo_communication::cargo_types::command_utils::{
+    targets_details_to_args, CommandType,
 };
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use std::process::Command;
 
-#[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Clone)]
-#[serde(rename_all = "camelCase")]
-enum CommandType {
-    Build,
-    Test,
-    Run,
-    Check,
-}
-
-const FEATURE_FLAG: &str = "--feature";
-
 pub trait CreateCommand {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
-}
-
-pub trait CreateUnitGraphCommand {
-    fn origin_id(&self) -> Option<String>;
-
-    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
 }
 
 impl CreateCommand for CompileParams {
@@ -63,17 +40,6 @@ impl CreateCommand for CompileParams {
         let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
         cmd.args(self.arguments.clone());
         cmd
-    }
-}
-
-impl CreateUnitGraphCommand for CompileParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = targets_details_to_args(targets_details);
-        cargo_command_with_unit_graph(CommandType::Build, root, targets_args)
     }
 }
 
@@ -86,17 +52,6 @@ impl CreateCommand for RunParams {
     }
 }
 
-impl CreateUnitGraphCommand for RunParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = targets_details_to_args(targets_details);
-        cargo_command_with_unit_graph(CommandType::Run, root, targets_args)
-    }
-}
-
 impl CreateCommand for TestParams {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
@@ -104,17 +59,6 @@ impl CreateCommand for TestParams {
         cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
             .args(self.arguments.clone());
         cmd
-    }
-}
-
-impl CreateUnitGraphCommand for TestParams {
-    fn origin_id(&self) -> Option<String> {
-        self.origin_id.clone()
-    }
-
-    fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = targets_details_to_args(targets_details);
-        cargo_command_with_unit_graph(CommandType::Test, root, targets_args)
     }
 }
 
@@ -131,53 +75,6 @@ impl CreateCommand for RustWorkspaceParams {
         cmd.env("RUSTC_BOOTSTRAP", "1");
         cmd
     }
-}
-
-impl TargetDetails {
-    pub fn get_enabled_features_str(&self) -> Option<String> {
-        match self.enabled_features.is_empty() {
-            true => None,
-            false => Some(
-                self.enabled_features
-                    .iter()
-                    .map(|f| f.0.clone())
-                    .collect::<Vec<String>>()
-                    .join(", "),
-            ),
-        }
-    }
-}
-
-/// Creates additional flags for the command to specify the packages, targets and features.
-fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
-    targets_details
-        .iter()
-        .flat_map(|t| {
-            let mut loc_args = Vec::new();
-            loc_args.push("--package".to_string());
-            loc_args.push(t.package_name.clone());
-            if t.kind == Lib
-                || t.kind == Rlib
-                || t.kind == Dylib
-                || t.kind == Cdylib
-                || t.kind == Staticlib
-                || t.kind == ProcMacro
-            {
-                loc_args.push("--lib".to_string());
-            } else {
-                loc_args.push(format!("--{}", t.kind));
-                loc_args.push(t.name.clone());
-            }
-            if let Some(features) = t.get_enabled_features_str() {
-                loc_args.push(FEATURE_FLAG.to_string());
-                loc_args.push(features);
-            }
-            if t.default_features_disabled {
-                loc_args.push("--no-default-features".to_string());
-            }
-            loc_args
-        })
-        .collect()
 }
 
 fn create_requested_command(
@@ -202,28 +99,10 @@ fn create_requested_command(
     cmd
 }
 
-fn cargo_command_with_unit_graph(
-    command_type: CommandType,
-    root: &Path,
-    targets_args: Vec<String>,
-) -> Command {
-    let mut cmd = Command::new(toolchain::cargo());
-    cmd.current_dir(root)
-        .args([
-            "+nightly",
-            command_type.to_string().as_str(),
-            "--unit-graph",
-            "-Z",
-            "unstable-options",
-        ])
-        .args(targets_args);
-    cmd
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::project_model::target_details::CargoTargetKind::Bin;
+    use crate::project_model::target_details::CargoTargetKind::{Bin, Lib};
     use bsp_types::extensions::Feature;
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;
@@ -231,7 +110,7 @@ mod tests {
 
     const TEST_ARGS: [&str; 2] = ["--arg1", "--arg2"];
     const TEST_BIN_NAME: &str = "test_bin1";
-    const TEST_LIB_NAMES: [&str; 2] = ["test_lib1", "test_lib2"];
+    const TEST_LIB_NAME: &str = "test_lib1";
     const TEST_PACKAGE_NAMES: [&str; 2] = ["test_package1", "test_package2"];
     const TEST_ROOT: &str = "/test_root";
 
@@ -246,7 +125,7 @@ mod tests {
                 ..Default::default()
             },
             TargetDetails {
-                name: TEST_LIB_NAMES[0].to_string(),
+                name: TEST_LIB_NAME.to_string(),
                 kind: Lib,
                 package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[1].to_string(),
@@ -254,18 +133,6 @@ mod tests {
                 enabled_features: test_features,
             },
         ]
-    }
-
-    fn default_check_target_details() -> Vec<TargetDetails> {
-        let mut target_details = default_target_details();
-        target_details.push(TargetDetails {
-            name: TEST_LIB_NAMES[1].to_string(),
-            kind: Lib,
-            package_abs_path: Default::default(),
-            package_name: TEST_PACKAGE_NAMES[0].to_string(),
-            ..Default::default()
-        });
-        target_details
     }
 
     fn test_compile_params() -> CompileParams {
@@ -382,7 +249,7 @@ mod tests {
     fn test_rust_workspace_params_create_command() {
         let rust_workspace_params = RustWorkspaceParams::default();
         let cmd = rust_workspace_params
-            .create_requested_command(Path::new(TEST_ROOT), &default_check_target_details());
+            .create_requested_command(Path::new(TEST_ROOT), &default_target_details());
         let cwd = cmd.get_current_dir().unwrap();
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();

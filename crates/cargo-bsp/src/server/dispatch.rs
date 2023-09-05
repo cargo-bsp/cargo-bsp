@@ -8,11 +8,11 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use bsp_types;
 
-use crate::cargo_communication::cargo_types::cargo_command::{
-    CreateCommand, CreateUnitGraphCommand,
-};
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::{from_json, LspError, Result};
@@ -85,7 +85,8 @@ impl<'a> RequestDispatcher<'a> {
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
         R: bsp_types::requests::Request + 'static,
-        R::Params: CreateUnitGraphCommand + CreateCommand + ParamsTarget + Send + fmt::Debug,
+        R::Params:
+            CreateUnitGraphCommand + CreateCommand + ParamsTarget + OriginId + Send + fmt::Debug,
         R::Result: Serialize + CargoResult,
     {
         let (req, params, _) = match self.parse::<R>() {

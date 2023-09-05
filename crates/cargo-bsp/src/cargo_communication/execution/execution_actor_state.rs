@@ -9,13 +9,15 @@ use std::collections::HashMap;
 use bsp_types::notifications::TaskId;
 use bsp_types::requests::{Request, Run, Test};
 
-use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
+use crate::cargo_communication::execution::utils::{
+    generate_random_id, generate_task_id, get_current_time,
+};
 
-pub struct RequestActorState {
-    pub(super) root_task_id: TaskId,
-    pub(super) unit_graph_state: UnitGraphState,
-    pub(super) compile_state: CompileState,
-    pub(super) task_state: TaskState,
+pub struct ExecutionActorState {
+    pub(in crate::cargo_communication) root_task_id: TaskId,
+    pub(in crate::cargo_communication) unit_graph_state: UnitGraphState,
+    pub(in crate::cargo_communication) compile_state: CompileState,
+    pub(in crate::cargo_communication) task_state: TaskState,
 }
 
 pub enum TaskState {
@@ -25,45 +27,46 @@ pub enum TaskState {
 }
 
 pub struct UnitGraphState {
-    pub(super) task_id: TaskId,
-    pub(super) total_compilation_steps: Option<i64>,
+    pub(in crate::cargo_communication) task_id: TaskId,
+    pub(in crate::cargo_communication) total_compilation_steps: Option<i64>,
 }
 
 #[derive(Default)]
 pub struct CompileState {
-    pub(super) task_id: TaskId,
-    pub(super) errors: i32,
-    pub(super) warnings: i32,
-    pub(super) compilation_step: Option<i64>,
-    pub(super) target_states: HashMap<BuildTargetIdentifier, CompileTargetState>,
+    pub(in crate::cargo_communication) task_id: TaskId,
+    pub(in crate::cargo_communication) errors: i32,
+    pub(in crate::cargo_communication) warnings: i32,
+    pub(in crate::cargo_communication) compilation_step: Option<i64>,
+    pub(in crate::cargo_communication) target_states:
+        HashMap<BuildTargetIdentifier, CompileTargetState>,
 }
 
 #[derive(Default)]
 pub struct CompileTargetState {
-    pub(super) task_id: TaskId,
-    pub(super) start_time: i64,
+    pub(in crate::cargo_communication) task_id: TaskId,
+    pub(in crate::cargo_communication) start_time: i64,
 }
 
 pub struct RunState {
-    pub(super) task_id: TaskId,
+    pub(in crate::cargo_communication) task_id: TaskId,
 }
 
 #[derive(Default)]
 pub struct TestState {
-    pub(super) task_id: TaskId,
-    pub(super) suite_task_id: TaskId,
-    pub(super) suite_task_progress: SuiteTaskProgress,
+    pub(in crate::cargo_communication) task_id: TaskId,
+    pub(in crate::cargo_communication) suite_task_id: TaskId,
+    pub(in crate::cargo_communication) suite_task_progress: SuiteTaskProgress,
     /// Currently tested build target.
-    pub(super) current_build_target: Option<BuildTargetIdentifier>,
+    pub(in crate::cargo_communication) current_build_target: Option<BuildTargetIdentifier>,
     /// Maps single tests name (by which they are recognized by Cargo) to the TaskId
     /// of the task that they started.
-    pub(super) single_test_task_ids: HashMap<String, TaskId>,
+    pub(in crate::cargo_communication) single_test_task_ids: HashMap<String, TaskId>,
 }
 
 #[derive(Default)]
 pub struct SuiteTaskProgress {
-    pub(super) progress: i64,
-    pub(super) total: i64,
+    pub(in crate::cargo_communication) progress: i64,
+    pub(in crate::cargo_communication) total: i64,
 }
 
 impl CompileState {
@@ -127,16 +130,16 @@ impl TaskState {
     }
 }
 
-impl RequestActorState {
+impl ExecutionActorState {
     pub fn new<R: Request>(
         origin_id: Option<String>,
         build_targets: &[BuildTargetIdentifier],
-    ) -> RequestActorState {
+    ) -> ExecutionActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(generate_random_id()),
             parents: vec![],
         };
-        RequestActorState {
+        ExecutionActorState {
             root_task_id: root_task_id.clone(),
             unit_graph_state: UnitGraphState {
                 task_id: generate_task_id(&root_task_id),

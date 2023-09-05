@@ -1,4 +1,4 @@
-//! Implementation of [`RequestActor`]. Sends responses and notifications back to
+//! Implementation of [`ExecutionActor`]. Sends responses and notifications back to
 //! [`GlobalState`] that sends it back to the client.
 
 use std::io;
@@ -15,20 +15,24 @@ use bsp_types::notifications::{
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateUnitGraphCommand;
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
-use crate::cargo_communication::utils::get_current_time;
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
+use crate::cargo_communication::execution::utils::get_current_time;
 
-impl<R, C> RequestActor<R, C>
+impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand,
+    R::Params: CreateUnitGraphCommand + OriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
-    pub(super) fn send_response(&self, command_result: io::Result<ExitStatus>) {
+    pub(in crate::cargo_communication) fn send_response(
+        &self,
+        command_result: io::Result<ExitStatus>,
+    ) {
         self.send(Message::Response(Response {
             id: self.req_id.clone(),
             result: command_result.as_ref().ok().map(|exit_status| {
@@ -49,7 +53,7 @@ where
         }));
     }
 
-    pub(super) fn send_cancel_response(&self) {
+    pub(in crate::cargo_communication) fn send_cancel_response(&self) {
         self.report_task_finish(
             self.state.root_task_id.clone(),
             StatusCode::Cancelled,
@@ -71,11 +75,11 @@ where
         );
     }
 
-    pub(super) fn report_root_task_start(&self) {
+    pub(in crate::cargo_communication) fn report_root_task_start(&self) {
         self.report_task_start(self.state.root_task_id.clone(), None, None);
     }
 
-    pub(super) fn report_task_start(
+    pub(in crate::cargo_communication) fn report_task_start(
         &self,
         task_id: TaskId,
         message: Option<String>,
@@ -89,7 +93,7 @@ where
         });
     }
 
-    pub(super) fn report_task_progress(
+    pub(in crate::cargo_communication) fn report_task_progress(
         &self,
         task_id: TaskId,
         message: Option<String>,
@@ -108,7 +112,7 @@ where
         });
     }
 
-    pub(super) fn report_task_finish(
+    pub(in crate::cargo_communication) fn report_task_finish(
         &self,
         task_id: TaskId,
         status: StatusCode,
@@ -124,7 +128,7 @@ where
         });
     }
 
-    pub(super) fn log_message(
+    pub(in crate::cargo_communication) fn log_message(
         &self,
         message_type: MessageType,
         message: String,
@@ -139,7 +143,7 @@ where
         });
     }
 
-    pub(super) fn send_notification<T>(&self, notification: T::Params)
+    pub(in crate::cargo_communication) fn send_notification<T>(&self, notification: T::Params)
     where
         T: NotificationTrait,
     {
@@ -152,7 +156,7 @@ where
         );
     }
 
-    pub(super) fn send(&self, msg: Message) {
+    pub(in crate::cargo_communication) fn send(&self, msg: Message) {
         (self.sender)(msg);
     }
 }

@@ -67,3 +67,17 @@ pub enum CargoTargetKind {
     Bench,
     Example,
 }
+
+impl CargoTargetKind {
+    pub fn is_lib(&self) -> bool {
+        matches!(
+            self,
+            CargoTargetKind::Lib
+                | CargoTargetKind::Rlib
+                | CargoTargetKind::Dylib
+                | CargoTargetKind::Cdylib
+                | CargoTargetKind::Staticlib
+                | CargoTargetKind::ProcMacro
+        )
+    }
+}

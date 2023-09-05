@@ -1,6 +1,6 @@
 //! Handles messages from Cargo check command, parsing them and preparing appropriate
 //! response. Also handles information about the finish of Cargo command and
-//! the cancel request from the client. Works as [`RequestActor`] but for `cargo check` command.
+//! the cancel request from the client. Works as [`ExecutionActor`] but for `cargo check` command.
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -18,11 +18,11 @@ use log::warn;
 use serde::Deserialize;
 use serde_json::to_value;
 
-use crate::cargo_communication::cargo_check::cargo_message_to_package_info::{
+use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
+use crate::cargo_communication::check::cargo_message_to_package_info::{
     map_cfg_options, map_env, map_out_dir_url, map_proc_macro_artifact,
 };
-use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
-use crate::cargo_communication::request_actor::CargoHandler;
+use crate::cargo_communication::execution::execution_actor::CargoHandler;
 use bsp_types::extensions::RustWorkspaceResult;
 
 pub(crate) struct CheckActor<C>
@@ -118,7 +118,11 @@ where
         }
     }
 
-    pub(super) fn finish(&mut self, mut result: RustWorkspaceResult, packages: Vec<Package>) {
+    pub(in crate::cargo_communication) fn finish(
+        &mut self,
+        mut result: RustWorkspaceResult,
+        packages: Vec<Package>,
+    ) {
         let packages = result
             .packages
             .into_iter()
@@ -169,7 +173,10 @@ where
         }
     }
 
-    pub(super) fn send_response(&self, command_result: io::Result<RustWorkspaceResult>) {
+    pub(in crate::cargo_communication) fn send_response(
+        &self,
+        command_result: io::Result<RustWorkspaceResult>,
+    ) {
         self.send(
             Response {
                 id: self.req_id.clone(),
