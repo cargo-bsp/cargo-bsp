@@ -624,10 +624,10 @@ mod test {
 
     #[test]
     fn rust_package_origin() {
-        assert_json_snapshot!(RustPackageOrigin::Stdlib, @r###""stdlib""###);
-        assert_json_snapshot!(RustPackageOrigin::Workspace, @r###""workspace""###);
-        assert_json_snapshot!(RustPackageOrigin::Dependency, @r###""dependency""###);
-        assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r###""stdlib-dependency""###);
+        assert_json_snapshot!(RustPackageOrigin::Stdlib, @r#""stdlib""#);
+        assert_json_snapshot!(RustPackageOrigin::Workspace, @r#""workspace""#);
+        assert_json_snapshot!(RustPackageOrigin::Dependency, @r#""dependency""#);
+        assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r#""stdlib-dependency""#);
     }
 
     #[test]

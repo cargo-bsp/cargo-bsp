@@ -8,10 +8,10 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use bsp_types;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::create_command::CreateCommand;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
-use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::create_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};

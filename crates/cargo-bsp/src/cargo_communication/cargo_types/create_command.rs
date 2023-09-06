@@ -254,7 +254,7 @@ mod tests {
         let args: Vec<&OsStr> = cmd.get_args().collect();
         let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();
 
-        assert_debug_snapshot!(args, @r###"
+        assert_debug_snapshot!(args, @r#"
         [
             "check",
             "--message-format=json",
@@ -264,9 +264,9 @@ mod tests {
             "unstable-options",
             "--keep-going",
         ]
-        "###);
+        "#);
         assert_eq!(cwd, Path::new(TEST_ROOT));
-        assert_debug_snapshot!(envs, @r###"
+        assert_debug_snapshot!(envs, @r#"
         [
             (
                 "RUSTC_BOOTSTRAP",
@@ -275,7 +275,7 @@ mod tests {
                 ),
             ),
         ]
-        "###);
+        "#);
     }
 }
 

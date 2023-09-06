@@ -11,7 +11,7 @@ use crate::cargo_communication::check::check_actor::CheckActor;
 use bsp_types::requests::Request;
 
 use crate::cargo_communication::cargo_handle::CargoHandle;
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
+use crate::cargo_communication::cargo_types::create_command::CreateCommand;
 use crate::cargo_communication::cargo_types::event::Event;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::request_handle::RequestHandle;

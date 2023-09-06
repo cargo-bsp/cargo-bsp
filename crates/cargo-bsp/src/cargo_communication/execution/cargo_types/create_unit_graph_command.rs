@@ -1,7 +1,7 @@
 //! CreateUnitGraphCommand trait implementation for the Compile/Run/TestParams. The trait allows creating
 //! commands regardless if it is the compile, run or test request.
 //!
-//! The created commands are unit graph commands, which are the same as requested commands (see [`cargo_command.rs`])
+//! The created commands are unit graph commands, which are the same as requested commands (see [`create_command`])
 //! but with `--unit-graph -Z unstable-options` flags (only available with `+nightly`).
 //! These commands are used to get the number of compilation steps.
 
