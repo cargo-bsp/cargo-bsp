@@ -8,6 +8,7 @@ use lsp_types::DiagnosticSeverity;
 use path_absolutize::*;
 use paths::AbsPath;
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::notifications::{
     CompileReportData, LogMessage, LogMessageParams, MessageType, PublishDiagnostics,
     PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
@@ -26,7 +27,7 @@ use crate::cargo_communication::execution::cargo_types::publish_diagnostics::{
 use crate::cargo_communication::execution::cargo_types::test::{
     SuiteEvent, SuiteResults, TestEvent, TestResult, TestType,
 };
-use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
+use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_actor_state::{SuiteTaskProgress, TaskState};
 use crate::cargo_communication::execution::utils::{
     generate_random_id, generate_task_id, get_current_time,

@@ -20,9 +20,7 @@
 //! We assume that test suites are executed one after another in specific order,
 //! see [`cargo_types/test.rs`].
 
-use std::io;
 use std::path::{Path, PathBuf};
-use std::process::ExitStatus;
 
 use bsp_server::Message;
 use bsp_server::RequestId;
@@ -33,9 +31,10 @@ pub use cargo_metadata::diagnostic::{
 use cargo_metadata::Message as CargoMetadataMessage;
 use crossbeam_channel::{never, select, Receiver};
 use log::warn;
-use mockall::*;
+
 use serde::Deserialize;
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
@@ -205,19 +204,10 @@ where
     }
 }
 
-/// The trait was created for easier mocking in tests. It is implemented only by CargoHandle.
-#[automock]
-pub trait CargoHandler<T> {
-    fn receiver(&self) -> &Receiver<T>;
-
-    fn cancel(self);
-
-    fn join(self) -> io::Result<ExitStatus>;
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::cargo_communication::cargo_handle::MockCargoHandler;
     use crate::cargo_communication::utils::{test_package, test_target, test_target_id};
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
@@ -335,6 +325,7 @@ pub mod tests {
     mod compile_request_tests {
         use super::*;
         use crate::cargo_communication::utils::test_target_id;
+        use std::io;
 
         fn default_compile_params(test_case: TestCase) -> CompileParams {
             let mut targets = vec![test_target_id(TEST_TARGET)];
@@ -1089,6 +1080,7 @@ pub mod tests {
         use bsp_types::requests::{Run, RunParams};
         use cargo_metadata::Message::TextLine;
         use serde_json::to_string;
+        use std::io;
 
         const TEST_STDOUT: &str = "test_stdout";
         const TEST_STDERR: &str = "test_stderr";
@@ -1301,6 +1293,7 @@ pub mod tests {
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
         use serde_json::to_string;
+        use std::io;
 
         const TEST_NAME: &str = "test_name";
 

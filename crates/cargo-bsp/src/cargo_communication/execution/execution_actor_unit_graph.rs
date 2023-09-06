@@ -2,6 +2,7 @@
 //! `--unit-graph` flag. If the command executes successfully, sets the total compilation
 //! steps in [`ExecutionActorState`].
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 use log::warn;
@@ -13,7 +14,7 @@ use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResul
 use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
 use crate::cargo_communication::execution::cargo_types::unit_graph::UnitGraph;
-use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
+use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 
 // There is no Err StatusCode, as even if the unit graph command did not end up
 // successfully, it does not change the execution of the requested command.

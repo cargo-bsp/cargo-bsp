@@ -7,6 +7,7 @@ use std::process::ExitStatus;
 use bsp_server::{ErrorCode, Message, Notification, Response, ResponseError};
 use serde_json::to_value;
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
     TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
@@ -19,7 +20,7 @@ use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::cargo_types::cargo_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
-use crate::cargo_communication::execution::execution_actor::{CargoHandler, ExecutionActor};
+use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::utils::get_current_time;
 
 impl<R, C> ExecutionActor<R, C>

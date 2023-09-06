@@ -18,11 +18,11 @@ use log::warn;
 use serde::Deserialize;
 use serde_json::to_value;
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::check::cargo_message_to_package_info::{
     map_cfg_options, map_env, map_out_dir_url, map_proc_macro_artifact,
 };
-use crate::cargo_communication::execution::execution_actor::CargoHandler;
 use bsp_types::extensions::RustWorkspaceResult;
 
 pub(crate) struct CheckActor<C>
