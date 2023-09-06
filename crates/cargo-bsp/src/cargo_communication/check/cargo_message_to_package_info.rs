@@ -11,14 +11,6 @@ use std::collections::HashMap;
 const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = ["dll", "so", "dylib"];
 const PROC_MACRO: &str = "proc-macro";
 
-#[derive(Default)]
-struct SplitVersion {
-    major: String,
-    minor: String,
-    pre_release: String,
-    patch: String,
-}
-
 pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOptions> {
     script.map(|s| {
         let mut key_value_options: HashMap<String, Vec<String>> = HashMap::new();
@@ -49,26 +41,8 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOpt
     })
 }
 
-fn split_version(version: String) -> SplitVersion {
-    if let Some((major, rest)) = version.split_once('.') {
-        if let Some((minor, rest)) = rest.split_once('.') {
-            let (patch, pre_release) = rest
-                .split_once('-')
-                .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
-                .unwrap_or((rest.to_string(), String::default()));
-            return SplitVersion {
-                major: major.to_string(),
-                minor: minor.to_string(),
-                pre_release,
-                patch,
-            };
-        }
-    }
-    SplitVersion::default()
-}
-
 pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMap<String, String> {
-    let split_version = split_version(package.version.to_string());
+    let version = package.version.clone();
     let mut env: HashMap<String, String> = HashMap::from([
         (
             "CARGO_MANIFEST_DIR",
@@ -80,10 +54,10 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMa
         ),
         ("CARGO", "cargo".to_string()),
         ("CARGO_PKG_VERSION", package.version.to_string()),
-        ("CARGO_PKG_VERSION_MAJOR", split_version.major.clone()),
-        ("CARGO_PKG_VERSION_MINOR", split_version.minor.clone()),
-        ("CARGO_PKG_VERSION_PATCH", split_version.patch.clone()),
-        ("CARGO_PKG_VERSION_PRE", split_version.pre_release),
+        ("CARGO_PKG_VERSION_MAJOR", version.major.to_string()),
+        ("CARGO_PKG_VERSION_MINOR", version.minor.to_string()),
+        ("CARGO_PKG_VERSION_PATCH", version.patch.to_string()),
+        ("CARGO_PKG_VERSION_PRE", version.pre.to_string()),
         ("CARGO_PKG_AUTHORS", package.authors.join(";")),
         ("CARGO_PKG_NAME", package.name.clone()),
         (
