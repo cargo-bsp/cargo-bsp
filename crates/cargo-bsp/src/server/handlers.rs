@@ -90,6 +90,7 @@ pub(crate) fn handle_output_paths(
     Ok(bsp_types::requests::OutputPathsResult::default())
 }
 
+// TODO: Not properly handled yet
 pub(crate) fn handle_workspace_libraries(
     _: GlobalStateSnapshot,
     _: (),
