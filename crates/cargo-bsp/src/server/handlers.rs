@@ -90,6 +90,13 @@ pub(crate) fn handle_output_paths(
     Ok(bsp_types::requests::OutputPathsResult::default())
 }
 
+pub(crate) fn handle_workspace_libraries(
+    _: GlobalStateSnapshot,
+    _: (),
+) -> Result<bsp_types::requests::WorkspaceLibrariesResult> {
+    Ok(bsp_types::requests::WorkspaceLibrariesResult::default())
+}
+
 pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()> {
     global_state.update_workspace_data();
     Ok(())
