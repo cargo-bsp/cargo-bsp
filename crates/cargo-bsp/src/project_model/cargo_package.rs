@@ -151,9 +151,11 @@ impl CargoPackage {
             .collect()
     }
 
-    /// Sets features from list, which exist in the package as new package feature state
+    /// Sets features from list, which exist in the package as new package feature state.
+    /// If `default` feature is not included in the list, default features are disabled.
     pub fn set_features(&mut self, features: &BTreeSet<Feature>) {
         self.enabled_features.clear();
+        self.default_features_disabled = !features.contains(&Feature::from("default"));
         features.iter().for_each(|f| {
             if self.package_features.get(f).is_none() {
                 warn!("Can't enable feature {:?}. It doesn't exist.", f);

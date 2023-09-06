@@ -35,7 +35,7 @@ enum CommandType {
     Run,
 }
 
-const FEATURE_FLAG: &str = "--feature";
+const FEATURE_FLAG: &str = "--features";
 
 pub trait CreateCommand {
     fn origin_id(&self) -> Option<String>;
@@ -237,7 +237,7 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "--feature",
+            "--features",
             "test_feature1",
             "--no-default-features",
             "--message-format=json",
@@ -306,7 +306,7 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "--feature",
+            "--features",
             "test_feature1",
             "--no-default-features",
             "--message-format=json",
