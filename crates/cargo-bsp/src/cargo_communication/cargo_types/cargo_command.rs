@@ -49,7 +49,6 @@ impl CreateCommand for CompileParams {
     fn origin_id(&self) -> Option<String> {
         self.origin_id.clone()
     }
-
     fn create_unit_graph_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         cargo_command_with_unit_graph(CommandType::Build, root, targets_args)
@@ -102,12 +101,17 @@ impl CreateCommand for TestParams {
 
 impl TargetDetails {
     pub fn get_enabled_features_str(&self) -> Option<String> {
-        match self.enabled_features.is_empty() {
+        let only_default_feature_enabled =
+            self.enabled_features.len() == 1 && !self.default_features_disabled();
+        match self.enabled_features.is_empty() || only_default_feature_enabled {
             true => None,
             false => Some(
                 self.enabled_features
                     .iter()
-                    .map(|f| f.0.clone())
+                    .filter_map(|f| match f.0.as_str() {
+                        "default" => None,
+                        _ => Some(f.0.clone()),
+                    })
                     .collect::<Vec<String>>()
                     .join(", "),
             ),
@@ -133,7 +137,7 @@ fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<String> {
                 loc_args.push(FEATURE_FLAG.to_string());
                 loc_args.push(features);
             }
-            if t.default_features_disabled {
+            if t.default_features_disabled() {
                 loc_args.push("--no-default-features".to_string());
             }
             loc_args
@@ -179,6 +183,7 @@ fn cargo_command_with_unit_graph(
 mod tests {
     use super::*;
     use crate::project_model::target_details::CargoTargetKind::Bin;
+    use crate::project_model::DefaultFeature;
     use bsp_types::extensions::Feature;
     use bsp_types::requests::{CompileParams, RunParams, TestParams};
     use insta::assert_debug_snapshot;
@@ -192,22 +197,21 @@ mod tests {
     const TEST_ROOT: &str = "/test_root";
 
     fn default_target_details() -> Vec<TargetDetails> {
-        let test_features: BTreeSet<Feature> =
-            BTreeSet::from([Feature("test_feature1".to_string())]);
         vec![
             TargetDetails {
                 name: TEST_BIN_NAME.to_string(),
                 kind: Bin,
+                package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[0].to_string(),
-                ..Default::default()
+                enabled_features: BTreeSet::from([Feature::default_feature_name()]),
             },
             TargetDetails {
                 name: TEST_LIB_NAME.to_string(),
                 kind: Lib,
                 package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[1].to_string(),
-                default_features_disabled: true,
-                enabled_features: test_features,
+                // No `default` feature, means that default features are disabled
+                enabled_features: BTreeSet::from([Feature("test_feature1".to_string())]),
             },
         ]
     }
@@ -330,16 +334,15 @@ mod feature_tests {
     use std::collections::BTreeSet;
     use test_case::test_case;
 
-    const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
+    const TEST_FEATURES: [&str; 4] = ["f1", "f2", "f3", "default"];
 
     #[test_case(BTreeSet::new(), ""  ;"empty")]
-    #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
-    "test_feature1, test_feature2, test_feature3" ;
+    #[test_case(TEST_FEATURES.iter().map(|&f| Feature::from(f)).collect(),
+    "f1, f2, f3" ;
     "non_empty"
     )]
     fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
         let target_details = TargetDetails {
-            default_features_disabled: false,
             enabled_features,
             ..TargetDetails::default()
         };
