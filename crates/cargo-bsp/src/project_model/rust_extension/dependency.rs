@@ -8,27 +8,23 @@ use bsp_types::extensions::{
 };
 use cargo_metadata::DependencyKind;
 
-fn metadata_dependency_kind_to_string(metadata_dependency_kind: DependencyKind) -> Option<String> {
-    match metadata_dependency_kind {
-        DependencyKind::Build => Some("build".to_string()),
-        DependencyKind::Development => Some("dev".to_string()),
-        // Cargo metadata output defaults to Null, when dependency is normal. Since we want to have
-        // the same behavior as cargo metadata, we return None for normal dependency kind.
-        DependencyKind::Normal => None,
-        _ => None,
-    }
-}
-
 fn package_dependency_to_rust_raw_dependency(
     package_dependency: cargo_metadata::Dependency,
 ) -> RustRawDependency {
+    let kind = match metadata_dep_kind_to_rust_dep_kind(package_dependency.kind) {
+        // Cargo metadata output defaults to Null, when dependency is normal. Since we want here
+        // to have the same behavior as cargo metadata, we return None for normal dependency kind.
+        // Unclassified kind should also return None (Null).
+        RustDepKind::Normal | RustDepKind::Unclassified => None,
+        d => Some(d),
+    };
     RustRawDependency {
         name: package_dependency.name,
         optional: package_dependency.optional,
         uses_default_features: package_dependency.uses_default_features,
         features: package_dependency.features.into_iter().collect(),
         rename: package_dependency.rename,
-        kind: metadata_dependency_kind_to_string(package_dependency.kind),
+        kind,
         target: package_dependency.target.map(|p| p.to_string()),
     }
 }

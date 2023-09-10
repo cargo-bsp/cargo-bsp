@@ -1,3 +1,4 @@
+use crate::extensions::cargo::Feature;
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, RustEdition, Uri};
 use serde::{Deserialize, Serialize};
@@ -45,9 +46,9 @@ pub struct RustRawDependency {
     /** Name to which this dependency is renamed when declared in Cargo.toml. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
-    /** The dependency kind. "dev", "build", or null for a normal dependency. */
+    /** The dependency kind. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub kind: Option<String>,
+    pub kind: Option<RustDepKind>,
     /** The target platform for the dependency. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
@@ -136,20 +137,9 @@ pub enum RustPackageOrigin {
 #[serde(rename_all = "camelCase")]
 pub struct RustFeature {
     /** Name of the feature. */
-    pub name: String,
+    pub name: Feature,
     /** Feature's dependencies. */
-    pub dependencies: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RustCfgOptions {
-    /** `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
-    The `cfg` is split by '=' delimiter and the first half becomes key and
-    the second is aggregated to the value in `keyValueOptions`. */
-    pub key_value_options: HashMap<String, Vec<String>>,
-    /** A sequence of first halves after splitting `cfgs` by '='. */
-    pub name_options: Vec<String>,
+    pub dependencies: Vec<Feature>,
 }
 
 /** A `crate` is the smallest amount of code that the Rust compiler considers at a time.
@@ -182,9 +172,9 @@ pub struct RustPackage {
     /** The source ID of the dependency, `null` for the root package and path dependencies. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    /** Correspond to source files which can be compiled into a crate from this package.
+    /** Corresponds to source files which can be compiled into a crate from this package.
     Contains only resolved targets without conflicts. */
-    pub targets: Vec<RustBuildTarget>,
+    pub resolved_targets: Vec<RustBuildTarget>,
     /** Same as `targets`, but contains all targets from this package.
     `targets` should be the subset of `allTargets`. */
     pub all_targets: Vec<RustBuildTarget>,
@@ -195,9 +185,12 @@ pub struct RustPackage {
     /** Array of features enabled on this package. */
     pub enabled_features: Vec<String>,
     /** Conditional compilation flags that can be set based on certain conditions.
-    They can be used to enable or disable certain sections of code during the build process. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cfg_options: Option<RustCfgOptions>,
+    They can be used to enable or disable certain sections of code during the build process.
+    `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
+    The `cfg` is split by '=' delimiter and the first half becomes key and
+    the second is aggregated to the value in `RustCfgOptions`.
+    For "cfg1" the value is empty. */
+    pub cfg_options: HashMap<String, Vec<String>>,
     /** Environment variables for the package. */
     pub env: HashMap<String, String>,
     /** An absolute path which is used as a value of `OUT_DIR` environmental
@@ -221,18 +214,18 @@ pub struct RustDepKindInfo {
     pub target: Option<String>,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Default)]
-#[repr(u8)]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
 pub enum RustDepKind {
     /** For old Cargo versions prior to `1.41.0`. */
-    Unclassified = 1,
+    Unclassified,
     /** For [dependencies]. */
     #[default]
-    Normal = 2,
+    Normal,
     /** For [dev-dependencies]. */
-    Dev = 3,
+    Dev,
     /** For [build-dependencies]. */
-    Build = 4,
+    Build,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -295,10 +288,11 @@ mod test {
               "version": "",
               "origin": "workspace",
               "edition": "",
-              "targets": [],
+              "resolvedTargets": [],
               "allTargets": [],
               "features": [],
               "enabledFeatures": [],
+              "cfgOptions": {},
               "env": {}
             }
           ],
@@ -340,7 +334,7 @@ mod test {
         let dependency = RustRawDependency {
             name: "test_name".to_string(),
             rename: Some("test_rename".to_string()),
-            kind: Some("test_kind".to_string()),
+            kind: Some(RustDepKind::default()),
             target: Some("test_target".to_string()),
             optional: false,
             uses_default_features: false,
@@ -351,7 +345,7 @@ mod test {
         {
           "name": "test_name",
           "rename": "test_rename",
-          "kind": "test_kind",
+          "kind": "normal",
           "target": "test_target",
           "optional": false,
           "usesDefaultFeatures": false,
@@ -415,8 +409,8 @@ mod test {
     #[test]
     fn rust_feature() {
         let feature = RustFeature {
-            name: "test_name".to_string(),
-            dependencies: vec!["test_feature".to_string()],
+            name: Feature::from("test_name"),
+            dependencies: vec![Feature::from("test_feature")],
         };
 
         assert_json_snapshot!(feature, @r#"
@@ -437,35 +431,6 @@ mod test {
     }
 
     #[test]
-    fn rust_cfg_options() {
-        let cfg_options = RustCfgOptions {
-            key_value_options: HashMap::from([("key".to_string(), vec!["value".to_string()])]),
-            name_options: vec!["name1".to_string(), "name2".to_string()],
-        };
-
-        assert_json_snapshot!(cfg_options, @r#"
-        {
-          "keyValueOptions": {
-            "key": [
-              "value"
-            ]
-          },
-          "nameOptions": [
-            "name1",
-            "name2"
-          ]
-        }
-        "#);
-
-        assert_json_snapshot!(RustCfgOptions::default(), @r#"
-        {
-          "keyValueOptions": {},
-          "nameOptions": []
-        }
-        "#);
-    }
-
-    #[test]
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
@@ -475,11 +440,11 @@ mod test {
             origin: RustPackageOrigin::default(),
             edition: RustEdition::default(),
             source: Some("test_source".to_string()),
-            targets: vec![RustBuildTarget::default()],
+            resolved_targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
             features: vec![RustFeature::default()],
             enabled_features: vec!["test_feature".to_string()],
-            cfg_options: Some(RustCfgOptions::default()),
+            cfg_options: HashMap::from([("test_cfg".to_string(), vec!["test_option".to_string()])]),
             env: HashMap::from([("key".to_string(), "value".to_string())]),
             out_dir_url: Some("test_out_dir_url".to_string()),
             proc_macro_artifact: Some(Uri::default()),
@@ -494,7 +459,7 @@ mod test {
           "origin": "workspace",
           "edition": "",
           "source": "test_source",
-          "targets": [
+          "resolvedTargets": [
             {
               "name": "",
               "crateRootUrl": "",
@@ -526,8 +491,9 @@ mod test {
             "test_feature"
           ],
           "cfgOptions": {
-            "keyValueOptions": {},
-            "nameOptions": []
+            "test_cfg": [
+              "test_option"
+            ]
           },
           "env": {
             "key": "value"
@@ -545,10 +511,11 @@ mod test {
           "version": "",
           "origin": "workspace",
           "edition": "",
-          "targets": [],
+          "resolvedTargets": [],
           "allTargets": [],
           "features": [],
           "enabledFeatures": [],
+          "cfgOptions": {},
           "env": {}
         }
         "#);
@@ -563,14 +530,14 @@ mod test {
 
         assert_json_snapshot!(dep_kind_info, @r#"
         {
-          "kind": 2,
+          "kind": "normal",
           "target": "test_target"
         }
         "#);
 
         assert_json_snapshot!(RustDepKindInfo::default(), @r#"
         {
-          "kind": 2
+          "kind": "normal"
         }
         "#);
     }
@@ -589,7 +556,7 @@ mod test {
           "name": "test_name",
           "depKinds": [
             {
-              "kind": 2
+              "kind": "normal"
             }
           ]
         }
@@ -616,10 +583,10 @@ mod test {
 
     #[test]
     fn rust_dep_kind() {
-        assert_json_snapshot!(RustDepKind::Unclassified, @"1");
-        assert_json_snapshot!(RustDepKind::Normal, @"2");
-        assert_json_snapshot!(RustDepKind::Dev, @"3");
-        assert_json_snapshot!(RustDepKind::Build, @"4");
+        assert_json_snapshot!(RustDepKind::Unclassified, @r#""unclassified""#);
+        assert_json_snapshot!(RustDepKind::Normal, @r#""normal""#);
+        assert_json_snapshot!(RustDepKind::Dev, @r#""dev""#);
+        assert_json_snapshot!(RustDepKind::Build, @r#""build""#);
     }
 
     #[test]

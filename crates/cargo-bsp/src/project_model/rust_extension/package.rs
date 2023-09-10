@@ -49,8 +49,8 @@ fn metadata_features_to_rust_extension_features(
     metadata_features
         .into_iter()
         .map(|(f, deps)| RustFeature {
-            name: f,
-            dependencies: deps,
+            name: Feature(f),
+            dependencies: deps.into_iter().map(Feature).collect(),
         })
         .collect()
 }
@@ -68,7 +68,7 @@ fn metadata_package_to_rust_extension_package(
         source: metadata_package.source.map(|s| s.to_string()),
         features: metadata_features_to_rust_extension_features(metadata_package.features),
         // In our case targets = all_targets. This field is needed for Bazel
-        targets: all_targets.clone(),
+        resolved_targets: all_targets.clone(),
         all_targets,
         // The rest of the fields is resolved later
         ..RustPackage::default()

@@ -2,7 +2,6 @@
 //! RustPackage information.
 
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::RustCfgOptions;
 use bsp_types::Uri;
 use cargo_metadata::{Artifact, BuildScript, Package};
 use std::collections::hash_map::Entry;
@@ -11,10 +10,9 @@ use std::collections::HashMap;
 const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = ["dll", "so", "dylib"];
 const PROC_MACRO: &str = "proc-macro";
 
-pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOptions> {
-    script.map(|s| {
-        let mut key_value_options: HashMap<String, Vec<String>> = HashMap::new();
-        let mut name_options = Vec::new();
+pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> HashMap<String, Vec<String>> {
+    script.map_or(HashMap::new(), |s| {
+        let mut cfg_options: HashMap<String, Vec<String>> = HashMap::new();
 
         s.cfgs.iter().for_each(|cfg| {
             let mut parts = cfg.splitn(2, '=');
@@ -23,21 +21,18 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> Option<RustCfgOpt
 
             if let Some(k) = key {
                 if let Some(v) = value {
-                    if let Entry::Vacant(e) = key_value_options.entry(k.to_string()) {
+                    if let Entry::Vacant(e) = cfg_options.entry(k.to_string()) {
                         e.insert(vec![v]);
                     } else {
-                        key_value_options.get_mut(k).unwrap().push(v);
+                        cfg_options.get_mut(k).unwrap().push(v);
                     }
                 } else {
-                    name_options.push(k.to_string());
+                    cfg_options.insert(k.to_string(), vec![]);
                 }
             }
         });
 
-        RustCfgOptions {
-            key_value_options,
-            name_options,
-        }
+        cfg_options
     })
 }
 

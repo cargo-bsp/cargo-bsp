@@ -29,7 +29,8 @@ pub struct RustToolchainResult {
 #[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainItem {
-    /** Additional information about Rust toolchain. */
+    /** Additional information about Rust toolchain.
+    Obtained from `rustc`. */
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
     /** Path to Cargo executable. */
@@ -48,7 +49,8 @@ pub struct RustcInfo {
     pub src_sysroot_path: String,
     /** `rustc` SemVer (Semantic Versioning) version. */
     pub version: String,
-    /** Target architecture and operating system of the Rust compiler. */
+    /** Target architecture and operating system of the Rust compiler.
+    Used by [`intellij-rust`] for checking if given toolchain is supported. */
     pub host: String,
 }
 
