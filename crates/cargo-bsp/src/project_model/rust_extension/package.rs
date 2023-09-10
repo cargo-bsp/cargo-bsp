@@ -102,7 +102,9 @@ pub fn get_rust_packages_related_to_targets(
                 .clone();
             let mut rust_package = metadata_package_to_rust_extension_package(package);
             resolve_origin(&mut rust_package, workspace);
-            set_and_resolve_enabled_features(workspace, &mut rust_package, &nodes);
+            if workspace.is_package_part_of_workspace(rust_package.id.as_str()) {
+                set_and_resolve_enabled_features(workspace, &mut rust_package, &nodes);
+            }
             rust_package
         })
         .collect()
