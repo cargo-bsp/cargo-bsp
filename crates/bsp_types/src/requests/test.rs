@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, StatusCode};
 
 #[derive(Debug)]
 pub enum Test {}
@@ -46,7 +46,7 @@ pub struct TestResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: i32,
+    pub status_code: StatusCode,
 
     /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,7 +93,7 @@ mod tests {
     fn test_result() {
         let test_data = TestResult {
             origin_id: Some("test_originId".to_string()),
-            status_code: i32::default(),
+            status_code: StatusCode::default(),
             data_kind: Some("test_dataKind".to_string()),
             data: Some(serde_json::json!({"dataKey": "dataValue"})),
         };
@@ -102,7 +102,7 @@ mod tests {
             @r#"
         {
           "originId": "test_originId",
-          "statusCode": 0,
+          "statusCode": 2,
           "dataKind": "test_dataKind",
           "data": {
             "dataKey": "dataValue"
@@ -113,7 +113,7 @@ mod tests {
         assert_json_snapshot!(TestResult::default(),
             @r#"
         {
-          "statusCode": 0
+          "statusCode": 2
         }
         "#
         );

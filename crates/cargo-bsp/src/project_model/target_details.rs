@@ -57,12 +57,31 @@ impl TargetDetails {
 #[derive(
     Debug, Deserialize_enum_str, Serialize_enum_str, Default, Clone, Ord, PartialOrd, Eq, PartialEq,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum CargoTargetKind {
     #[default]
     Lib,
+    Rlib,
+    Dylib,
+    Cdylib,
+    Staticlib,
+    ProcMacro,
     Bin,
     Test,
     Bench,
     Example,
+}
+
+impl CargoTargetKind {
+    pub fn is_lib(&self) -> bool {
+        matches!(
+            self,
+            CargoTargetKind::Lib
+                | CargoTargetKind::Rlib
+                | CargoTargetKind::Dylib
+                | CargoTargetKind::Cdylib
+                | CargoTargetKind::Staticlib
+                | CargoTargetKind::ProcMacro
+        )
+    }
 }

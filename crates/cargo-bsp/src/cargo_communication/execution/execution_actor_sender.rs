@@ -1,4 +1,4 @@
-//! Implementation of [`RequestActor`]. Sends responses and notifications back to
+//! Implementation of [`ExecutionActor`]. Sends responses and notifications back to
 //! [`GlobalState`] that sends it back to the client.
 
 use std::io;
@@ -7,6 +7,7 @@ use std::process::ExitStatus;
 use bsp_server::{ErrorCode, Message, Notification, Response, ResponseError};
 use serde_json::to_value;
 
+use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::notifications::{
     LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
     TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
@@ -15,16 +16,17 @@ use bsp_types::notifications::{
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 
-use crate::cargo_communication::cargo_types::cargo_command::CreateCommand;
-use crate::cargo_communication::cargo_types::cargo_result::CargoResult;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::{CargoHandler, RequestActor};
-use crate::cargo_communication::utils::get_current_time;
+use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::cargo_types::create_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_actor::ExecutionActor;
+use crate::cargo_communication::execution::utils::get_current_time;
 
-impl<R, C> RequestActor<R, C>
+impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateCommand,
+    R::Params: CreateUnitGraphCommand + OriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -34,8 +36,10 @@ where
             result: command_result.as_ref().ok().map(|exit_status| {
                 to_value(R::Result::create_result(
                     self.params.origin_id(),
-                    // If there is no exit code, process terminated by signal
-                    exit_status.code().unwrap_or(143),
+                    match exit_status.code() {
+                        Some(0) => StatusCode::Ok,
+                        _ => StatusCode::Error,
+                    },
                 ))
                 .unwrap()
             }),
