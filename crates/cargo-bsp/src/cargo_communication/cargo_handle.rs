@@ -17,10 +17,10 @@ pub use cargo_metadata::diagnostic::{
 use command_group::{CommandGroup, GroupChild};
 use crossbeam_channel::{unbounded, Receiver};
 use log::info;
+use mockall::automock;
 
 use crate::cargo_communication::cargo_actor::CargoActor;
 use crate::cargo_communication::cargo_types::event::CargoMessage;
-use crate::cargo_communication::request_actor::CargoHandler;
 
 pub struct CargoHandle {
     /// The handle to the actual cargo process. As we cannot cancel directly from with
@@ -59,7 +59,7 @@ impl CargoHandler<CargoMessage> for CargoHandle {
 }
 
 impl CargoHandle {
-    pub fn spawn(mut command: Command) -> io::Result<CargoHandle> {
+    pub fn spawn(command: &mut Command) -> io::Result<CargoHandle> {
         info!("Created command: {:?}", command);
         command
             .stdout(Stdio::piped())
@@ -79,4 +79,14 @@ impl CargoHandle {
             receiver,
         })
     }
+}
+
+/// The trait was created for easier mocking in tests. It is implemented only by CargoHandle.
+#[automock]
+pub trait CargoHandler<T> {
+    fn receiver(&self) -> &Receiver<T>;
+
+    fn cancel(self);
+
+    fn join(self) -> io::Result<ExitStatus>;
 }

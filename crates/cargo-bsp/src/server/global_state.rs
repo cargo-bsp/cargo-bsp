@@ -33,7 +33,7 @@ pub(crate) struct GlobalState {
 
 /// Snapshot of server state for request handlers.
 /// At this point, the server is not concurrent (except for the Compile/Run/Test requests),
-/// so the data in this snapshot doesn't hneed to be thread-safe and can be normal references.
+/// so the data in this snapshot doesn't need to be thread-safe and can be normal references.
 /// Prior to the 2023-09-01 commit, these fields were `Arc`s for future planned concurrency support.
 /// Since there are no actual plans to develop this server further, we've decided to drop these
 /// `Arc`s to simplify the code and fix the problem with ProjectWorkspace not being thread-safe.

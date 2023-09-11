@@ -3,18 +3,17 @@
 
 use log::warn;
 
-use bsp_types;
-
+use crate::project_model::rust_extension::get_rust_toolchains;
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
 
 pub(crate) fn handle_workspace_build_targets(
-    global_state: GlobalStateSnapshot,
+    state: GlobalStateSnapshot,
     _: (),
 ) -> Result<bsp_types::requests::WorkspaceBuildTargetsResult> {
     Ok(bsp_types::requests::WorkspaceBuildTargetsResult {
-        targets: global_state.workspace.get_bsp_build_targets(),
+        targets: state.workspace.get_bsp_build_targets(),
     })
 }
 
@@ -95,7 +94,7 @@ pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()>
     Ok(())
 }
 
-// Cargo Extension handlers
+// BSP Cargo Extension handlers
 
 pub(crate) fn handle_set_cargo_features(
     state: &mut GlobalState,
@@ -114,4 +113,15 @@ pub(crate) fn handle_cargo_features_state(
     let packages_features = state.workspace.get_cargo_features_state();
 
     Ok(bsp_types::extensions::CargoFeaturesStateResult { packages_features })
+}
+
+// BSP Rust extension handlers
+
+pub(crate) fn handle_rust_toolchain(
+    state: GlobalStateSnapshot,
+    params: bsp_types::extensions::RustToolchainParams,
+) -> Result<bsp_types::extensions::RustToolchainResult> {
+    Ok(bsp_types::extensions::RustToolchainResult {
+        toolchains: get_rust_toolchains(state.workspace, params.targets),
+    })
 }
