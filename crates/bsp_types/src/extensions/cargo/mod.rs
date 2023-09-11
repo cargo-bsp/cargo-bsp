@@ -9,7 +9,7 @@ pub use set_cargo_features_state::*;
 
 mod cargo_features_state;
 mod set_cargo_features_state;
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct Feature(pub String);
 
 /// Hashmap where key is a feature name and the value are names of other features it enables.

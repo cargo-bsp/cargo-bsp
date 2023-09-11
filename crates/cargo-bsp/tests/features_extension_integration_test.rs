@@ -2,7 +2,10 @@
 //! when adding extra tests remember to execute them sequentially.
 
 use bsp_server::Response;
-use bsp_types::extensions::*;
+use bsp_types::extensions::{
+    CargoFeaturesState, CargoFeaturesStateResult, Feature, FeaturesDependencyGraph,
+    PackageFeatures, SetCargoFeatures, SetCargoFeaturesParams, SetCargoFeaturesResult,
+};
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};

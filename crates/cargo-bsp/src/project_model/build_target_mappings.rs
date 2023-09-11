@@ -1,4 +1,4 @@
-//! Maps Cargo target to the BSP build target.
+//! Maps Cargo metadata target to the BSP build target.
 
 use std::fmt::Display;
 use std::rc::Rc;
@@ -6,6 +6,7 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::warn;
 
+use crate::project_model::metadata_edition_to_bsp_edition;
 use bsp_types::basic_bsp_structures::*;
 
 use crate::utils::uri::file_uri;
@@ -44,7 +45,7 @@ fn tags_and_capabilities_from_cargo_kind(
         .kind
         .iter()
         .for_each(|kind| match kind.as_str() {
-            "lib" => {
+            "lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro" => {
                 tags.push(BuildTargetTag::Library);
                 capabilities.can_debug = false;
                 capabilities.can_run = false;
@@ -65,7 +66,8 @@ fn tags_and_capabilities_from_cargo_kind(
                 capabilities.can_run = false;
             }
             "custom-build" => {
-                todo!("Custom-build target is unsupported by BSP server yet.");
+                //TODO
+                warn!("Found Custom-Build target, which is unsupported by BSP server yet.")
             }
             _ => {
                 warn!("Unknown cargo target kind: {}", kind);
@@ -81,7 +83,7 @@ pub fn bsp_build_target_from_cargo_target(
     let (tags, capabilities) = tags_and_capabilities_from_cargo_kind(cargo_target);
 
     let rust_specific_data = BuildTargetData::Cargo(CargoBuildTarget {
-        edition: RustEdition::new(cargo_target.edition.as_str()),
+        edition: metadata_edition_to_bsp_edition(cargo_target.edition),
         required_features: cargo_target.required_features.clone(),
     });
 
