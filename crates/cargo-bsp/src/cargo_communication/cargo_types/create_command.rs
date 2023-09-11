@@ -103,6 +103,7 @@ fn create_requested_command(
 mod tests {
     use super::*;
     use crate::project_model::target_details::CargoTargetKind::{Bin, Lib};
+    use crate::project_model::DefaultFeature;
     use bsp_types::extensions::Feature;
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;

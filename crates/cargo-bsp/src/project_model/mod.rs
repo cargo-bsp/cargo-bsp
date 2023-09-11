@@ -1,7 +1,7 @@
 //! [`ProjectModel`] obtains and stores information about the Rust project.
 
-use bsp_types::extensions::Feature;
 use bsp_types::basic_bsp_structures::RustEdition;
+use bsp_types::extensions::Feature;
 use cargo_metadata::Edition;
 
 mod _unit_tests_discovery;
