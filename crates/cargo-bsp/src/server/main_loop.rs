@@ -123,6 +123,9 @@ impl GlobalState {
             .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
             .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
             .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
+            .on_sync::<bsp_types::requests::WorkspaceLibraries>(
+                handlers::handle_workspace_libraries,
+            )
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )

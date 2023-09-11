@@ -165,7 +165,8 @@ impl ProjectWorkspace {
             .collect()
     }
 
-    /// Changes features state for a given package with a given closure
+    /// Sets given set of features as a new features state for a given package.
+    /// When default is not included in the set, default features are disabled
     pub fn set_features_for_the_package(
         &mut self,
         package_id: String,

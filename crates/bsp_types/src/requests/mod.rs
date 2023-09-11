@@ -9,7 +9,6 @@ pub use dependency_modules::*;
 pub use dependency_sources::*;
 pub use initialize::*;
 pub use inverse_sources::*;
-pub use java_extension::*;
 pub use output_paths::*;
 pub use reload::*;
 pub use resources::*;
@@ -17,6 +16,7 @@ pub use run::*;
 pub use shutdown_build::*;
 pub use test::*;
 pub use workspace_build_targets::*;
+pub use workspace_libraries::*;
 
 mod build_target_sources;
 mod clean_cache;
@@ -26,7 +26,6 @@ mod dependency_modules;
 mod dependency_sources;
 mod initialize;
 mod inverse_sources;
-mod java_extension;
 mod output_paths;
 mod reload;
 mod resources;
@@ -34,6 +33,7 @@ mod run;
 mod shutdown_build;
 mod test;
 mod workspace_build_targets;
+mod workspace_libraries;
 
 pub trait Request {
     type Params: DeserializeOwned + Serialize;
