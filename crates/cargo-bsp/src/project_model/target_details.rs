@@ -9,6 +9,7 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 use crate::project_model::build_target_mappings::parent_path;
 use crate::project_model::cargo_package::CargoPackage;
+use crate::project_model::DefaultFeature;
 
 /// The order resembles Cargo's target structure.
 /// Specifically, package_name, kind and name are in the same order as it is in Cargo.
@@ -19,7 +20,6 @@ pub struct TargetDetails {
     pub kind: CargoTargetKind,
     pub name: String,
     pub package_abs_path: Utf8PathBuf,
-    pub default_features_disabled: bool,
     pub enabled_features: BTreeSet<Feature>,
 }
 
@@ -30,11 +30,9 @@ impl TargetDetails {
             kind: TargetDetails::get_kind(target_data)?,
             name: target_data.name.clone(),
             package_abs_path: parent_path(&package.manifest_path),
-            default_features_disabled: package.default_features_disabled,
             enabled_features: package.enabled_features.clone(),
         })
     }
-
     fn get_kind(target_data: &cargo_metadata::Target) -> Option<CargoTargetKind> {
         target_data
             .kind
@@ -45,6 +43,12 @@ impl TargetDetails {
             })?
             .parse()
             .ok()
+    }
+
+    pub fn default_features_disabled(&self) -> bool {
+        !self
+            .enabled_features
+            .contains(&Feature::default_feature_name())
     }
 }
 

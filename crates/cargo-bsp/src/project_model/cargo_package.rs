@@ -15,6 +15,7 @@ use crate::project_model::build_target_mappings::{
     bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
 };
 use crate::project_model::package_dependency::PackageDependency;
+use crate::project_model::DefaultFeature;
 
 #[derive(Default, Debug, Clone)]
 pub struct CargoPackage {
@@ -34,12 +35,8 @@ pub struct CargoPackage {
     pub targets: Vec<Rc<cargo_metadata::Target>>,
 
     /// List of enabled (by BSP client) features. Only top-level features are included.
-    /// Does not include default features
+    /// If `default` feature is not included, default features are disabled.
     pub enabled_features: BTreeSet<Feature>,
-
-    /// If true, default features are disabled. Does not apply when default features
-    /// are not defined in package's manifest
-    pub default_features_disabled: bool,
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
     /// Includes pair for default features if default is defined
@@ -51,12 +48,18 @@ impl CargoPackage {
         metadata_package: &cargo_metadata::Package,
         all_packages: &[cargo_metadata::Package],
     ) -> Self {
-        let package_features = metadata_package
+        let package_features: FeaturesDependencyGraph = metadata_package
             .features
             .clone()
             .into_iter()
             .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
             .collect();
+
+        let mut enabled_features = BTreeSet::new();
+        // Add `default` to enabled features set if `default` feature is defined
+        if package_features.contains_key(&Feature::default_feature_name()) {
+            enabled_features.insert(Feature::default_feature_name());
+        }
 
         Self {
             name: metadata_package.name.clone(),
@@ -72,8 +75,7 @@ impl CargoPackage {
                 .cloned()
                 .map(Rc::new)
                 .collect(),
-            enabled_features: BTreeSet::new(),
-            default_features_disabled: false,
+            enabled_features,
             package_features,
         }
     }
@@ -102,9 +104,6 @@ impl CargoPackage {
 
         let mut next_features: VecDeque<Feature> =
             VecDeque::from_iter(self.enabled_features.clone());
-        if !self.default_features_disabled && self.is_defined_feature(&Feature::from("default")) {
-            next_features.push_back(Feature::from("default"));
-        }
 
         let mut checked_features: HashSet<Feature> = HashSet::from_iter(next_features.clone());
 
@@ -151,7 +150,8 @@ impl CargoPackage {
             .collect()
     }
 
-    /// Sets features from list, which exist in the package as new package feature state
+    /// Sets features from list, which exist in the package as new package feature state.
+    /// If `default` feature is not included in the list, default features are disabled.
     pub fn set_features(&mut self, features: &BTreeSet<Feature>) {
         self.enabled_features.clear();
         features.iter().for_each(|f| {
@@ -309,6 +309,8 @@ mod tests {
     }
 
     mod test_is_dependency_enabled {
+        use crate::project_model::DefaultFeature;
+        use bsp_types::extensions::Feature;
         use ntest::timeout;
         use test_case::test_case;
 
@@ -357,7 +359,11 @@ mod tests {
                 package_features_slice,
                 Some(enabled_features_slice),
             );
-            test_package.default_features_disabled = default_features == DefaultFeatures::Disabled;
+            if default_features == DefaultFeatures::Enabled {
+                test_package
+                    .enabled_features
+                    .insert(Feature::default_feature_name());
+            };
 
             let expected = dependency_state == DependencyState::Enabled;
             assert_eq!(expected, test_package.is_dependency_enabled(&dependency));

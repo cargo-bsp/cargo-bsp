@@ -103,6 +103,7 @@ fn create_requested_command(
 mod tests {
     use super::*;
     use crate::project_model::target_details::CargoTargetKind::{Bin, Lib};
+    use crate::project_model::DefaultFeature;
     use bsp_types::extensions::Feature;
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;
@@ -115,22 +116,21 @@ mod tests {
     const TEST_ROOT: &str = "/test_root";
 
     fn default_target_details() -> Vec<TargetDetails> {
-        let test_features: BTreeSet<Feature> =
-            BTreeSet::from([Feature("test_feature1".to_string())]);
         vec![
             TargetDetails {
                 name: TEST_BIN_NAME.to_string(),
                 kind: Bin,
+                package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[0].to_string(),
-                ..Default::default()
+                enabled_features: BTreeSet::from([Feature::default_feature_name()]),
             },
             TargetDetails {
                 name: TEST_LIB_NAME.to_string(),
                 kind: Lib,
                 package_abs_path: Default::default(),
                 package_name: TEST_PACKAGE_NAMES[1].to_string(),
-                default_features_disabled: true,
-                enabled_features: test_features,
+                // No `default` feature, means that default features are disabled
+                enabled_features: BTreeSet::from([Feature("test_feature1".to_string())]),
             },
         ]
     }
@@ -160,7 +160,7 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "--feature",
+            "--features",
             "test_feature1",
             "--no-default-features",
             "--message-format=json",
@@ -229,7 +229,7 @@ mod tests {
             "--package",
             "test_package2",
             "--lib",
-            "--feature",
+            "--features",
             "test_feature1",
             "--no-default-features",
             "--message-format=json",
@@ -286,16 +286,15 @@ mod feature_tests {
     use std::collections::BTreeSet;
     use test_case::test_case;
 
-    const TEST_FEATURES: [&str; 3] = ["test_feature1", "test_feature2", "test_feature3"];
+    const TEST_FEATURES: [&str; 4] = ["f1", "f2", "f3", "default"];
 
     #[test_case(BTreeSet::new(), ""  ;"empty")]
-    #[test_case(TEST_FEATURES.iter().map(|f| Feature(f.to_string())).collect(),
-    "test_feature1, test_feature2, test_feature3" ;
+    #[test_case(TEST_FEATURES.iter().map(|&f| Feature::from(f)).collect(),
+    "f1, f2, f3" ;
     "non_empty"
     )]
     fn test_get_enabled_features_string(enabled_features: BTreeSet<Feature>, expected: &str) {
         let target_details = TargetDetails {
-            default_features_disabled: false,
             enabled_features,
             ..TargetDetails::default()
         };

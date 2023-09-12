@@ -12,16 +12,21 @@ pub(crate) enum CommandType {
     Check,
 }
 
-const FEATURE_FLAG: &str = "--feature";
+const FEATURE_FLAG: &str = "--features";
 
 impl TargetDetails {
     pub fn get_enabled_features_str(&self) -> Option<String> {
-        match self.enabled_features.is_empty() {
+        let only_default_feature_enabled =
+            self.enabled_features.len() == 1 && !self.default_features_disabled();
+        match self.enabled_features.is_empty() || only_default_feature_enabled {
             true => None,
             false => Some(
                 self.enabled_features
                     .iter()
-                    .map(|f| f.0.clone())
+                    .filter_map(|f| match f.0.as_str() {
+                        "default" => None,
+                        _ => Some(f.0.clone()),
+                    })
                     .collect::<Vec<String>>()
                     .join(", "),
             ),
@@ -47,7 +52,7 @@ pub(crate) fn targets_details_to_args(targets_details: &[TargetDetails]) -> Vec<
                 loc_args.push(FEATURE_FLAG.to_string());
                 loc_args.push(features);
             }
-            if t.default_features_disabled {
+            if t.default_features_disabled() {
                 loc_args.push("--no-default-features".to_string());
             }
             loc_args
