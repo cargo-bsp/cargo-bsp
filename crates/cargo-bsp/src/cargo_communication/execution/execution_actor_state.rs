@@ -9,9 +9,11 @@ use std::collections::HashMap;
 use bsp_types::notifications::TaskId;
 use bsp_types::requests::{BuildTargetRun, BuildTargetTest, Request};
 
-use crate::cargo_communication::utils::{generate_random_id, generate_task_id, get_current_time};
+use crate::cargo_communication::execution::utils::{
+    generate_random_id, generate_task_id, get_current_time,
+};
 
-pub struct RequestActorState {
+pub struct ExecutionActorState {
     pub(super) root_task_id: TaskId,
     pub(super) unit_graph_state: UnitGraphState,
     pub(super) compile_state: CompileState,
@@ -127,16 +129,16 @@ impl TaskState {
     }
 }
 
-impl RequestActorState {
+impl ExecutionActorState {
     pub fn new<R: Request>(
         origin_id: Option<String>,
         build_targets: &[BuildTargetIdentifier],
-    ) -> RequestActorState {
+    ) -> ExecutionActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(generate_random_id()),
             parents: vec![],
         };
-        RequestActorState {
+        ExecutionActorState {
             root_task_id: root_task_id.clone(),
             unit_graph_state: UnitGraphState {
                 task_id: generate_task_id(&root_task_id),

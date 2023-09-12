@@ -129,12 +129,17 @@ impl GlobalState {
                 handlers::handle_inverse_sources,
             )
             .on_sync::<bsp_types::requests::BuildTargetOutputPaths>(handlers::handle_output_paths)
+            .on_sync::<bsp_types::requests::WorkspaceLibraries>(
+                handlers::handle_workspace_libraries,
+            )
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
             .on_cargo_run::<bsp_types::requests::BuildTargetCompile>()
             .on_cargo_run::<bsp_types::requests::BuildTargetRun>()
             .on_cargo_run::<bsp_types::requests::BuildTargetTest>()
+            .on_sync::<bsp_types::extensions::RustToolchain>(handlers::handle_rust_toolchain)
+            .on_cargo_check_run::<bsp_types::extensions::RustWorkspace>()
             .finish();
     }
 

@@ -14,6 +14,10 @@ The server supports the following actions:
 - testing a project,
 - reloading a project.
 
+Server is compatible with Cargo version 1.70.0 and requires nightly channel.
+
+Server implements Rust extension needed for connecting with [intellij-rust fork](https://github.com/ZPP-This-is-fine/intellij-rust).
+
 ## Repository structure
 
 The repository is split into two crates: ```bsp-types``` and ```cargo-bsp```.

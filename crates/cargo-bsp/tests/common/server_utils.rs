@@ -14,7 +14,7 @@ pub fn init_connection(cl: &mut Client) {
     cl.send(&to_string(&test_init_req(&init_params, test_id)).unwrap());
 
     allow_duplicates! {
-        assert_snapshot!(cl.recv_resp(), @r#"{"jsonrpc":"2.0","id":123,"result":{"bspVersion":"2.1.0","capabilities":{"buildTargetChangedProvider":false,"canReload":true,"cargoFeaturesProvider":true,"compileProvider":{"languageIds":[]},"dependencyModulesProvider":false,"dependencySourcesProvider":false,"inverseSourcesProvider":false,"jvmRunEnvironmentProvider":false,"jvmTestEnvironmentProvider":false,"outputPathsProvider":false,"resourcesProvider":false,"runProvider":{"languageIds":[]},"testProvider":{"languageIds":[]}},"displayName":"test","version":"0.0.1"}}"#);
+        assert_snapshot!(cl.recv_resp(), @r#"{"jsonrpc":"2.0","id":123,"result":{"bspVersion":"2.1.0","capabilities":{"buildTargetChangedProvider":false,"canReload":true,"compileProvider":{"languageIds":[]},"dependencyModulesProvider":false,"dependencySourcesProvider":false,"inverseSourcesProvider":false,"jvmRunEnvironmentProvider":false,"jvmTestEnvironmentProvider":false,"outputPathsProvider":false,"resourcesProvider":false,"runProvider":{"languageIds":[]},"testProvider":{"languageIds":[]}},"displayName":"test","version":"0.0.1"}}"#);
     }
 
     cl.send(&to_string(&test_init_notif()).unwrap());

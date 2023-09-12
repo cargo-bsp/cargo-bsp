@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, OtherData};
+use crate::{BuildTargetIdentifier, OtherData, StatusCode};
 
 /*
 NOTE THAT:
@@ -42,7 +42,7 @@ pub struct CompileResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: i32,
+    pub status_code: StatusCode,
 
     /** A field containing language-specific information, like products
     of compilation or compiler-specific metadata the client needs to know. */
@@ -96,7 +96,7 @@ mod tests {
     fn compile_result() {
         let test_data = CompileResult {
             origin_id: Some("test_message".to_string()),
-            status_code: i32::default(),
+            status_code: StatusCode::default(),
             data: Some(CompileResultData::Other(OtherData {
                 data_kind: "test_dataKind".to_string(),
                 data: serde_json::json!({"dataKey": "dataValue"}),
@@ -107,7 +107,7 @@ mod tests {
             @r#"
         {
           "originId": "test_message",
-          "statusCode": 0,
+          "statusCode": 2,
           "dataKind": "test_dataKind",
           "data": {
             "dataKey": "dataValue"
@@ -118,7 +118,7 @@ mod tests {
         assert_json_snapshot!(CompileResult::default(),
             @r#"
         {
-          "statusCode": 0
+          "statusCode": 2
         }
         "#
         );

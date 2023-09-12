@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, OtherData};
+use crate::{BuildTargetIdentifier, OtherData, StatusCode};
 
 #[derive(Debug)]
 pub enum BuildTargetRun {}
@@ -54,7 +54,7 @@ pub struct RunResult {
     pub origin_id: Option<String>,
 
     /** A status code for the execution. */
-    pub status_code: i32,
+    pub status_code: StatusCode,
 }
 
 #[cfg(test)]
@@ -94,21 +94,21 @@ mod tests {
     fn run_result() {
         let test_data = RunResult {
             origin_id: Some("test_originId".to_string()),
-            status_code: i32::default(),
+            status_code: StatusCode::default(),
         };
 
         assert_json_snapshot!(test_data,
             @r#"
         {
           "originId": "test_originId",
-          "statusCode": 0
+          "statusCode": 2
         }
         "#
         );
         assert_json_snapshot!(RunResult::default(),
             @r#"
         {
-          "statusCode": 0
+          "statusCode": 2
         }
         "#
         );
