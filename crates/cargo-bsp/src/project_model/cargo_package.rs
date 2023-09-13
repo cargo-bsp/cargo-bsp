@@ -2,13 +2,13 @@
 //! available and enabled features (relevant for the Cargo extension for BSP,
 //! which allows toggling the features, not yet added to the BSP documentation).
 
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::extensions::{Feature, FeaturesDependencyGraph, PackageFeatures};
+use bsp_types::extensions::{Feature, FeatureDependencyGraph, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
@@ -40,7 +40,7 @@ pub struct CargoPackage {
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
     /// Includes pair for default features if default is defined
-    pub package_features: FeaturesDependencyGraph,
+    pub package_features: FeatureDependencyGraph,
 }
 
 impl CargoPackage {
@@ -48,12 +48,13 @@ impl CargoPackage {
         metadata_package: &cargo_metadata::Package,
         all_packages: &[cargo_metadata::Package],
     ) -> Self {
-        let package_features: FeaturesDependencyGraph = metadata_package
+        let package_features: FeatureDependencyGraph = metadata_package
             .features
             .clone()
             .into_iter()
             .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
-            .collect();
+            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
+            .into();
 
         let mut enabled_features = BTreeSet::new();
         // Add `default` to enabled features set if `default` feature is defined
@@ -199,7 +200,7 @@ mod tests {
         slices.iter().map(|&f| Feature::from(f)).collect()
     }
 
-    fn create_package_features(slice_map: &[(&str, &[&str])]) -> BTreeMap<Feature, Vec<Feature>> {
+    fn create_package_features(slice_map: &[(&str, &[&str])]) -> FeatureDependencyGraph {
         slice_map
             .iter()
             .map(|&(k, v)| {
@@ -208,7 +209,8 @@ mod tests {
                     v.iter().map(|&s| Feature::from(s)).collect(),
                 )
             })
-            .collect()
+            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
+            .into()
     }
 
     fn default_cargo_package_with_features(

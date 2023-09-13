@@ -9,7 +9,7 @@ use log::warn;
 use crate::project_model::metadata_edition_to_bsp_edition;
 use crate::project_model::RUST_ID;
 use bsp_types::basic_bsp_structures::*;
-use bsp_types::extensions::CargoBuildTarget;
+use bsp_types::extensions::{CargoBuildTarget, Feature};
 
 use crate::utils::uri::file_uri;
 
@@ -86,7 +86,11 @@ pub fn bsp_build_target_from_cargo_target(
 
     let rust_specific_data = BuildTargetData::cargo(CargoBuildTarget {
         edition: metadata_edition_to_bsp_edition(cargo_target.edition),
-        required_features: cargo_target.required_features.clone(),
+        required_features: cargo_target
+            .required_features
+            .iter()
+            .map(|f| Feature::from(f.as_str()))
+            .collect(),
     });
 
     BuildTarget {

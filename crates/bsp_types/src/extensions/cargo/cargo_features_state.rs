@@ -1,5 +1,5 @@
 use super::Feature;
-use crate::extensions::FeaturesDependencyGraph;
+use crate::extensions::FeatureDependencyGraph;
 use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -9,6 +9,9 @@ use crate::requests::Request;
 #[derive(Debug)]
 pub enum CargoFeaturesState {}
 
+/// The cargo features state request is sent from the client to the server to
+/// query for the current state of the Cargo features. Provides also mapping
+/// between Cargo packages and build target identifiers.
 impl Request for CargoFeaturesState {
     type Params = ();
     type Result = CargoFeaturesStateResult;
@@ -18,16 +21,22 @@ impl Request for CargoFeaturesState {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CargoFeaturesStateResult {
+    /// The list of Cargo packages with assigned to them target
+    /// identifiers and available features.
     pub packages_features: Vec<PackageFeatures>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageFeatures {
+    /// The Cargo package identifier.
     pub package_id: String,
+    /// The list of build target identifiers assigned to the Cargo package.
     pub targets: Vec<BuildTargetIdentifier>,
+    /// The list of available features for the Cargo package.
+    pub available_features: FeatureDependencyGraph,
+    /// The list of enabled features for the Cargo package.
     pub enabled_features: BTreeSet<Feature>,
-    pub available_features: FeaturesDependencyGraph,
 }
 
 #[cfg(test)]
@@ -48,7 +57,7 @@ mod tests {
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
-            available_features: BTreeMap::from([(f1.into(), vec![])]),
+            available_features: BTreeMap::from([(f1.into(), BTreeSet::new())]).into(),
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),
@@ -73,8 +82,8 @@ mod tests {
         {
           "packageId": "",
           "targets": [],
-          "enabledFeatures": [],
-          "availableFeatures": {}
+          "availableFeatures": {},
+          "enabledFeatures": []
         }
         "#);
         assert_json_snapshot!(test_data, @r#"
@@ -88,12 +97,12 @@ mod tests {
               "uri": "target2"
             }
           ],
-          "enabledFeatures": [
-            "feature"
-          ],
           "availableFeatures": {
             "feature": []
-          }
+          },
+          "enabledFeatures": [
+            "feature"
+          ]
         }
         "#);
     }
@@ -125,12 +134,12 @@ mod tests {
                   "uri": "target2"
                 }
               ],
-              "enabledFeatures": [
-                "feature"
-              ],
               "availableFeatures": {
                 "feature": []
-              }
+              },
+              "enabledFeatures": [
+                "feature"
+              ]
             },
             {
               "packageId": "package_id2",
@@ -142,12 +151,12 @@ mod tests {
                   "uri": "target2"
                 }
               ],
-              "enabledFeatures": [
-                "feature2"
-              ],
               "availableFeatures": {
                 "feature2": []
-              }
+              },
+              "enabledFeatures": [
+                "feature2"
+              ]
             }
           ]
         }

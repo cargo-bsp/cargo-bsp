@@ -8,6 +8,9 @@ use crate::StatusCode;
 #[derive(Debug)]
 pub enum SetCargoFeatures {}
 
+/// The enable cargo features request is sent from the client to the server to
+/// set provided features collection as a new state for
+/// the specified Cargo package.
 impl Request for SetCargoFeatures {
     type Params = SetCargoFeaturesParams;
     type Result = SetCargoFeaturesResult;
@@ -17,13 +20,16 @@ impl Request for SetCargoFeatures {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SetCargoFeaturesParams {
+    /// Package ID for which new features state will be set.
     pub package_id: String,
+    /// The list of features to be set as a new state.
     pub features: BTreeSet<Feature>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SetCargoFeaturesResult {
+    /// The status code of the operation.
     pub status_code: StatusCode,
 }
 
