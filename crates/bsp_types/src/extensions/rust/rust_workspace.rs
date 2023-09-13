@@ -1,4 +1,5 @@
 use crate::extensions::cargo::Feature;
+use crate::extensions::FeaturesDependencyGraph;
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, RustEdition, Uri};
 use serde::{Deserialize, Serialize};
@@ -133,15 +134,6 @@ pub enum RustPackageOrigin {
     StdlibDependency,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RustFeature {
-    /** Name of the feature. */
-    pub name: Feature,
-    /** Feature's dependencies. */
-    pub dependencies: Vec<Feature>,
-}
-
 /** A `crate` is the smallest amount of code that the Rust compiler considers at a time.
 It can come in one of two forms: a binary crate or a library crate.
 `Binary crates` are programs you can compile to an executable that you can run,
@@ -181,9 +173,9 @@ pub struct RustPackage {
     /** Set of features defined for the package (including optional dependencies).
     Each feature maps to an array of features or dependencies it enables.
     The entry named "default" defines which features are enabled by default. */
-    pub features: Vec<RustFeature>,
+    pub features: FeaturesDependencyGraph,
     /** Array of features enabled on this package. */
-    pub enabled_features: Vec<String>,
+    pub enabled_features: BTreeSet<Feature>,
     /** Conditional compilation flags that can be set based on certain conditions.
     They can be used to enable or disable certain sections of code during the build process.
     `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
@@ -246,6 +238,7 @@ mod test {
     use super::*;
     use crate::tests::test_deserialization;
     use insta::assert_json_snapshot;
+    use std::collections::BTreeMap;
 
     #[test]
     fn rust_workspace_method() {
@@ -290,7 +283,7 @@ mod test {
               "edition": "",
               "resolvedTargets": [],
               "allTargets": [],
-              "features": [],
+              "features": {},
               "enabledFeatures": [],
               "cfgOptions": {},
               "env": {}
@@ -407,30 +400,6 @@ mod test {
     }
 
     #[test]
-    fn rust_feature() {
-        let feature = RustFeature {
-            name: Feature::from("test_name"),
-            dependencies: vec![Feature::from("test_feature")],
-        };
-
-        assert_json_snapshot!(feature, @r#"
-        {
-          "name": "test_name",
-          "dependencies": [
-            "test_feature"
-          ]
-        }
-        "#);
-
-        assert_json_snapshot!(RustFeature::default(), @r#"
-        {
-          "name": "",
-          "dependencies": []
-        }
-        "#);
-    }
-
-    #[test]
     fn rust_package() {
         let package = RustPackage {
             id: "test_id".to_string(),
@@ -442,8 +411,11 @@ mod test {
             source: Some("test_source".to_string()),
             resolved_targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
-            features: vec![RustFeature::default()],
-            enabled_features: vec!["test_feature".to_string()],
+            features: BTreeMap::from([(
+                Feature::from("test_feature"),
+                vec![Feature::from("test_feature_dependency")],
+            )]),
+            enabled_features: BTreeSet::from([Feature::from("test_feature")]),
             cfg_options: HashMap::from([("test_cfg".to_string(), vec!["test_option".to_string()])]),
             env: HashMap::from([("key".to_string(), "value".to_string())]),
             out_dir_url: Some("test_out_dir_url".to_string()),
@@ -481,12 +453,11 @@ mod test {
               "requiredFeatures": []
             }
           ],
-          "features": [
-            {
-              "name": "",
-              "dependencies": []
-            }
-          ],
+          "features": {
+            "test_feature": [
+              "test_feature_dependency"
+            ]
+          },
           "enabledFeatures": [
             "test_feature"
           ],
@@ -513,7 +484,7 @@ mod test {
           "edition": "",
           "resolvedTargets": [],
           "allTargets": [],
-          "features": [],
+          "features": {},
           "enabledFeatures": [],
           "cfgOptions": {},
           "env": {}

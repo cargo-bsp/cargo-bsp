@@ -1,8 +1,8 @@
 //! [`ProjectModel`] obtains and stores information about the Rust project.
 
 use bsp_types::basic_bsp_structures::RustEdition;
-use bsp_types::extensions::Feature;
-use cargo_metadata::Edition;
+use bsp_types::extensions::{Feature, FeaturesDependencyGraph};
+use cargo_metadata::{Edition, Package};
 
 mod _unit_tests_discovery;
 pub(crate) mod build_target_mappings;
@@ -24,5 +24,20 @@ pub trait DefaultFeature {
 impl DefaultFeature for Feature {
     fn default_feature_name() -> Feature {
         Feature::from("default")
+    }
+}
+
+pub trait CreateFeaturesDependencyGraph {
+    fn create_features_dependency_graph(metadata_package: &Package) -> Self;
+}
+
+impl CreateFeaturesDependencyGraph for FeaturesDependencyGraph {
+    fn create_features_dependency_graph(metadata_package: &Package) -> Self {
+        metadata_package
+            .features
+            .clone()
+            .into_iter()
+            .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
+            .collect()
     }
 }
