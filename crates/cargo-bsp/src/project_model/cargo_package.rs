@@ -15,6 +15,7 @@ use crate::project_model::build_target_mappings::{
     bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
 };
 use crate::project_model::package_dependency::PackageDependency;
+use crate::project_model::CreateFeaturesDependencyGraph;
 use crate::project_model::DefaultFeature;
 
 #[derive(Default, Debug, Clone)]
@@ -48,12 +49,8 @@ impl CargoPackage {
         metadata_package: &cargo_metadata::Package,
         all_packages: &[cargo_metadata::Package],
     ) -> Self {
-        let package_features: FeaturesDependencyGraph = metadata_package
-            .features
-            .clone()
-            .into_iter()
-            .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
-            .collect();
+        let package_features =
+            FeaturesDependencyGraph::create_features_dependency_graph(metadata_package);
 
         let mut enabled_features = BTreeSet::new();
         // Add `default` to enabled features set if `default` feature is defined
