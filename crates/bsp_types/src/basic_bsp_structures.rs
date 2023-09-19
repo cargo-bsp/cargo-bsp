@@ -3,15 +3,29 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::extensions::CargoBuildTarget;
 
-/** A resource identifier that is a valid URI according
-to rfc3986: https://tools.ietf.org/html/rfc3986 */
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+/// A resource identifier that is a valid URI according to rfc3986:
+/// https://tools.ietf.org/html/rfc3986
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct URI(pub String);
 
+impl std::ops::Deref for URI {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for URI {
+    fn from(input: String) -> Self {
+        Self(input)
+    }
+}
+
 impl From<&str> for URI {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
+    fn from(input: &str) -> Self {
+        Self(input.to_string())
     }
 }
 
@@ -171,8 +185,9 @@ pub enum StatusCode {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::test_deserialization;
     use insta::assert_json_snapshot;
+
+    use crate::tests::test_deserialization;
 
     use super::*;
 
