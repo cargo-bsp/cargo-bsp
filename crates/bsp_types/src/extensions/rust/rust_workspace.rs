@@ -309,11 +309,9 @@ impl From<BTreeMap<String, Vec<String>>> for RustCfgOptions {
 
 #[cfg(test)]
 mod test {
-    use insta::assert_json_snapshot;
-
-    use crate::tests::test_deserialization;
-
     use super::*;
+    use crate::tests::test_deserialization;
+    use insta::assert_json_snapshot;
 
     #[test]
     fn rust_workspace_method() {
@@ -484,7 +482,11 @@ mod test {
             source: Some("test_source".to_string()),
             resolved_targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
-            features: BTreeMap::from([("test_feature".into(), BTreeSet::new())]).into(),
+            features: BTreeMap::from([(
+                Feature::from("test_feature"),
+                BTreeSet::from([Feature::from("test_feature_dependency")]),
+            )])
+            .into(),
             enabled_features: BTreeSet::from(["test_feature".into()]),
             cfg_options: BTreeMap::from([(
                 "test_cfg".to_string(),
@@ -524,7 +526,9 @@ mod test {
             }
           ],
           "features": {
-            "test_feature": []
+            "test_feature": [
+              "test_feature_dependency"
+            ]
           },
           "enabledFeatures": [
             "test_feature"

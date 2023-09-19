@@ -2,7 +2,7 @@
 //! available and enabled features (relevant for the Cargo extension for BSP,
 //! which allows toggling the features, not yet added to the BSP documentation).
 
-use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
@@ -15,7 +15,7 @@ use crate::project_model::build_target_mappings::{
     bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
 };
 use crate::project_model::package_dependency::PackageDependency;
-use crate::project_model::DefaultFeature;
+use crate::project_model::{CreateFeatureDependencyGraph, DefaultFeature};
 
 #[derive(Default, Debug, Clone)]
 pub struct CargoPackage {
@@ -48,13 +48,8 @@ impl CargoPackage {
         metadata_package: &cargo_metadata::Package,
         all_packages: &[cargo_metadata::Package],
     ) -> Self {
-        let package_features: FeatureDependencyGraph = metadata_package
-            .features
-            .clone()
-            .into_iter()
-            .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
-            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
-            .into();
+        let package_features =
+            FeatureDependencyGraph::create_features_dependency_graph(metadata_package);
 
         let mut enabled_features = BTreeSet::new();
         // Add `default` to enabled features set if `default` feature is defined
