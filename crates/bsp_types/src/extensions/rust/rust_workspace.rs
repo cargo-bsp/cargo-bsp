@@ -1,14 +1,23 @@
-use crate::extensions::cargo::Feature;
-use crate::extensions::RustEdition;
-use crate::requests::Request;
-use crate::{BuildTargetIdentifier, URI};
+use std::collections::{BTreeMap, BTreeSet};
+
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::{BTreeSet, HashMap};
+
+use crate::extensions::cargo::Feature;
+use crate::extensions::{FeatureDependencyGraph, RustEdition};
+use crate::requests::Request;
+use crate::{BuildTargetIdentifier, EnvironmentVariables, URI};
 
 #[derive(Debug)]
 pub enum RustWorkspace {}
 
+/// The Rust workspace request is sent from the client to the server to query for
+/// the information about project's workspace for the given list of build targets.
+///
+/// The request is essential to connect and work with `intellij-rust` plugin.
+///
+/// The request may take a long time, as it may require building a project to some extent
+/// (for example with `cargo check` command).
 impl Request for RustWorkspace {
     type Params = RustWorkspaceParams;
     type Result = RustWorkspaceResult;
@@ -22,8 +31,41 @@ pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-pub type PackageIdToRustRawDependency = HashMap<String, Vec<RustRawDependency>>;
-pub type PackageIdToRustDependency = HashMap<String, Vec<RustDependency>>;
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RustRawDependencies(pub BTreeMap<String, Vec<RustRawDependency>>);
+
+impl std::ops::Deref for RustRawDependencies {
+    type Target = BTreeMap<String, Vec<RustRawDependency>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<BTreeMap<String, Vec<RustRawDependency>>> for RustRawDependencies {
+    fn from(input: BTreeMap<String, Vec<RustRawDependency>>) -> Self {
+        Self(input)
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RustDependencies(pub BTreeMap<String, Vec<RustDependency>>);
+
+impl std::ops::Deref for RustDependencies {
+    type Target = BTreeMap<String, Vec<RustDependency>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<BTreeMap<String, Vec<RustDependency>>> for RustDependencies {
+    fn from(input: BTreeMap<String, Vec<RustDependency>>) -> Self {
+        Self(input)
+    }
+}
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -32,33 +74,33 @@ pub struct RustWorkspaceResult {
     pub packages: Vec<RustPackage>,
     /** Dependencies as listed in the package `Cargo.toml`,
     without package resolution or any additional data. */
-    pub raw_dependencies: PackageIdToRustRawDependency,
+    pub raw_dependencies: RustRawDependencies,
     /** Resolved dependencies of the package. Handles renamed dependencies. */
-    pub dependencies: PackageIdToRustDependency,
+    pub dependencies: RustDependencies,
     /** A sequence of build targets taken into consideration during build process. */
     pub resolved_targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RustRawDependency {
     /** The name of the dependency. */
     pub name: String,
     /** Name to which this dependency is renamed when declared in Cargo.toml. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
     /** The dependency kind. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<RustDepKind>,
     /** The target platform for the dependency. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
     /** Indicates whether this is an optional dependency. */
     pub optional: bool,
     /** Indicates whether default features are enabled. */
     pub uses_default_features: bool,
     /** A sequence of enabled features. **/
-    pub features: BTreeSet<String>,
+    pub features: BTreeSet<Feature>,
 }
 
 /** This structure is embedded in the `data?: BuildTargetData` field, when the
@@ -74,6 +116,7 @@ pub struct RustBuildTarget {
     pub kind: RustTargetKind,
     /** Type of output that is produced by a crate during the build process.
     The crate type determines how the source code is compiled. */
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub crate_types: Vec<RustCrateType>,
     /** The Rust edition of the target. */
     pub edition: RustEdition,
@@ -81,7 +124,8 @@ pub struct RustBuildTarget {
     the target is compatible with doc testing. */
     pub doctest: bool,
     /** A sequence of required features. */
-    pub required_features: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub required_features: BTreeSet<Feature>,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Default, Clone)]
@@ -120,27 +164,23 @@ pub enum RustCrateType {
     Unknown = 8,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-pub enum RustPackageOrigin {
-    /** The package comes from the standard library. */
-    Stdlib,
-    /** The package is a part of our workspace. */
-    #[default]
-    Workspace,
-    /** External dependency of [WORKSPACE] or other [DEPENDENCY] package. */
-    Dependency,
-    /** External dependency of [STDLIB] or other [STDLIB_DEPENDENCY] package. */
-    StdlibDependency,
-}
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RustPackageOrigin(pub std::borrow::Cow<'static, str>);
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct RustFeature {
-    /** Name of the feature. */
-    pub name: Feature,
-    /** Feature's dependencies. */
-    pub dependencies: Vec<Feature>,
+impl RustPackageOrigin {
+    /// External dependency of [WORKSPACE] or other [DEPENDENCY] package.
+    pub const DEPENDENCY: RustPackageOrigin = RustPackageOrigin::new("dependency");
+    /// The package comes from the standard library.
+    pub const STDLIB: RustPackageOrigin = RustPackageOrigin::new("stdlib");
+    /// External dependency of [STDLIB] or other [STDLIB_DEPENDENCY] package.
+    pub const STDLIB_DEPENDENCY: RustPackageOrigin = RustPackageOrigin::new("stdlib-dependency");
+    /// The package is a part of our workspace.
+    pub const WORKSPACE: RustPackageOrigin = RustPackageOrigin::new("workspace");
+
+    pub const fn new(tag: &'static str) -> Self {
+        Self(std::borrow::Cow::Borrowed(tag))
+    }
 }
 
 /** A `crate` is the smallest amount of code that the Rust compiler considers at a time.
@@ -171,7 +211,7 @@ pub struct RustPackage {
     /** Code edition of the package. */
     pub edition: RustEdition,
     /** The source ID of the dependency, `null` for the root package and path dependencies. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     /** Corresponds to source files which can be compiled into a crate from this package.
     Contains only resolved targets without conflicts. */
@@ -182,71 +222,98 @@ pub struct RustPackage {
     /** Set of features defined for the package (including optional dependencies).
     Each feature maps to an array of features or dependencies it enables.
     The entry named "default" defines which features are enabled by default. */
-    pub features: Vec<RustFeature>,
+    pub features: FeatureDependencyGraph,
     /** Array of features enabled on this package. */
-    pub enabled_features: Vec<String>,
+    pub enabled_features: BTreeSet<Feature>,
     /** Conditional compilation flags that can be set based on certain conditions.
     They can be used to enable or disable certain sections of code during the build process.
     `cfgs` in Rust can take one of two forms: "cfg1" or "cfg2=\"string\"".
     The `cfg` is split by '=' delimiter and the first half becomes key and
     the second is aggregated to the value in `RustCfgOptions`.
     For "cfg1" the value is empty. */
-    pub cfg_options: HashMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub cfg_options: RustCfgOptions,
     /** Environment variables for the package. */
-    pub env: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: EnvironmentVariables,
     /** An absolute path which is used as a value of `OUT_DIR` environmental
     variable when compiling current package. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub out_dir_url: Option<URI>,
     /** File path to compiled output of a procedural macro crate.
     Procedural macros are macros that generate code at compile time.
     Contains files with file extensions: `.dll`, `.so` or `.dylib`. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proc_macro_artifact: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDepKindInfo {
     /** The dependency kind. */
     pub kind: RustDepKind,
     /** The target platform for the dependency. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-pub enum RustDepKind {
-    /** For old Cargo versions prior to `1.41.0`. */
-    Unclassified,
-    /** For [dependencies]. */
-    #[default]
-    Normal,
-    /** For [dev-dependencies]. */
-    Dev,
-    /** For [build-dependencies]. */
-    Build,
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RustDepKind(pub std::borrow::Cow<'static, str>);
+
+impl RustDepKind {
+    /// For [build-dependencies].
+    pub const BUILD: RustDepKind = RustDepKind::new("build");
+    /// For [dev-dependencies].
+    pub const DEV: RustDepKind = RustDepKind::new("dev");
+    /// For [dependencies].
+    pub const NORMAL: RustDepKind = RustDepKind::new("normal");
+    /// For old Cargo versions prior to `1.41.0`.
+    pub const UNCLASSIFIED: RustDepKind = RustDepKind::new("unclassified");
+
+    pub const fn new(tag: &'static str) -> Self {
+        Self(std::borrow::Cow::Borrowed(tag))
+    }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RustDependency {
     /** The Package ID of the dependency. */
     pub pkg: String,
     /** The name of the dependency's library target.
     If this is a renamed dependency, this is the new name. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /** Array of dependency kinds. */
     pub dep_kinds: Vec<RustDepKindInfo>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RustCfgOptions(pub BTreeMap<String, Vec<String>>);
+
+impl std::ops::Deref for RustCfgOptions {
+    type Target = BTreeMap<String, Vec<String>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<BTreeMap<String, Vec<String>>> for RustCfgOptions {
+    fn from(input: BTreeMap<String, Vec<String>>) -> Self {
+        Self(input)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::tests::test_deserialization;
     use insta::assert_json_snapshot;
+
+    use crate::tests::test_deserialization;
+
+    use super::*;
 
     #[test]
     fn rust_workspace_method() {
@@ -268,14 +335,16 @@ mod test {
     fn rust_workspace_result() {
         let result = RustWorkspaceResult {
             packages: vec![RustPackage::default()],
-            raw_dependencies: HashMap::from([(
+            raw_dependencies: BTreeMap::from([(
                 "package_id".to_string(),
                 vec![RustRawDependency::default()],
-            )]),
-            dependencies: HashMap::from([(
+            )])
+            .into(),
+            dependencies: BTreeMap::from([(
                 "package_id".to_string(),
                 vec![RustDependency::default()],
-            )]),
+            )])
+            .into(),
             resolved_targets: vec![BuildTargetIdentifier::default()],
         };
 
@@ -287,14 +356,12 @@ mod test {
               "rootUrl": "",
               "name": "",
               "version": "",
-              "origin": "workspace",
+              "origin": "",
               "edition": "",
               "resolvedTargets": [],
               "allTargets": [],
-              "features": [],
-              "enabledFeatures": [],
-              "cfgOptions": {},
-              "env": {}
+              "features": {},
+              "enabledFeatures": []
             }
           ],
           "rawDependencies": {
@@ -335,11 +402,11 @@ mod test {
         let dependency = RustRawDependency {
             name: "test_name".to_string(),
             rename: Some("test_rename".to_string()),
-            kind: Some(RustDepKind::default()),
+            kind: Some(RustDepKind::NORMAL),
             target: Some("test_target".to_string()),
             optional: false,
             uses_default_features: false,
-            features: BTreeSet::from(["test_feature".to_string()]),
+            features: BTreeSet::from(["test_feature".into()]),
         };
 
         assert_json_snapshot!(dependency, @r#"
@@ -375,7 +442,7 @@ mod test {
             crate_types: vec![RustCrateType::default()],
             edition: RustEdition::default(),
             doctest: false,
-            required_features: BTreeSet::from(["test_feature".to_string()]),
+            required_features: BTreeSet::from(["test_feature".into()]),
         };
 
         assert_json_snapshot!(target, @r#"
@@ -399,34 +466,8 @@ mod test {
           "name": "",
           "crateRootUrl": "",
           "kind": 1,
-          "crateTypes": [],
           "edition": "",
-          "doctest": false,
-          "requiredFeatures": []
-        }
-        "#);
-    }
-
-    #[test]
-    fn rust_feature() {
-        let feature = RustFeature {
-            name: Feature::from("test_name"),
-            dependencies: vec![Feature::from("test_feature")],
-        };
-
-        assert_json_snapshot!(feature, @r#"
-        {
-          "name": "test_name",
-          "dependencies": [
-            "test_feature"
-          ]
-        }
-        "#);
-
-        assert_json_snapshot!(RustFeature::default(), @r#"
-        {
-          "name": "",
-          "dependencies": []
+          "doctest": false
         }
         "#);
     }
@@ -438,15 +479,19 @@ mod test {
             root_url: "test_root_url".into(),
             name: "test_name".to_string(),
             version: "test_version".to_string(),
-            origin: RustPackageOrigin::default(),
+            origin: RustPackageOrigin::WORKSPACE,
             edition: RustEdition::default(),
             source: Some("test_source".to_string()),
             resolved_targets: vec![RustBuildTarget::default()],
             all_targets: vec![RustBuildTarget::default()],
-            features: vec![RustFeature::default()],
-            enabled_features: vec!["test_feature".to_string()],
-            cfg_options: HashMap::from([("test_cfg".to_string(), vec!["test_option".to_string()])]),
-            env: HashMap::from([("key".to_string(), "value".to_string())]),
+            features: BTreeMap::from([("test_feature".into(), BTreeSet::new())]).into(),
+            enabled_features: BTreeSet::from(["test_feature".into()]),
+            cfg_options: BTreeMap::from([(
+                "test_cfg".to_string(),
+                vec!["test_option".to_string()],
+            )])
+            .into(),
+            env: BTreeMap::from([("key".to_string(), "value".to_string())]).into(),
             out_dir_url: Some("test_out_dir_url".into()),
             proc_macro_artifact: Some(String::default()),
         };
@@ -465,10 +510,8 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "kind": 1,
-              "crateTypes": [],
               "edition": "",
-              "doctest": false,
-              "requiredFeatures": []
+              "doctest": false
             }
           ],
           "allTargets": [
@@ -476,18 +519,13 @@ mod test {
               "name": "",
               "crateRootUrl": "",
               "kind": 1,
-              "crateTypes": [],
               "edition": "",
-              "doctest": false,
-              "requiredFeatures": []
+              "doctest": false
             }
           ],
-          "features": [
-            {
-              "name": "",
-              "dependencies": []
-            }
-          ],
+          "features": {
+            "test_feature": []
+          },
           "enabledFeatures": [
             "test_feature"
           ],
@@ -510,14 +548,12 @@ mod test {
           "rootUrl": "",
           "name": "",
           "version": "",
-          "origin": "workspace",
+          "origin": "",
           "edition": "",
           "resolvedTargets": [],
           "allTargets": [],
-          "features": [],
-          "enabledFeatures": [],
-          "cfgOptions": {},
-          "env": {}
+          "features": {},
+          "enabledFeatures": []
         }
         "#);
     }
@@ -525,7 +561,7 @@ mod test {
     #[test]
     fn rust_dep_kind_info() {
         let dep_kind_info = RustDepKindInfo {
-            kind: RustDepKind::default(),
+            kind: RustDepKind::NORMAL,
             target: Some("test_target".to_string()),
         };
 
@@ -538,7 +574,7 @@ mod test {
 
         assert_json_snapshot!(RustDepKindInfo::default(), @r#"
         {
-          "kind": "normal"
+          "kind": ""
         }
         "#);
     }
@@ -557,7 +593,7 @@ mod test {
           "name": "test_name",
           "depKinds": [
             {
-              "kind": "normal"
+              "kind": ""
             }
           ]
         }
@@ -584,18 +620,18 @@ mod test {
 
     #[test]
     fn rust_dep_kind() {
-        assert_json_snapshot!(RustDepKind::Unclassified, @r#""unclassified""#);
-        assert_json_snapshot!(RustDepKind::Normal, @r#""normal""#);
-        assert_json_snapshot!(RustDepKind::Dev, @r#""dev""#);
-        assert_json_snapshot!(RustDepKind::Build, @r#""build""#);
+        assert_json_snapshot!(RustDepKind::UNCLASSIFIED, @r#""unclassified""#);
+        assert_json_snapshot!(RustDepKind::NORMAL, @r#""normal""#);
+        assert_json_snapshot!(RustDepKind::DEV, @r#""dev""#);
+        assert_json_snapshot!(RustDepKind::BUILD, @r#""build""#);
     }
 
     #[test]
     fn rust_package_origin() {
-        assert_json_snapshot!(RustPackageOrigin::Stdlib, @r#""stdlib""#);
-        assert_json_snapshot!(RustPackageOrigin::Workspace, @r#""workspace""#);
-        assert_json_snapshot!(RustPackageOrigin::Dependency, @r#""dependency""#);
-        assert_json_snapshot!(RustPackageOrigin::StdlibDependency, @r#""stdlib-dependency""#);
+        assert_json_snapshot!(RustPackageOrigin::STDLIB, @r#""stdlib""#);
+        assert_json_snapshot!(RustPackageOrigin::WORKSPACE, @r#""workspace""#);
+        assert_json_snapshot!(RustPackageOrigin::DEPENDENCY, @r#""dependency""#);
+        assert_json_snapshot!(RustPackageOrigin::STDLIB_DEPENDENCY, @r#""stdlib-dependency""#);
     }
 
     #[test]

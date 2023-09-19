@@ -1,13 +1,16 @@
 //! This file is a part of implementation to handle the BSP Rust extension.
 //! Functions in this file are responsible for preparing the data for RustToolchainRequest response.
 
-use crate::project_model::workspace::ProjectWorkspace;
-use bsp_types::extensions::{RustToolchainItem, RustcInfo};
-use bsp_types::BuildTargetIdentifier;
+use std::collections::BTreeSet;
+use std::ops::{Add, Deref};
+
 use log::warn;
 use rustc_version::{version, version_meta};
-use std::collections::BTreeSet;
-use std::ops::Add;
+
+use bsp_types::extensions::{RustToolchainItem, RustcInfo};
+use bsp_types::BuildTargetIdentifier;
+
+use crate::project_model::workspace::ProjectWorkspace;
 
 fn get_sysroot() -> Option<String> {
     let output = std::process::Command::new(toolchain::rustc())
@@ -42,8 +45,8 @@ fn establish_rustc_info_for_target(_build_target_id: &BuildTargetIdentifier) -> 
     };
 
     RustcInfo {
-        src_sysroot_path: sysroot_path.clone().add("/lib/rustlib/src/rust"),
-        sysroot_path,
+        src_sysroot_path: sysroot_path.clone().add("/lib/rustlib/src/rust").into(),
+        sysroot_path: sysroot_path.into(),
         version,
         host,
     }
@@ -64,11 +67,13 @@ pub fn get_rust_toolchains(
             let rustc_info = establish_rustc_info_for_target(id);
             let cargo_bin_path = toolchain::cargo().to_string_lossy().to_string();
             RustToolchainItem {
-                cargo_bin_path,
+                cargo_bin_path: cargo_bin_path.into(),
                 proc_macro_srv_path: rustc_info
                     .sysroot_path
+                    .deref()
                     .clone()
-                    .add("/libexec/rust-analyzer-proc-macro-srv"),
+                    .add("/libexec/rust-analyzer-proc-macro-srv")
+                    .into(),
                 rust_std_lib: Some(rustc_info),
             }
         })

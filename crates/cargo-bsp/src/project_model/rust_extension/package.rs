@@ -9,15 +9,15 @@ use crate::project_model::rust_extension::{
 };
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::{Feature, RustFeature, RustPackage, RustPackageOrigin};
+use bsp_types::extensions::{Feature, FeatureDependencyGraph, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     if workspace.is_package_part_of_workspace(&package.id) {
-        package.origin = RustPackageOrigin::Workspace;
+        package.origin = RustPackageOrigin::WORKSPACE;
     } else {
-        package.origin = RustPackageOrigin::Dependency;
+        package.origin = RustPackageOrigin::DEPENDENCY;
     }
 }
 
@@ -31,7 +31,11 @@ fn set_and_resolve_enabled_features(
         &package.id,
         "Proceeding with empty enabled features.",
     ) {
-        package.enabled_features = n.features.clone();
+        package.enabled_features = n
+            .features
+            .iter()
+            .map(|f| Feature::from(f.as_str()))
+            .collect();
         // Set enabled features in server's state.
         let features = n
             .features
@@ -45,14 +49,12 @@ fn set_and_resolve_enabled_features(
 
 fn metadata_features_to_rust_extension_features(
     metadata_features: BTreeMap<String, Vec<String>>,
-) -> Vec<RustFeature> {
+) -> FeatureDependencyGraph {
     metadata_features
         .into_iter()
-        .map(|(f, deps)| RustFeature {
-            name: Feature(f),
-            dependencies: deps.into_iter().map(Feature).collect(),
-        })
-        .collect()
+        .map(|(f, deps)| (Feature(f), deps.into_iter().map(Feature).collect()))
+        .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
+        .into()
 }
 
 fn metadata_package_to_rust_extension_package(

@@ -2,9 +2,10 @@
 //! Functions in this file are partially responsible
 //! for preparing the data for RustWorkspaceRequest response.
 
+use bsp_types::extensions::{Feature, RustBuildTarget, RustCrateType, RustTargetKind};
+
 use crate::project_model::metadata_edition_to_bsp_edition;
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::{RustBuildTarget, RustCrateType, RustTargetKind};
 
 fn metadata_kind_to_rust_extension_kind(metadata_kind: &str) -> RustTargetKind {
     match metadata_kind {
@@ -49,7 +50,11 @@ pub(crate) fn metadata_targets_to_rust_extension_targets(
                 crate_types: metadata_crate_types_to_rust_extension_crate_types(
                     mt.crate_types.clone(),
                 ),
-                required_features: mt.required_features.clone().into_iter().collect(),
+                required_features: mt
+                    .required_features
+                    .iter()
+                    .map(|f| Feature::from(f.as_str()))
+                    .collect(),
                 doctest: mt.doctest,
                 edition: metadata_edition_to_bsp_edition(mt.edition),
             }

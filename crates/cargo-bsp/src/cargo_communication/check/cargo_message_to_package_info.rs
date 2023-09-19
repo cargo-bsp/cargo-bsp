@@ -2,17 +2,18 @@
 //! RustPackage information.
 
 use crate::utils::uri::file_uri;
-use bsp_types::URI;
+use bsp_types::extensions::RustCfgOptions;
+use bsp_types::{EnvironmentVariables, URI};
 use cargo_metadata::{Artifact, BuildScript, Package};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 
 const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = ["dll", "so", "dylib"];
 const PROC_MACRO: &str = "proc-macro";
 
-pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> HashMap<String, Vec<String>> {
-    script.map_or(HashMap::new(), |s| {
-        let mut cfg_options: HashMap<String, Vec<String>> = HashMap::new();
+pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> RustCfgOptions {
+    script.map_or(BTreeMap::new().into(), |s| {
+        let mut cfg_options: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         s.cfgs.iter().for_each(|cfg| {
             let mut parts = cfg.splitn(2, '=');
@@ -32,13 +33,13 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> HashMap<String, V
             }
         });
 
-        cfg_options
+        cfg_options.into()
     })
 }
 
-pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMap<String, String> {
+pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> EnvironmentVariables {
     let version = package.version.clone();
-    let mut env: HashMap<String, String> = HashMap::from([
+    let mut env: BTreeMap<String, String> = BTreeMap::from([
         (
             "CARGO_MANIFEST_DIR",
             package
@@ -81,7 +82,7 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> HashMa
             env.insert(k.clone(), v.clone());
         }
     }
-    env
+    env.into()
 }
 
 pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<URI> {

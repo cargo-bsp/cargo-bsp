@@ -1,11 +1,15 @@
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, URI};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum RustToolchain {}
 
+/// The Rust toolchain request is sent from the client to the server to query for
+/// the information about project's toolchain for the given list of build targets.
+///
+/// The request is essential to connect and work with `intellij-rust` plugin.
 impl Request for RustToolchain {
     type Params = RustToolchainParams;
     type Result = RustToolchainResult;
@@ -31,12 +35,12 @@ pub struct RustToolchainResult {
 pub struct RustToolchainItem {
     /** Additional information about Rust toolchain.
     Obtained from `rustc`. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
     /** Path to Cargo executable. */
-    pub cargo_bin_path: String,
+    pub cargo_bin_path: URI,
     /** Location of the source code of procedural macros in the Rust toolchain. */
-    pub proc_macro_srv_path: String,
+    pub proc_macro_srv_path: URI,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialOrd, PartialEq, Ord, Eq)]
@@ -44,9 +48,9 @@ pub struct RustToolchainItem {
 pub struct RustcInfo {
     /** Root directory where the Rust compiler looks for standard libraries and other
     essential components when building Rust projects. */
-    pub sysroot_path: String,
+    pub sysroot_path: URI,
     /** Source code for the Rust standard library. */
-    pub src_sysroot_path: String,
+    pub src_sysroot_path: URI,
     /** `rustc` SemVer (Semantic Versioning) version. */
     pub version: String,
     /** Target architecture and operating system of the Rust compiler.
@@ -103,8 +107,8 @@ mod test {
     fn rust_toolchain() {
         let rust_toolchain = RustToolchainItem {
             rust_std_lib: Some(RustcInfo::default()),
-            cargo_bin_path: "test_cargo_bin_path".to_string(),
-            proc_macro_srv_path: "test_proc_macro_srv_path".to_string(),
+            cargo_bin_path: "test_cargo_bin_path".into(),
+            proc_macro_srv_path: "test_proc_macro_srv_path".into(),
         };
 
         assert_json_snapshot!(rust_toolchain, @r#"
@@ -131,8 +135,8 @@ mod test {
     #[test]
     fn rustc_info() {
         let rustc_info = RustcInfo {
-            sysroot_path: "test_sysroot".to_string(),
-            src_sysroot_path: "test_src_sysroot".to_string(),
+            sysroot_path: "test_sysroot".into(),
+            src_sysroot_path: "test_src_sysroot".into(),
             version: "test_version".to_string(),
             host: "test_host".to_string(),
         };
