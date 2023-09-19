@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Location, Notification, Range};
-use crate::{BuildTargetIdentifier, OtherData, TextDocumentIdentifier, URI};
+use crate::{BuildTargetIdentifier, OtherData, RequestId, TextDocumentIdentifier, URI};
 
 #[derive(Debug)]
 pub enum OnBuildPublishDiagnostics {}
@@ -27,7 +27,7 @@ pub struct PublishDiagnosticsParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<RequestId>,
 
     /** The diagnostics to be published by the client. */
     pub diagnostics: Vec<Diagnostic>,
@@ -151,7 +151,7 @@ mod tests {
         let test_data = PublishDiagnosticsParams {
             text_document: TextDocumentIdentifier::default(),
             build_target: BuildTargetIdentifier::default(),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             diagnostics: vec![Diagnostic::default()],
             reset: true,
         };

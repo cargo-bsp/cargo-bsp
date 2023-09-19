@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{OtherData, URI};
+use crate::{LanguageId, OtherData, URI};
 
 #[derive(Debug)]
 pub enum BuildInitialize {}
@@ -90,7 +90,7 @@ pub struct BuildClientCapabilities {
     The ID strings for each language is defined in the LSP.
     The server must never respond with build targets for other
     languages than those that appear in this list. */
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
@@ -166,25 +166,25 @@ pub struct BuildServerCapabilities {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileProvider {
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RunProvider {
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugProvider {
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TestProvider {
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 }
 
 #[cfg(test)]
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn build_client_capabilities() {
         let test_data = BuildClientCapabilities {
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
         };
 
         test_deserialization(r#"{"languageIds":["test_languageId"]}"#, &test_data);
@@ -330,7 +330,7 @@ mod tests {
     #[test]
     fn compile_provider() {
         let test_data = CompileProvider {
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
         };
 
         assert_json_snapshot!(test_data,
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn run_provider() {
         let test_data = RunProvider {
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
         };
 
         assert_json_snapshot!(test_data,
@@ -378,7 +378,7 @@ mod tests {
     #[test]
     fn debug_provider() {
         let test_data = DebugProvider {
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
         };
 
         assert_json_snapshot!(test_data,
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn test_provider() {
         let test_data = TestProvider {
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
         };
 
         assert_json_snapshot!(test_data,

@@ -76,7 +76,7 @@ pub struct BuildTarget {
 
     /** The set of languages that this target contains.
     The ID string for each language is defined in the LSP. */
-    pub language_ids: Vec<String>,
+    pub language_ids: Vec<LanguageId>,
 
     /** The direct upstream build target dependencies of this build target */
     pub dependencies: Vec<BuildTargetIdentifier>,
@@ -171,6 +171,32 @@ pub struct BuildTargetCapabilities {
     pub can_debug: Option<bool>,
 }
 
+/// Language IDs are defined here
+/// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentItem
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct LanguageId(pub String);
+
+impl std::ops::Deref for LanguageId {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for LanguageId {
+    fn from(input: String) -> Self {
+        Self(input)
+    }
+}
+
+impl From<&str> for LanguageId {
+    fn from(input: &str) -> Self {
+        Self(input.to_string())
+    }
+}
+
 /** Included in notifications of tasks or requests to signal the completion state. */
 #[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
 #[repr(u8)]
@@ -201,6 +227,55 @@ impl std::ops::Deref for EnvironmentVariables {
 impl From<BTreeMap<String, String>> for EnvironmentVariables {
     fn from(input: BTreeMap<String, String>) -> Self {
         Self(input)
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Identifier(pub String);
+
+impl std::ops::Deref for Identifier {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(input: String) -> Self {
+        Self(input)
+    }
+}
+
+impl From<&str> for Identifier {
+    fn from(input: &str) -> Self {
+        Self(input.to_string())
+    }
+}
+
+/// Represents the identifier of a BSP request.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct RequestId(pub String);
+
+impl std::ops::Deref for RequestId {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<String> for RequestId {
+    fn from(input: String) -> Self {
+        Self(input)
+    }
+}
+
+impl From<&str> for RequestId {
+    fn from(input: &str) -> Self {
+        Self(input.to_string())
     }
 }
 
@@ -242,7 +317,7 @@ mod tests {
             base_directory: Some("test_baseDirectory".into()),
             tags: vec![BuildTargetTag::TEST],
             capabilities: BuildTargetCapabilities::default(),
-            language_ids: vec!["test_languageId".to_string()],
+            language_ids: vec!["test_languageId".into()],
             dependencies: vec![BuildTargetIdentifier::default()],
             data: Some(BuildTargetData::cargo(CargoBuildTarget::default())),
         };

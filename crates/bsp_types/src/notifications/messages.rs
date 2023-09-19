@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Notification, TaskId};
+use crate::RequestId;
 
 #[derive(Debug)]
 pub enum ShowMessage {}
@@ -32,7 +33,7 @@ pub struct ShowMessageParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<RequestId>,
 
     /** The actual message. */
     pub message: String,
@@ -51,7 +52,7 @@ pub struct LogMessageParams {
 
     /** The request id that originated this notification. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<RequestId>,
 
     /** The actual message. */
     pub message: String,
@@ -88,7 +89,7 @@ mod tests {
         let test_data = ShowMessageParams {
             r#type: MessageType::Error,
             task: Some(TaskId::default()),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             message: "test_message".to_string(),
         };
 
@@ -119,7 +120,7 @@ mod tests {
         let test_data = LogMessageParams {
             r#type: MessageType::default(),
             task: Some(TaskId::default()),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             message: "test_message".to_string(),
         };
 

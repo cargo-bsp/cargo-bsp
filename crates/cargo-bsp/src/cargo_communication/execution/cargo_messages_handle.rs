@@ -100,7 +100,7 @@ where
         };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
-            self.params.origin_id(),
+            self.params.origin_id().map(|id| id.0.into()),
             build_target_id,
             AbsPath::assert(&abs_root_path),
         );
@@ -140,7 +140,7 @@ where
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             r#type: message_type,
             task: Some(self.state.compile_state.task_id.clone()),
-            origin_id: self.params.origin_id(),
+            origin_id: self.params.origin_id().map(|id| id.0.into()),
             message: global_msg.message,
         });
     }
@@ -151,7 +151,7 @@ where
             let compile_target_state = self.state.compile_state.target_states.get(id).unwrap();
             let compile_report = TaskFinishData::compile_report(CompileReport {
                 target: id.clone(),
-                origin_id: self.params.origin_id(),
+                origin_id: self.params.origin_id().map(|id| id.0.into()),
                 errors: self.state.compile_state.errors,
                 warnings: self.state.compile_state.warnings,
                 time: Some(get_current_time() - compile_target_state.start_time),

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Notification, Range, TaskId};
-use crate::{BuildTargetIdentifier, OtherData, StatusCode, URI};
+use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode, URI};
 
 #[derive(Debug)]
 pub enum OnBuildTaskStart {}
@@ -226,7 +226,7 @@ pub struct CompileReport {
 
     /** An optional request id to know the origin of this report. */
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<Identifier>,
 
     /** The total number of reported errors compiling this target. */
     pub errors: i32,
@@ -257,7 +257,7 @@ test-report and the data field must include a TestReport object. */
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestReport {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
+    pub origin_id: Option<Identifier>,
 
     /** The build target that was compiled. */
     pub target: BuildTargetIdentifier,
@@ -597,7 +597,7 @@ mod tests {
     fn compile_report_data() {
         let test_data = CompileReport {
             target: BuildTargetIdentifier::default(),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             errors: 1,
             warnings: 2,
             time: Some(3),

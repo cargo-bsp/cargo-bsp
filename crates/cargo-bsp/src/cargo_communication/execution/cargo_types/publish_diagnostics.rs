@@ -13,7 +13,7 @@ use bsp_types::notifications::{
     CodeDescription, Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, DiagnosticTag,
     Location, Position, PublishDiagnosticsParams, Range,
 };
-use bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier, URI};
+use bsp_types::{BuildTargetIdentifier, RequestId, TextDocumentIdentifier, URI};
 
 /// Diagnostics are sent to the client as `publishDiagnostic` notification.
 /// GlobalMessage is sent to the client as `logMessage` notification.
@@ -44,7 +44,7 @@ enum MappedRustChildDiagnostic {
 /// If the diagnostic has no primary span it will be classified as `GlobalMessage`.
 pub fn map_cargo_diagnostic_to_bsp(
     diagnostic: &MetadataDiagnostic,
-    origin_id: Option<String>,
+    origin_id: Option<RequestId>,
     build_target: &BuildTargetIdentifier,
     workspace_root: &AbsPath,
 ) -> DiagnosticMessage {
@@ -212,7 +212,7 @@ pub fn map_cargo_diagnostic_to_bsp(
 
 fn create_diagnostics(
     diagnostics: HashMap<URI, Vec<Diagnostic>>,
-    origin_id: Option<String>,
+    origin_id: Option<RequestId>,
     build_target: &BuildTargetIdentifier,
 ) -> Vec<PublishDiagnosticsParams> {
     diagnostics

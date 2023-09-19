@@ -136,7 +136,7 @@ where
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             r#type: message_type,
             task: Some(task_id),
-            origin_id: self.params.origin_id(),
+            origin_id: self.params.origin_id().map(|id| id.0.into()),
             message,
         });
     }

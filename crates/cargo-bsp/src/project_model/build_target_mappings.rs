@@ -100,7 +100,7 @@ pub fn bsp_build_target_from_cargo_target(
         base_directory: Some(path_parent_directory_uri(&cargo_target.src_path)),
         tags,
         capabilities,
-        language_ids: vec![RUST_ID.to_string()],
+        language_ids: vec![RUST_ID.into()],
         dependencies: Vec::from(target_dependencies),
         data: Some(rust_specific_data),
     }

@@ -3,6 +3,8 @@
 //! which allows toggling the features, not yet added to the BSP documentation).
 
 use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::ops::Deref;
+
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
@@ -79,8 +81,8 @@ impl CargoPackage {
     /// We assume that optional dependency can only be turned on by a feature that has the form:
     /// "dep:package_name" or "package_name/feature_name"
     fn feature_enables_dependency(feature: &Feature, dependency_name: &String) -> bool {
-        feature.0 == format!("dep:{}", dependency_name)
-            || feature.0.starts_with(&format!("{}/", dependency_name))
+        feature.deref().eq(&format!("dep:{}", dependency_name))
+            || feature.starts_with(&format!("{}/", dependency_name))
     }
 
     /// Checks if a feature was defined in the `Cargo.toml`. Used to skip features that have the form:

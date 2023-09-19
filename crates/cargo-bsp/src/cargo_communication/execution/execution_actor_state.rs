@@ -3,7 +3,7 @@
 //! creation of notifications and responses for the client (especially the state
 //! sets and stores TaskIds of all tasks that may potentially be started).
 
-use bsp_types::BuildTargetIdentifier;
+use bsp_types::{BuildTargetIdentifier, Identifier};
 use std::collections::HashMap;
 
 use bsp_types::notifications::TaskId;
@@ -131,7 +131,7 @@ impl TaskState {
 
 impl ExecutionActorState {
     pub fn new<R: Request>(
-        origin_id: Option<String>,
+        origin_id: Option<Identifier>,
         build_targets: &[BuildTargetIdentifier],
     ) -> ExecutionActorState {
         let root_task_id = TaskId {

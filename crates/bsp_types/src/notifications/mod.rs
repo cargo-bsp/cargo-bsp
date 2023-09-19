@@ -1,6 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::Identifier;
 pub use did_change_build_target::*;
 pub use exit_build::*;
 pub use initialized_build::*;
@@ -24,7 +25,7 @@ pub trait Notification {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone, Eq, Hash)]
 pub struct TaskId {
     /** A unique identifier */
-    pub id: String,
+    pub id: Identifier,
 
     /** The parent task ids, if any. A non-empty parents field means
     this task is a sub-task of every parent task id. The child-parent
@@ -32,7 +33,7 @@ pub struct TaskId {
     a tree-like user interface or inspect what caused a certain task
     execution. */
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub parents: Vec<String>,
+    pub parents: Vec<Identifier>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
@@ -60,8 +61,8 @@ mod tests {
     #[test]
     fn task_id() {
         let test_data = TaskId {
-            id: "test_id".to_string(),
-            parents: vec!["test_parent".to_string()],
+            id: "test_id".into(),
+            parents: vec!["test_parent".into()],
         };
 
         assert_json_snapshot!(test_data,
