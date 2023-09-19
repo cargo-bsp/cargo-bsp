@@ -6,20 +6,19 @@ use crate::BuildTarget;
 #[derive(Debug)]
 pub enum WorkspaceBuildTargets {}
 
+/// The workspace build targets request is sent from the client to the server to ask
+/// for the list of all available build targets in the workspace.
 impl Request for WorkspaceBuildTargets {
-    type Params = (); // TODO change to WorkspaceBuildTargetsParams if client supports
+    type Params = ();
     type Result = WorkspaceBuildTargetsResult;
     const METHOD: &'static str = "workspace/buildTargets";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-pub struct WorkspaceBuildTargetsParams {}
-
-/** The result of the workspace/buildTargets request */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceBuildTargetsResult {
-    /** The build targets in this workspace that
-    contain sources with the given language ids. */
+    /// The build targets in this workspace that
+    /// contain sources with the given language ids.
     pub targets: Vec<BuildTarget>,
 }
 
@@ -27,18 +26,11 @@ pub struct WorkspaceBuildTargetsResult {
 mod tests {
     use insta::assert_json_snapshot;
 
-    use crate::tests::test_deserialization;
-
     use super::*;
 
     #[test]
     fn workspace_build_targets_method() {
         assert_eq!(WorkspaceBuildTargets::METHOD, "workspace/buildTargets");
-    }
-
-    #[test]
-    fn workspace_build_targets_params() {
-        test_deserialization(r#"{}"#, &WorkspaceBuildTargetsParams {});
     }
 
     #[test]
@@ -56,9 +48,9 @@ mod tests {
                 "uri": ""
               },
               "tags": [],
-              "capabilities": {},
               "languageIds": [],
-              "dependencies": []
+              "dependencies": [],
+              "capabilities": {}
             }
           ]
         }

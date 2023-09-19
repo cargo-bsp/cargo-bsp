@@ -12,7 +12,7 @@ mod cargo_build_target;
 mod cargo_features_state;
 mod set_cargo_features_state;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Feature(pub String);
 
@@ -36,8 +36,8 @@ impl From<&str> for Feature {
     }
 }
 
-/// Hashmap where key is a feature name and the value are names of other features it enables.
-/// Includes pair for default features if default is defined
+/// The feature dependency graph is a mapping between
+/// feature and the features it turns on
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FeatureDependencyGraph(pub BTreeMap<Feature, BTreeSet<Feature>>);

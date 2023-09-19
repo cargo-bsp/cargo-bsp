@@ -4,19 +4,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::Feature;
 
-/** `CargoBuildTarget` is a basic data structure that contains
-cargo-specific metadata. */
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+/// `CargoBuildTarget` is a basic data structure that contains
+/// cargo-specific metadata.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CargoBuildTarget {
     pub edition: RustEdition,
     pub required_features: BTreeSet<Feature>,
 }
 
-/** The Rust edition.
-As of writing this comment rust editions 2024, 2027 and 2030 are not
-actually a thing yet but are parsed nonetheless for future proofing. */
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+/// The Rust edition.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RustEdition(pub std::borrow::Cow<'static, str>);
 

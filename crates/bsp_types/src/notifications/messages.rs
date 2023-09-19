@@ -5,9 +5,12 @@ use crate::notifications::{Notification, TaskId};
 use crate::RequestId;
 
 #[derive(Debug)]
-pub enum ShowMessage {}
+pub enum OnBuildShowMessage {}
 
-impl Notification for ShowMessage {
+/// The show message notification is sent from a server to a client to ask the client to display a particular message in the user interface.
+///
+/// A build/showMessage notification is similar to LSP's window/showMessage, except for a few additions like id and originId.
+impl Notification for OnBuildShowMessage {
     type Params = ShowMessageParams;
     const METHOD: &'static str = "build/showMessage";
 }
@@ -15,56 +18,61 @@ impl Notification for ShowMessage {
 #[derive(Debug)]
 pub enum OnBuildLogMessage {}
 
+/// The log message notification is sent from a server to a client to ask the client to log a particular message in its console.
+///
+/// A build/logMessage notification is similar to LSP's window/logMessage, except for a few additions like id and originId.
 impl Notification for OnBuildLogMessage {
     type Params = LogMessageParams;
     const METHOD: &'static str = "build/logMessage";
 }
 
-/** Show message notification */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageParams {
-    /** The message type. See {@link MessageType}. */
+    /// the message type.
     pub r#type: MessageType,
-
-    /** The task id if any. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The task id if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task: Option<TaskId>,
-
-    /** The request id that originated this notification. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The request id that originated this notification.
+    /// The originId field helps clients know which request originated a notification in case several requests are handled by the
+    /// client at the same time. It will only be populated if the client defined it in the request that triggered this notification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<RequestId>,
-
-    /** The actual message. */
+    /// The actual message.
     pub message: String,
 }
 
-/** Log message notification params */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogMessageParams {
-    /** The message type. See {@link MessageType}. */
+    /// the message type.
     pub r#type: MessageType,
-
-    /** The task id if any. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The task id if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task: Option<TaskId>,
-
-    /** The request id that originated this notification. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The request id that originated this notification.
+    /// The originId field helps clients know which request originated a notification in case several requests are handled by the
+    /// client at the same time. It will only be populated if the client defined it in the request that triggered this notification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<RequestId>,
-
-    /** The actual message. */
+    /// The actual message.
     pub message: String,
 }
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize_repr, Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum MessageType {
     #[default]
+    /// An error message.
     Error = 1,
+    /// A warning message.
     Warning = 2,
+    /// An information message.
     Info = 3,
+    /// A log message.
     Log = 4,
 }
 
@@ -76,7 +84,7 @@ mod tests {
 
     #[test]
     fn show_message_method() {
-        assert_eq!(ShowMessage::METHOD, "build/showMessage");
+        assert_eq!(OnBuildShowMessage::METHOD, "build/showMessage");
     }
 
     #[test]

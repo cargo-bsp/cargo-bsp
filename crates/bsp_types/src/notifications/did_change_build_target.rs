@@ -5,38 +5,41 @@ use crate::notifications::Notification;
 use crate::{BuildTargetIdentifier, OtherData};
 
 #[derive(Debug)]
-pub enum DidChangeBuildTarget {}
+pub enum OnBuildTargetDidChange {}
 
-impl Notification for DidChangeBuildTarget {
-    type Params = DidChangeBuildTargetParams;
+/// The build target changed notification is sent from the server to the client to
+/// signal a change in a build target. The server communicates during the initialize
+/// handshake whether this method is supported or not.
+impl Notification for OnBuildTargetDidChange {
+    type Params = DidChangeBuildTarget;
     const METHOD: &'static str = "buildTarget/didChange";
 }
 
-/**Build Target Changed Notification params */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub struct DidChangeBuildTargetParams {
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DidChangeBuildTarget {
     pub changes: Vec<BuildTargetEvent>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BuildTargetEvent {
-    /** The identifier for the changed build target */
+    /// The identifier for the changed build target
     pub target: BuildTargetIdentifier,
-
-    /** The kind of change for this build target */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The kind of change for this build target
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<BuildTargetEventKind>,
-
-    /** Any additional metadata about what information changed. */
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// Any additional metadata about what information changed.
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub data: Option<BuildTargetEventData>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
 pub enum NamedBuildTargetEventData {}
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum BuildTargetEventData {
     Named(NamedBuildTargetEventData),
@@ -45,15 +48,19 @@ pub enum BuildTargetEventData {
 
 impl BuildTargetEventData {}
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+/// The `BuildTargetEventKind` information can be used by clients to trigger
+/// reindexing or update the user interface with the new information.
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize_repr, Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum BuildTargetEventKind {
-    /** The build target is new. */
     #[default]
+    /// The build target is new.
     Created = 1,
-    /** The build target has changed. */
+    /// The build target has changed.
     Changed = 2,
-    /** The build target has been deleted. */
+    /// The build target has been deleted.
     Deleted = 3,
 }
 
@@ -65,12 +72,12 @@ mod tests {
 
     #[test]
     fn did_change_build_target_method() {
-        assert_eq!(DidChangeBuildTarget::METHOD, "buildTarget/didChange");
+        assert_eq!(OnBuildTargetDidChange::METHOD, "buildTarget/didChange");
     }
 
     #[test]
     fn did_change_build_target_params() {
-        let test_data = DidChangeBuildTargetParams {
+        let test_data = DidChangeBuildTarget {
             changes: vec![BuildTargetEvent::default()],
         };
 
@@ -87,7 +94,7 @@ mod tests {
         }
         "#
         );
-        assert_json_snapshot!(DidChangeBuildTargetParams::default(),
+        assert_json_snapshot!(DidChangeBuildTarget::default(),
             @r#"
         {
           "changes": []

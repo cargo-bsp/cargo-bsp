@@ -7,49 +7,59 @@ use crate::{BuildTargetIdentifier, URI};
 #[derive(Debug)]
 pub enum BuildTargetOutputPaths {}
 
+/// The build target output paths request is sent from the client to the server to
+/// query for the list of output paths of a given list of build targets.
+///
+/// An output path is a file or directory that contains output files such as build
+/// artifacts which IDEs may decide to exclude from indexing. The server communicates
+/// during the initialize handshake whether this method is supported or not.
 impl Request for BuildTargetOutputPaths {
     type Params = OutputPathsParams;
     type Result = OutputPathsResult;
     const METHOD: &'static str = "buildTarget/outputPaths";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OutputPathsParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OutputPathsResult {
     pub items: Vec<OutputPathsItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputPathsItem {
-    /** A build target to which output paths item belongs. */
+    /// A build target to which output paths item belongs.
     pub target: BuildTargetIdentifier,
-    /** Output paths. */
+    /// Output paths.
     pub output_paths: Vec<OutputPathItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OutputPathItem {
-    /** Either a file or a directory. A directory entry must end with a forward
-    slash "/" and a directory entry implies that every nested path within the
-    directory belongs to this output item. */
+    /// Either a file or a directory. A directory entry must end with a forward
+    /// slash "/" and a directory entry implies that every nested path within the
+    /// directory belongs to this output item.
     pub uri: URI,
-
-    /** Type of file of the output item, such as whether it is file or directory. */
+    /// Type of file of the output item, such as whether it is file or directory.
     pub kind: OutputPathItemKind,
 }
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize_repr, Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum OutputPathItemKind {
-    /** The output path item references a normal file. */
     #[default]
+    /// The output path item references a normal file.
     File = 1,
-    /** The output path item references a directory. */
+    /// The output path item references a directory.
     Directory = 2,
 }
 

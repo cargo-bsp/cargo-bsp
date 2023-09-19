@@ -17,7 +17,7 @@ impl Request for SetCargoFeatures {
     const METHOD: &'static str = "workspace/setCargoFeatures";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetCargoFeaturesParams {
     /// Package ID for which new features state will be set.
@@ -26,7 +26,7 @@ pub struct SetCargoFeaturesParams {
     pub features: BTreeSet<Feature>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetCargoFeaturesResult {
     /// The status code of the operation.

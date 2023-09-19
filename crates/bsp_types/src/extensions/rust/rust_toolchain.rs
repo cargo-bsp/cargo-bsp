@@ -16,45 +16,45 @@ impl Request for RustToolchain {
     const METHOD: &'static str = "buildTarget/rustToolchain";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainParams {
-    /** A sequence of build targets for toolchain resolution. */
+    /// A sequence of build targets for toolchain resolution.
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainResult {
-    /** A sequence of Rust toolchains. */
+    /// A sequence of Rust toolchains.
     pub toolchains: BTreeSet<RustToolchainItem>,
 }
 
-#[derive(Serialize, Deserialize, Default, PartialOrd, PartialEq, Ord, Eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RustToolchainItem {
-    /** Additional information about Rust toolchain.
-    Obtained from `rustc`. */
+    /// Additional information about Rust toolchain.
+    /// Obtained from `rustc`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rust_std_lib: Option<RustcInfo>,
-    /** Path to Cargo executable. */
+    /// Path to Cargo executable.
     pub cargo_bin_path: URI,
-    /** Location of the source code of procedural macros in the Rust toolchain. */
+    /// Location of the source code of procedural macros in the Rust toolchain.
     pub proc_macro_srv_path: URI,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, PartialOrd, PartialEq, Ord, Eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RustcInfo {
-    /** Root directory where the Rust compiler looks for standard libraries and other
-    essential components when building Rust projects. */
+    /// Root directory where the Rust compiler looks for standard libraries and other
+    /// essential components when building Rust projects.
     pub sysroot_path: URI,
-    /** Source code for the Rust standard library. */
+    /// Source code for the Rust standard library.
     pub src_sysroot_path: URI,
-    /** `rustc` SemVer (Semantic Versioning) version. */
+    /// `rustc` SemVer (Semantic Versioning) version.
     pub version: String,
-    /** Target architecture and operating system of the Rust compiler.
-    Used by [`intellij-rust`] for checking if given toolchain is supported. */
+    /// Target architecture and operating system of the Rust compiler.
+    /// Used by [`intellij-rust`] for checking if given toolchain is supported.
     pub host: String,
 }
 

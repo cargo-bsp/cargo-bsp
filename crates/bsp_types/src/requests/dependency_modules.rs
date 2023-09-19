@@ -6,48 +6,54 @@ use crate::{BuildTargetIdentifier, OtherData};
 #[derive(Debug)]
 pub enum BuildTargetDependencyModules {}
 
+/// The build target dependency modules request is sent from the client to the
+/// server to query for the libraries of build target dependencies that are external
+/// to the workspace including meta information about library and their sources.
+/// It's an extended version of `buildTarget/sources`.
 impl Request for BuildTargetDependencyModules {
     type Params = DependencyModulesParams;
     type Result = DependencyModulesResult;
     const METHOD: &'static str = "buildTarget/dependencyModules";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesResult {
     pub items: Vec<DependencyModulesItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesItem {
     pub target: BuildTargetIdentifier,
     pub modules: Vec<DependencyModule>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DependencyModule {
-    /** Module name */
+    /// Module name
     pub name: String,
-
-    /** Module version */
+    /// Module version
     pub version: String,
-
-    /** Language-specific metadata about this module.
-    See MavenDependencyModule as an example. */
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// Language-specific metadata about this module.
+    /// See MavenDependencyModule as an example.
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub data: Option<DependencyModuleData>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
 pub enum NamedDependencyModuleData {}
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DependencyModuleData {
     Named(NamedDependencyModuleData),

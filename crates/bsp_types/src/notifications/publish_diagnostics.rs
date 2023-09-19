@@ -7,77 +7,88 @@ use crate::{BuildTargetIdentifier, OtherData, RequestId, TextDocumentIdentifier,
 #[derive(Debug)]
 pub enum OnBuildPublishDiagnostics {}
 
+/// The Diagnostics notification are sent from the server to the client to signal results of validation runs.
+///
+/// Diagnostic is defined as it is in the LSP.
+///
+/// When reset is true, the client must clean all previous diagnostics associated with the same textDocument and
+/// buildTarget and set instead the diagnostics in the request. This is the same behaviour as PublishDiagnosticsParams
+/// in the LSP. When reset is false, the diagnostics are added to the last active diagnostics, allowing build tools to
+/// stream diagnostics to the client.
+///
+/// It is the server's responsibility to manage the lifetime of the diagnostics by using the appropriate value in the reset field.
+/// Clients generate new diagnostics by calling any BSP endpoint that triggers a buildTarget/compile, such as buildTarget/compile, buildTarget/test and buildTarget/run.
+///
+/// If the computed set of diagnostic is empty, the server must push an empty array with reset set to true, in order to clear previous diagnostics.
+///
+/// The optional originId field in the definition of PublishDiagnosticsParams can be used by clients to know which request originated the notification.
+/// This field will be defined if the client defined it in the original request that triggered this notification.
 impl Notification for OnBuildPublishDiagnostics {
     type Params = PublishDiagnosticsParams;
     const METHOD: &'static str = "build/publishDiagnostics";
 }
 
-/** Publish Diagnostics notification params */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PublishDiagnosticsParams {
-    /** The document where the diagnostics are published. */
+    /// The document where the diagnostics are published.
     pub text_document: TextDocumentIdentifier,
-
-    /** The build target where the diagnostics origin.
-    It is valid for one text document to belong to multiple
-    build targets, for example sources that are compiled against multiple
-    platforms (JVM, JavaScript). */
+    /// The build target where the diagnostics origin.
+    /// It is valid for one text document to belong to multiple
+    /// build targets, for example sources that are compiled against multiple
+    /// platforms (JVM, JavaScript).
     pub build_target: BuildTargetIdentifier,
-
-    /** The request id that originated this notification. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The request id that originated this notification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<RequestId>,
-
-    /** The diagnostics to be published by the client. */
+    /// The diagnostics to be published by the client.
     pub diagnostics: Vec<Diagnostic>,
-
-    /** Whether the client should clear the previous diagnostics
-    mapped to the same `textDocument` and `buildTarget`. */
+    /// Whether the client should clear the previous diagnostics
+    /// mapped to the same `textDocument` and `buildTarget`.
     pub reset: bool,
 }
 
-/** Represents a diagnostic, such as a compiler error or warning.
-Diagnostic objects are only valid in the scope of a resource. */
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+// TODO: Update in protocol. Struct not copied from bsp4rs because some fields are missing in smithy model
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
-    /** The range at which the message applies. */
+    /// The range at which the message applies.
     pub range: Range,
-    /** The diagnostic's severity. Can be omitted. If omitted it is up to the
-    client to interpret diagnostics as error, warning, info or hint. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The diagnostic's severity. Can be omitted. If omitted it is up to the
+    /// client to interpret diagnostics as error, warning, info or hint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub severity: Option<DiagnosticSeverity>,
-    /** The diagnostic's code, which might appear in the user interface. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The diagnostic's code, which might appear in the user interface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
-    /** An optional property to describe the error code. */
+    /// An optional property to describe the error code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_description: Option<CodeDescription>,
-    /** A human-readable string describing the source of this
-    diagnostic, e.g. 'typescript' or 'super lint'. */
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// A human-readable string describing the source of this
+    /// diagnostic, e.g. 'typescript' or 'super lint'.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    /** The diagnostic's message. */
+    /// The diagnostic's message.
     pub message: String,
-    /** An array of related diagnostic information, e.g. when symbol-names within
-    a scope collide all definitions can be marked via this property. */
+    /// An array of related diagnostic information, e.g. when symbol-names within
+    /// a scope collide all definitions can be marked via this property.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub related_information: Vec<DiagnosticRelatedInformation>,
-    /** Additional metadata about the diagnostic. */
+    /// Additional metadata about the diagnostic.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<DiagnosticTag>,
-    /** A data entry field that is preserved between a `textDocument/publishDiagnostics` notification
-    and a `textDocument/codeAction` request. */
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// A data entry field that is preserved between a `textDocument/publishDiagnostics` notification
+    /// and a `textDocument/codeAction` request.
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub data: Option<DiagnosticData>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
 pub enum NamedDiagnosticData {}
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DiagnosticData {
     Named(NamedDiagnosticData),
@@ -92,19 +103,21 @@ pub struct CodeDescription {
     pub href: URI,
 }
 
-/** Represents a related message and source code location for a diagnostic.
-This should be used to point to code locations that cause or are related to
-a diagnostics, e.g when duplicating a symbol in a scope. */
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+/// Represents a related message and source code location for a diagnostic.
+/// This should be used to point to code locations that cause or are related to
+/// a diagnostics, e.g when duplicating a symbol in a scope.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRelatedInformation {
-    /** The location of this related diagnostic information. */
+    /// The location of this related diagnostic information.
     pub location: Location,
-    /** The message of this related diagnostic information. */
+    /// The message of this related diagnostic information.
     pub message: String,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Serialize_repr, Deserialize_repr)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize_repr, Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum DiagnosticSeverity {
     #[default]
@@ -114,21 +127,22 @@ pub enum DiagnosticSeverity {
     Hint = 4,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct DiagnosticTag(pub i32);
+
 impl DiagnosticTag {
-    /** Unused or unnecessary code.
-
-    Clients are allowed to render diagnostics with this tag faded out instead of having an error squiggle. */
+    /// Unused or unnecessary code.
+    ///
+    /// Clients are allowed to render diagnostics with this tag faded out instead of having an error squiggle.
     pub const UNNECESSARY: DiagnosticTag = DiagnosticTag::new(1);
-    /** Deprecated or obsolete code.
-
-    Clients are allowed to rendered diagnostics with this tag strike through. */
+    /// Deprecated or obsolete code.
+    ///
+    /// Clients are allowed to rendered diagnostics with this tag strike through.
     pub const DEPRECATED: DiagnosticTag = DiagnosticTag::new(2);
 
     pub const fn new(tag: i32) -> Self {
-        DiagnosticTag(tag)
+        Self(tag)
     }
 }
 

@@ -7,9 +7,7 @@ use bsp_server::{Connection, Message};
 use crossbeam_channel::Receiver;
 use serde_json::to_value;
 
-use bsp_types::notifications::{
-    InitializedBuild, InitializedBuildParams, Notification, OnBuildExit,
-};
+use bsp_types::notifications::{Notification, OnBuildExit, OnBuildInitialized};
 use bsp_types::requests::{
     BuildInitialize, BuildShutdown, BuildTargetSources, InitializeBuildParams,
     InitializeBuildResult, Request, SourcesParams, SourcesResult,
@@ -109,8 +107,8 @@ pub fn test_init_resp(params: &InitializeBuildResult, id: i32) -> bsp_server::Re
 
 pub fn test_init_notif() -> bsp_server::Notification {
     bsp_server::Notification {
-        method: InitializedBuild::METHOD.to_string(),
-        params: to_value(InitializedBuildParams::default()).unwrap(),
+        method: OnBuildInitialized::METHOD.to_string(),
+        params: to_value(()).unwrap(),
     }
 }
 

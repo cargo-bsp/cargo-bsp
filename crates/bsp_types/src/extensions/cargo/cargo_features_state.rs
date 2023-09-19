@@ -18,7 +18,7 @@ impl Request for CargoFeaturesState {
     const METHOD: &'static str = "workspace/cargoFeaturesState";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CargoFeaturesStateResult {
     /// The list of Cargo packages with assigned to them target
@@ -26,7 +26,7 @@ pub struct CargoFeaturesStateResult {
     pub packages_features: Vec<PackageFeatures>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageFeatures {
     /// The Cargo package identifier.

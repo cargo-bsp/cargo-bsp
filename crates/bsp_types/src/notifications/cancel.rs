@@ -1,5 +1,7 @@
 use crate::notifications::Notification;
 
+// TODO: Add to protocol. Enum not in in smithy model, so can't be copied from bsp4rs
+
 impl Notification for lsp_types::notification::Cancel {
     type Params = lsp_types::CancelParams;
     const METHOD: &'static str = "$/cancelRequest";
