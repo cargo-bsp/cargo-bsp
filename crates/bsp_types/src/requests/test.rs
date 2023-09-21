@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode};
 
-#[derive(Debug)]
-pub enum BuildTargetTest {}
-
 /// The test build target request is sent from the client to the server to test the
 /// given list of build targets. The server communicates during the initialize
 /// handshake whether this method is supported or not.
+#[derive(Debug)]
+pub enum BuildTargetTest {}
+
 impl Request for BuildTargetTest {
     type Params = TestParams;
     type Result = TestResult;

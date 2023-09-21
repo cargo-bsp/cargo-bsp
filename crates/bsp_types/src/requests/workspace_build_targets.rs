@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::BuildTarget;
 
+/// The workspace build targets request is sent from the client to the server to ask
+/// for the list of all available build targets in the workspace.
 #[derive(Debug)]
 pub enum WorkspaceBuildTargets {}
 
-/// The workspace build targets request is sent from the client to the server to ask
-/// for the list of all available build targets in the workspace.
 impl Request for WorkspaceBuildTargets {
     type Params = ();
     type Result = WorkspaceBuildTargetsResult;

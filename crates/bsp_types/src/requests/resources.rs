@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, URI};
 
-#[derive(Debug)]
-pub enum BuildTargetResources {}
-
 /// The build target resources request is sent from the client to the server to
 /// query for the list of resources of a given list of build targets.
 ///
@@ -15,6 +12,9 @@ pub enum BuildTargetResources {}
 ///
 /// This request can be used by a client to highlight the resources in a project
 /// view, for example.
+#[derive(Debug)]
+pub enum BuildTargetResources {}
+
 impl Request for BuildTargetResources {
     type Params = ResourcesParams;
     type Result = ResourcesResult;

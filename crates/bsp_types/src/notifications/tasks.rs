@@ -4,9 +4,6 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::notifications::{Notification, Range, TaskId};
 use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode, URI};
 
-#[derive(Debug)]
-pub enum OnBuildTaskStart {}
-
 /// The BSP server can inform the client on the execution state of any task in the
 /// build tool. The execution of some tasks, such as compilation or tests, must
 /// always be reported by the server.
@@ -27,26 +24,29 @@ pub enum OnBuildTaskStart {}
 /// Tasks that are spawned by another task should reference the originating task's
 /// `taskId` in their own `taskId`'s `parent` field. Tasks spawned directly by a
 /// request should reference the request's `originId` parent.
+#[derive(Debug)]
+pub enum OnBuildTaskStart {}
+
 impl Notification for OnBuildTaskStart {
     type Params = TaskStartParams;
     const METHOD: &'static str = "build/taskStart";
 }
 
+/// After a `taskStart` and before `taskFinish` for a `taskId`, the server may send
+/// any number of progress notifications.
 #[derive(Debug)]
 pub enum OnBuildTaskProgress {}
 
-/// After a `taskStart` and before `taskFinish` for a `taskId`, the server may send
-/// any number of progress notifications.
 impl Notification for OnBuildTaskProgress {
     type Params = TaskProgressParams;
     const METHOD: &'static str = "build/taskProgress";
 }
 
+/// A `build/taskFinish` notification must always be sent after a `build/taskStart`
+/// with the same `taskId` was sent.
 #[derive(Debug)]
 pub enum OnBuildTaskFinish {}
 
-/// A `build/taskFinish` notification must always be sent after a `build/taskStart`
-/// with the same `taskId` was sent.
 impl Notification for OnBuildTaskFinish {
     type Params = TaskFinishParams;
     const METHOD: &'static str = "build/taskFinish";

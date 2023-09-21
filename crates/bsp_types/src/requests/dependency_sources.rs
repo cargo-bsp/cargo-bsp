@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, URI};
 
-#[derive(Debug)]
-pub enum BuildTargetDependencySources {}
-
 /// The build target dependency sources request is sent from the client to the
 /// server to query for the sources of build target dependencies that are external
 /// to the workspace. The dependency sources response must not include source files
@@ -15,6 +12,9 @@ pub enum BuildTargetDependencySources {}
 /// supported or not. This method can for example be used by a language server on
 /// `textDocument/definition` to "Go to definition" from project sources to
 /// dependency sources.
+#[derive(Debug)]
+pub enum BuildTargetDependencySources {}
+
 impl Request for BuildTargetDependencySources {
     type Params = DependencySourcesParams;
     type Result = DependencySourcesResult;

@@ -4,23 +4,23 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::notifications::{Notification, TaskId};
 use crate::RequestId;
 
-#[derive(Debug)]
-pub enum OnBuildShowMessage {}
-
 /// The show message notification is sent from a server to a client to ask the client to display a particular message in the user interface.
 ///
 /// A build/showMessage notification is similar to LSP's window/showMessage, except for a few additions like id and originId.
+#[derive(Debug)]
+pub enum OnBuildShowMessage {}
+
 impl Notification for OnBuildShowMessage {
     type Params = ShowMessageParams;
     const METHOD: &'static str = "build/showMessage";
 }
 
-#[derive(Debug)]
-pub enum OnBuildLogMessage {}
-
 /// The log message notification is sent from a server to a client to ask the client to log a particular message in its console.
 ///
 /// A build/logMessage notification is similar to LSP's window/logMessage, except for a few additions like id and originId.
+#[derive(Debug)]
+pub enum OnBuildLogMessage {}
+
 impl Notification for OnBuildLogMessage {
     type Params = LogMessageParams;
     const METHOD: &'static str = "build/logMessage";

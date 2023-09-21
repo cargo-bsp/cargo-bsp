@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode};
 
-#[derive(Debug)]
-pub enum BuildTargetRun {}
-
 /// The run request is sent from the client to the server to run a build target. The
 /// server communicates during the initialize handshake whether this method is
 /// supported or not.
@@ -20,6 +17,9 @@ pub enum BuildTargetRun {}
 ///
 /// Note that an empty run request is valid. Run will be executed in the target as
 /// specified in the build tool.
+#[derive(Debug)]
+pub enum BuildTargetRun {}
+
 impl Request for BuildTargetRun {
     type Params = RunParams;
     type Result = RunResult;

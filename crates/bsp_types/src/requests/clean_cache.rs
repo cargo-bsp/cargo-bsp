@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
-#[derive(Debug)]
-pub enum BuildTargetCleanCache {}
-
 /// The clean cache request is sent from the client to the server to reset any state
 /// associated with a given build target. The state can live either in the build
 /// tool or in the file system.
@@ -16,6 +13,9 @@ pub enum BuildTargetCleanCache {}
 ///    successful response.
 /// 2. Stateful build tools must ensure that invoking compilation on a target that
 ///    has been cleaned results in a full compilation.
+#[derive(Debug)]
+pub enum BuildTargetCleanCache {}
+
 impl Request for BuildTargetCleanCache {
     type Params = CleanCacheParams;
     type Result = CleanCacheResult;

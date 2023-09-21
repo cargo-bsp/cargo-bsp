@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode};
 
-#[derive(Debug)]
-pub enum BuildTargetCompile {}
-
 /// The compile build target request is sent from the client to the server to
 /// compile the given list of build targets. The server communicates during the
 /// initialize handshake whether this method is supported or not. This method can
 /// for example be used by a language server before `textDocument/rename` to ensure
 /// that all workspace sources typecheck correctly and are up-to-date.
+#[derive(Debug)]
+pub enum BuildTargetCompile {}
+
 impl Request for BuildTargetCompile {
     type Params = CompileParams;
     type Result = CompileResult;

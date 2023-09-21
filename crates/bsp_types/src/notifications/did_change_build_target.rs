@@ -4,12 +4,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::notifications::Notification;
 use crate::{BuildTargetIdentifier, OtherData};
 
-#[derive(Debug)]
-pub enum OnBuildTargetDidChange {}
-
 /// The build target changed notification is sent from the server to the client to
 /// signal a change in a build target. The server communicates during the initialize
 /// handshake whether this method is supported or not.
+#[derive(Debug)]
+pub enum OnBuildTargetDidChange {}
+
 impl Notification for OnBuildTargetDidChange {
     type Params = DidChangeBuildTarget;
     const METHOD: &'static str = "buildTarget/didChange";

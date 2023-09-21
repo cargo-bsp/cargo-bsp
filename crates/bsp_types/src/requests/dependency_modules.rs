@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, OtherData};
 
-#[derive(Debug)]
-pub enum BuildTargetDependencyModules {}
-
 /// The build target dependency modules request is sent from the client to the
 /// server to query for the libraries of build target dependencies that are external
 /// to the workspace including meta information about library and their sources.
 /// It's an extended version of `buildTarget/sources`.
+#[derive(Debug)]
+pub enum BuildTargetDependencyModules {}
+
 impl Request for BuildTargetDependencyModules {
     type Params = DependencyModulesParams;
     type Result = DependencyModulesResult;

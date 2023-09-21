@@ -4,9 +4,6 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::notifications::{Location, Notification, Range};
 use crate::{BuildTargetIdentifier, OtherData, RequestId, TextDocumentIdentifier, URI};
 
-#[derive(Debug)]
-pub enum OnBuildPublishDiagnostics {}
-
 /// The Diagnostics notification are sent from the server to the client to signal results of validation runs.
 ///
 /// Diagnostic is defined as it is in the LSP.
@@ -23,6 +20,9 @@ pub enum OnBuildPublishDiagnostics {}
 ///
 /// The optional originId field in the definition of PublishDiagnosticsParams can be used by clients to know which request originated the notification.
 /// This field will be defined if the client defined it in the original request that triggered this notification.
+#[derive(Debug)]
+pub enum OnBuildPublishDiagnostics {}
+
 impl Notification for OnBuildPublishDiagnostics {
     type Params = PublishDiagnosticsParams;
     const METHOD: &'static str = "build/publishDiagnostics";

@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, OtherData, URI};
 
-#[derive(Debug)]
-pub enum DebugSessionStart {}
-
 /// The debug request is sent from the client to the server to debug build target(s). The
 /// server launches a [Microsoft DAP](https://microsoft.github.io/debug-adapter-protocol/) server
 /// and returns a connection URI for the client to interact with.
+#[derive(Debug)]
+pub enum DebugSessionStart {}
+
 impl Request for DebugSessionStart {
     type Params = DebugSessionParams;
     type Result = DebugSessionAddress;

@@ -4,13 +4,13 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, URI};
 
-#[derive(Debug)]
-pub enum BuildTargetSources {}
-
 /// The build target sources request is sent from the client to the server to query
 /// for the list of text documents and directories that are belong to a build
 /// target. The sources response must not include sources that are external to the
 /// workspace, see `buildTarget/dependencySources`.
+#[derive(Debug)]
+pub enum BuildTargetSources {}
+
 impl Request for BuildTargetSources {
     type Params = SourcesParams;
     type Result = SourcesResult;

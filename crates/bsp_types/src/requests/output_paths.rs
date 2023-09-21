@@ -4,15 +4,15 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, URI};
 
-#[derive(Debug)]
-pub enum BuildTargetOutputPaths {}
-
 /// The build target output paths request is sent from the client to the server to
 /// query for the list of output paths of a given list of build targets.
 ///
 /// An output path is a file or directory that contains output files such as build
 /// artifacts which IDEs may decide to exclude from indexing. The server communicates
 /// during the initialize handshake whether this method is supported or not.
+#[derive(Debug)]
+pub enum BuildTargetOutputPaths {}
+
 impl Request for BuildTargetOutputPaths {
     type Params = OutputPathsParams;
     type Result = OutputPathsResult;
