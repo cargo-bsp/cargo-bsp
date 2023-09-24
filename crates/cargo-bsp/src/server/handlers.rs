@@ -3,7 +3,6 @@
 
 use log::warn;
 
-use crate::project_model::rust_extension::get_rust_toolchains;
 use crate::project_model::sources::get_sources_for_target;
 use crate::server::global_state::{GlobalState, GlobalStateSnapshot};
 use crate::server::Result;
@@ -121,15 +120,4 @@ pub(crate) fn handle_cargo_features_state(
     let packages_features = state.workspace.get_cargo_features_state();
 
     Ok(bsp_types::extensions::CargoFeaturesStateResult { packages_features })
-}
-
-// BSP Rust extension handlers
-
-pub(crate) fn handle_rust_toolchain(
-    state: GlobalStateSnapshot,
-    params: bsp_types::extensions::RustToolchainParams,
-) -> Result<bsp_types::extensions::RustToolchainResult> {
-    Ok(bsp_types::extensions::RustToolchainResult {
-        toolchains: get_rust_toolchains(state.workspace, params.targets),
-    })
 }
