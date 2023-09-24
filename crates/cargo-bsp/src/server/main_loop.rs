@@ -129,7 +129,6 @@ impl GlobalState {
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
-            .on_sync::<bsp_types::extensions::RustToolchain>(handlers::handle_rust_toolchain)
             .on_cargo_run::<bsp_types::requests::Compile>()
             .on_cargo_run::<bsp_types::requests::Run>()
             .on_cargo_run::<bsp_types::requests::Test>()
