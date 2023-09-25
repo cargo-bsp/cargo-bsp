@@ -16,7 +16,6 @@ pub use run::*;
 pub use shutdown_build::*;
 pub use test::*;
 pub use workspace_build_targets::*;
-pub use workspace_libraries::*;
 
 mod build_target_sources;
 mod clean_cache;
@@ -33,7 +32,6 @@ mod run;
 mod shutdown_build;
 mod test;
 mod workspace_build_targets;
-mod workspace_libraries;
 
 pub trait Request {
     type Params: DeserializeOwned + Serialize;
