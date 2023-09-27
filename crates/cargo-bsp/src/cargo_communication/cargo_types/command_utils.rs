@@ -1,21 +1,15 @@
-//! Contains necessary additional structs and functions dor creating Cargo commands.
+//! Contains necessary additional structs and functions for creating Cargo commands.
 
 use crate::project_model::target_details::TargetDetails;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 #[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Clone)]
 #[serde(rename_all = "camelCase")]
-pub enum CommandType {
+pub(crate) enum CommandType {
     Build,
     Test,
     Run,
     Check,
-}
-
-pub trait CommandCreationDetails {
-    fn get_command_arguments(&self) -> Vec<String>;
-
-    fn get_command_type() -> CommandType;
 }
 
 const FEATURE_FLAG: &str = "--features";

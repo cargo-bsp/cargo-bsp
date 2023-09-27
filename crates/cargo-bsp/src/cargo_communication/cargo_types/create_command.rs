@@ -22,15 +22,16 @@
 
 use std::path::Path;
 
+use crate::cargo_communication::cargo_types::command_creation_details::CommandCreationDetails;
 use crate::cargo_communication::cargo_types::command_utils::{
-    targets_details_to_args, CommandCreationDetails, CommandType,
+    targets_details_to_args, CommandType,
 };
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use std::process::Command;
 
-pub trait CreateCommand: CommandCreationDetails {
+pub(crate) trait CreateCommand: CommandCreationDetails {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
         create_requested_command(
@@ -42,62 +43,12 @@ pub trait CreateCommand: CommandCreationDetails {
     }
 }
 
-impl CommandCreationDetails for CompileParams {
-    fn get_command_arguments(&self) -> Vec<String> {
-        self.arguments.clone()
-    }
-
-    fn get_command_type() -> CommandType {
-        CommandType::Build
-    }
-}
-
 impl CreateCommand for CompileParams {}
 
-impl CommandCreationDetails for RunParams {
-    fn get_command_arguments(&self) -> Vec<String> {
-        self.arguments.clone()
-    }
-
-    fn get_command_type() -> CommandType {
-        CommandType::Run
-    }
-}
 impl CreateCommand for RunParams {}
 
-impl CommandCreationDetails for TestParams {
-    fn get_command_arguments(&self) -> Vec<String> {
-        let mut args = vec![
-            "--show-output".into(),
-            "-Z".into(),
-            "unstable-options".into(),
-            "--format=json".into(),
-        ];
-        args.extend(self.arguments.clone());
-        args
-    }
-
-    fn get_command_type() -> CommandType {
-        CommandType::Test
-    }
-}
 impl CreateCommand for TestParams {}
 
-impl CommandCreationDetails for RustWorkspaceParams {
-    fn get_command_arguments(&self) -> Vec<String> {
-        vec![
-            "--workspace".into(),
-            "--all-targets".into(),
-            "-Z".into(),
-            "unstable-options".into(),
-            "--keep-going".into(),
-        ]
-    }
-
-    fn get_command_type() -> CommandType {
-        CommandType::Check
-    }
-}
 impl CreateCommand for RustWorkspaceParams {
     fn create_requested_command(&self, root: &Path, _: &[TargetDetails]) -> Command {
         let mut cmd = create_requested_command(
