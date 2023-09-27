@@ -23,55 +23,89 @@
 use std::path::Path;
 
 use crate::cargo_communication::cargo_types::command_utils::{
-    targets_details_to_args, CommandType,
+    targets_details_to_args, CommandCreationDetails, CommandType,
 };
 use crate::project_model::target_details::TargetDetails;
 use bsp_types::extensions::RustWorkspaceParams;
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use std::process::Command;
 
-pub trait CreateCommand {
-    fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command;
-}
-
-impl CreateCommand for CompileParams {
+pub trait CreateCommand: CommandCreationDetails {
     fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
         let targets_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Build, root, targets_args);
-        cmd.args(self.arguments.clone());
-        cmd
+        create_requested_command(
+            Self::get_command_type(),
+            root,
+            targets_args,
+            self.get_command_arguments(),
+        )
     }
 }
 
-impl CreateCommand for RunParams {
-    fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let target_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Run, root, target_args);
-        cmd.args(self.arguments.clone());
-        cmd
+impl CommandCreationDetails for CompileParams {
+    fn get_command_arguments(&self) -> Vec<String> {
+        self.arguments.clone()
+    }
+
+    fn get_command_type() -> CommandType {
+        CommandType::Build
     }
 }
 
-impl CreateCommand for TestParams {
-    fn create_requested_command(&self, root: &Path, targets_details: &[TargetDetails]) -> Command {
-        let targets_args = targets_details_to_args(targets_details);
-        let mut cmd = create_requested_command(CommandType::Test, root, targets_args);
-        cmd.args(["--show-output", "-Z", "unstable-options", "--format=json"])
-            .args(self.arguments.clone());
-        cmd
+impl CreateCommand for CompileParams {}
+
+impl CommandCreationDetails for RunParams {
+    fn get_command_arguments(&self) -> Vec<String> {
+        self.arguments.clone()
+    }
+
+    fn get_command_type() -> CommandType {
+        CommandType::Run
     }
 }
+impl CreateCommand for RunParams {}
 
+impl CommandCreationDetails for TestParams {
+    fn get_command_arguments(&self) -> Vec<String> {
+        let mut args = vec![
+            "--show-output".into(),
+            "-Z".into(),
+            "unstable-options".into(),
+            "--format=json".into(),
+        ];
+        args.extend(self.arguments.clone());
+        args
+    }
+
+    fn get_command_type() -> CommandType {
+        CommandType::Test
+    }
+}
+impl CreateCommand for TestParams {}
+
+impl CommandCreationDetails for RustWorkspaceParams {
+    fn get_command_arguments(&self) -> Vec<String> {
+        vec![
+            "--workspace".into(),
+            "--all-targets".into(),
+            "-Z".into(),
+            "unstable-options".into(),
+            "--keep-going".into(),
+        ]
+    }
+
+    fn get_command_type() -> CommandType {
+        CommandType::Check
+    }
+}
 impl CreateCommand for RustWorkspaceParams {
     fn create_requested_command(&self, root: &Path, _: &[TargetDetails]) -> Command {
-        let mut cmd = create_requested_command(CommandType::Check, root, vec![]);
-        cmd.args([
-            "--workspace",
-            "--all-targets",
-            "-Z",
-            "unstable-options",
-            "--keep-going",
-        ]);
+        let mut cmd = create_requested_command(
+            Self::get_command_type(),
+            root,
+            vec![],
+            self.get_command_arguments(),
+        );
         cmd.env("RUSTC_BOOTSTRAP", "1");
         cmd
     }
@@ -81,6 +115,7 @@ fn create_requested_command(
     command_type: CommandType,
     root: &Path,
     targets_args: Vec<String>,
+    command_args: Vec<String>,
 ) -> Command {
     let mut cmd = Command::new(toolchain::cargo());
     cmd.current_dir(root);
@@ -96,6 +131,7 @@ fn create_requested_command(
         }
         CommandType::Check => {}
     }
+    cmd.args(command_args);
     cmd
 }
 

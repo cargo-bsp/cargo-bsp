@@ -5,11 +5,17 @@ use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
 
 #[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Clone)]
 #[serde(rename_all = "camelCase")]
-pub(crate) enum CommandType {
+pub enum CommandType {
     Build,
     Test,
     Run,
     Check,
+}
+
+pub trait CommandCreationDetails {
+    fn get_command_arguments(&self) -> Vec<String>;
+
+    fn get_command_type() -> CommandType;
 }
 
 const FEATURE_FLAG: &str = "--features";
