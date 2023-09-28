@@ -1,4 +1,4 @@
-//! Contains necessary additional structs and functions dor creating Cargo commands.
+//! Contains necessary additional structs and functions for creating Cargo commands.
 
 use crate::project_model::target_details::TargetDetails;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};

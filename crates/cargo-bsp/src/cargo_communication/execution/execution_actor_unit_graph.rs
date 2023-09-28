@@ -10,11 +10,11 @@ use serde::Deserialize;
 
 use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
-use crate::cargo_communication::execution::cargo_types::cargo_result::CargoResult;
-use crate::cargo_communication::execution::cargo_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::cargo_types::origin_id::OriginId;
-use crate::cargo_communication::execution::cargo_types::unit_graph::UnitGraph;
 use crate::cargo_communication::execution::execution_actor::ExecutionActor;
+use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
+use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
+use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::unit_graph::UnitGraph;
 
 // There is no Err StatusCode, as even if the unit graph command did not end up
 // successfully, it does not change the execution of the requested command.
