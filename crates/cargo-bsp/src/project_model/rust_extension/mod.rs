@@ -3,10 +3,8 @@
 mod dependency;
 mod package;
 mod target;
-mod toolchain;
 
 pub use self::package::get_rust_packages_related_to_targets;
-pub use self::toolchain::get_rust_toolchains;
 
 use crate::project_model::project_manifest::ProjectManifest;
 use crate::project_model::rust_extension::dependency::{

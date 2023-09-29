@@ -138,7 +138,6 @@ impl GlobalState {
             .on_cargo_run::<bsp_types::requests::BuildTargetCompile>()
             .on_cargo_run::<bsp_types::requests::BuildTargetRun>()
             .on_cargo_run::<bsp_types::requests::BuildTargetTest>()
-            .on_sync::<bsp_types::extensions::RustToolchain>(handlers::handle_rust_toolchain)
             .on_cargo_check_run::<bsp_types::extensions::RustWorkspace>()
             .finish();
     }

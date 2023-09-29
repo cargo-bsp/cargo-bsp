@@ -23,7 +23,7 @@ impl UnitGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::cargo_communication::execution::cargo_types::unit_graph::{Unit, UnitGraph};
+    use crate::cargo_communication::execution::execution_types::unit_graph::{Unit, UnitGraph};
     use bsp_types::tests::test_deserialization;
     use insta::assert_json_snapshot;
 
