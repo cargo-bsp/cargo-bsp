@@ -1,4 +1,4 @@
-use super::Feature;
+use crate::extensions::Feature;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 

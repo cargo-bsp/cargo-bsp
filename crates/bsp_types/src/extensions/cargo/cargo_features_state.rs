@@ -1,5 +1,4 @@
-use super::Feature;
-use crate::extensions::FeatureDependencyGraph;
+use crate::extensions::{Feature, FeatureDependencyGraph};
 use crate::BuildTargetIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
-// TODO: Add to protocol. Enum and structs not in smithy model, so can't be copied from bsp4rs
-
 #[derive(Debug)]
 pub enum WorkspaceLibraries {}
 

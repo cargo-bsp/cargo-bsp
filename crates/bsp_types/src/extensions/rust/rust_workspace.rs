@@ -3,8 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::extensions::cargo::Feature;
-use crate::extensions::{FeatureDependencyGraph, RustEdition};
+use crate::extensions::{Feature, FeatureDependencyGraph, RustEdition};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, EnvironmentVariables, URI};
 
@@ -31,6 +30,8 @@ pub struct RustWorkspaceParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
+/// The RustRawDependencies is a mapping between
+/// package id and the package's raw dependencies info.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RustRawDependencies(pub BTreeMap<String, Vec<RustRawDependency>>);
@@ -49,6 +50,8 @@ impl From<BTreeMap<String, Vec<RustRawDependency>>> for RustRawDependencies {
     }
 }
 
+/// The RustDependencies is a mapping between
+/// package id and the package's dependencies info.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RustDependencies(pub BTreeMap<String, Vec<RustDependency>>);
@@ -72,10 +75,12 @@ impl From<BTreeMap<String, Vec<RustDependency>>> for RustDependencies {
 pub struct RustWorkspaceResult {
     /// Packages of given targets.
     pub packages: Vec<RustPackage>,
-    /// Dependencies as listed in the package `Cargo.toml`,
+    /// Dependencies in `cargo metadata` as listed in the package `Cargo.toml`,
     /// without package resolution or any additional data.
     pub raw_dependencies: RustRawDependencies,
-    /// Resolved dependencies of the package. Handles renamed dependencies.
+    /// Resolved dependencies of the build. Handles renamed dependencies.
+    /// Correspond to dependencies from resolved dependency graph from `cargo metadata` that shows
+    /// the actual dependencies that are being used in the build.
     pub dependencies: RustDependencies,
     /// A sequence of build targets taken into consideration during build process.
     pub resolved_targets: Vec<BuildTargetIdentifier>,
@@ -87,6 +92,9 @@ pub struct RustRawDependency {
     /// The name of the dependency.
     pub name: String,
     /// Name to which this dependency is renamed when declared in Cargo.toml.
+    /// This field allows to specify an alternative name for a dependency to use in a code,
+    /// regardless of how it’s published (helpful for example if multiple dependencies
+    /// have conflicting names).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
     /// The dependency kind.
@@ -103,8 +111,8 @@ pub struct RustRawDependency {
     pub features: BTreeSet<Feature>,
 }
 
-/// This structure is embedded in the `data?: BuildTargetData` field, when the
-/// `dataKind` field contains "rust".
+/// `RustBuildTarget` is a basic data structure that contains rust-specific
+/// metadata for compiling a target containing Rust sources.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RustBuildTarget {
@@ -214,16 +222,18 @@ pub struct RustPackage {
     pub origin: RustPackageOrigin,
     /// Code edition of the package.
     pub edition: RustEdition,
-    /// The source ID of the dependency, `null` for the root package and path dependencies.
+    /// The source ID of the dependency, for example:
+    /// "registry+https://github.com/rust-lang/crates.io-index".
+    /// `null` for the root package and path dependencies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     /// Corresponds to source files which can be compiled into a crate from this package.
     /// Contains only resolved targets without conflicts.
     pub resolved_targets: Vec<RustBuildTarget>,
-    /// Same as `targets`, but contains all targets from this package.
+    /// Same as `resolvedTargets`, but contains all targets from this package.
     /// `targets` should be the subset of `allTargets`.
     pub all_targets: Vec<RustBuildTarget>,
-    /// Set of features defined for the package.
+    /// Set of features defined for the package (including optional dependencies).
     /// Each feature maps to an array of features or dependencies it enables.
     /// The entry named "default" defines which features are enabled by default.
     pub features: FeatureDependencyGraph,
@@ -235,11 +245,11 @@ pub struct RustPackage {
     /// The `cfg` is split by '=' delimiter and the first half becomes key and
     /// the second is aggregated to the value in `RustCfgOptions`.
     /// For "cfg1" the value is empty.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub cfg_options: RustCfgOptions,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cfg_options: Option<RustCfgOptions>,
     /// Environment variables for the package.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub env: EnvironmentVariables,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub env: Option<EnvironmentVariables>,
     /// An absolute path which is used as a value of `OUT_DIR` environmental
     /// variable when compiling current package.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -248,7 +258,7 @@ pub struct RustPackage {
     /// Procedural macros are macros that generate code at compile time.
     /// Contains files with file extensions: `.dll`, `.so` or `.dylib`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub proc_macro_artifact: Option<String>,
+    pub proc_macro_artifact: Option<URI>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -492,14 +502,12 @@ mod test {
             )])
             .into(),
             enabled_features: BTreeSet::from(["test_feature".into()]),
-            cfg_options: BTreeMap::from([(
-                "test_cfg".to_string(),
-                vec!["test_option".to_string()],
-            )])
-            .into(),
-            env: BTreeMap::from([("key".to_string(), "value".to_string())]).into(),
+            cfg_options: Some(
+                BTreeMap::from([("test_cfg".to_string(), vec!["test_option".to_string()])]).into(),
+            ),
+            env: Some(BTreeMap::from([("key".to_string(), "value".to_string())]).into()),
             out_dir_url: Some("test_out_dir_url".into()),
-            proc_macro_artifact: Some(String::default()),
+            proc_macro_artifact: Some(URI::default()),
         };
 
         assert_json_snapshot!(package, @r#"

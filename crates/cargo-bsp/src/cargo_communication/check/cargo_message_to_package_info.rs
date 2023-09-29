@@ -89,7 +89,7 @@ pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<URI> {
     script.map(|s| file_uri(s.out_dir.to_string()))
 }
 
-pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<String> {
+pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<URI> {
     artifacts
         .iter()
         .filter(|a| {
@@ -102,5 +102,5 @@ pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<String> 
                 .iter()
                 .any(|&e| f.extension().map_or(false, |ex| ex == e))
         })
-        .map(|f| f.to_string())
+        .map(|f| f.to_string().into())
 }
