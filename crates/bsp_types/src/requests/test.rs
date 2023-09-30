@@ -25,8 +25,8 @@ pub struct TestParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<Identifier>,
     /// Optional arguments to the test execution engine.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub arguments: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<String>>,
     /// Language-specific metadata about for this test execution.
     /// See ScalaTestParams as an example.
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
@@ -95,7 +95,7 @@ mod tests {
         let test_data = TestParams {
             targets: vec![BuildTargetIdentifier::default()],
             origin_id: Some("test_originId".into()),
-            arguments: vec!["test_argument".to_string()],
+            arguments: Some(vec!["test_argument".to_string()]),
             data: Some(TestParamsData::Other(OtherData {
                 data_kind: "test_dataKind".to_string(),
                 data: serde_json::json!({"dataKey": "dataValue"}),

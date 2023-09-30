@@ -33,8 +33,8 @@ pub struct TaskId {
     /// relationship of tasks makes it possible to render tasks in
     /// a tree-like user interface or inspect what caused a certain task
     /// execution.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub parents: Vec<Identifier>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parents: Option<Vec<Identifier>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ mod tests {
     fn task_id() {
         let test_data = TaskId {
             id: "test_id".into(),
-            parents: vec!["test_parent".into()],
+            parents: Some(vec!["test_parent".into()]),
         };
 
         assert_json_snapshot!(test_data,

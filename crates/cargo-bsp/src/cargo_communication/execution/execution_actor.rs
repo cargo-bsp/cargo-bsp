@@ -336,7 +336,7 @@ pub mod tests {
             CompileParams {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
             }
         }
 
@@ -793,6 +793,7 @@ pub mod tests {
                             "line": 0
                           }
                         },
+                        "relatedInformation": [],
                         "severity": 1,
                         "source": "cargo"
                       }
@@ -1092,7 +1093,7 @@ pub mod tests {
                     uri: TEST_TARGET.into(),
                 },
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
                 data: None,
             }
         }
@@ -1305,7 +1306,7 @@ pub mod tests {
             TestParams {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
                 data: None,
             }
         }

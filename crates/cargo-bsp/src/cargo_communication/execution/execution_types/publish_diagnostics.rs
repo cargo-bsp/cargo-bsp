@@ -162,7 +162,7 @@ pub fn map_cargo_diagnostic_to_bsp(
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: message.clone(),
-                related_information: information_for_additional_diagnostic,
+                related_information: Some(information_for_additional_diagnostic),
                 tags: tags.clone(),
                 data: None,
             };
@@ -177,11 +177,13 @@ pub fn map_cargo_diagnostic_to_bsp(
             code_description: code_description.clone(),
             source: Some(source.clone()),
             message: message.clone(),
-            related_information: related_info_macro_calls
-                .iter()
-                .cloned()
-                .chain(subdiagnostics.iter().cloned())
-                .collect::<Vec<_>>(),
+            related_information: Some(
+                related_info_macro_calls
+                    .iter()
+                    .cloned()
+                    .chain(subdiagnostics.iter().cloned())
+                    .collect::<Vec<_>>(),
+            ),
             tags: tags.clone(),
             data: None,
         };
@@ -200,7 +202,7 @@ pub fn map_cargo_diagnostic_to_bsp(
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: sub.message.clone(),
-                related_information: vec![back_ref.clone()],
+                related_information: Some(vec![back_ref.clone()]),
                 tags: vec![], // don't apply modifiers again
                 data: None,
             };

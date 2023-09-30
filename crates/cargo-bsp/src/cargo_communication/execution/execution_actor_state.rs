@@ -136,7 +136,7 @@ impl ExecutionActorState {
     ) -> ExecutionActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(generate_random_id()),
-            parents: vec![],
+            parents: None,
         };
         ExecutionActorState {
             root_task_id: root_task_id.clone(),

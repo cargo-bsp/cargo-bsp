@@ -124,16 +124,16 @@ pub struct RustBuildTarget {
     pub kind: RustTargetKind,
     /// Type of output that is produced by a crate during the build process.
     /// The crate type determines how the source code is compiled.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub crate_types: Vec<RustCrateType>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crate_types: Option<Vec<RustCrateType>>,
     /// The Rust edition of the target.
     pub edition: RustEdition,
     /// Whether or not this target has doc tests enabled, and
     /// the target is compatible with doc testing.
     pub doctest: bool,
     /// A sequence of required features.
-    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
-    pub required_features: BTreeSet<Feature>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_features: Option<BTreeSet<Feature>>,
 }
 
 #[derive(
@@ -300,8 +300,8 @@ pub struct RustDependency {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Array of dependency kinds.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub dep_kinds: Vec<RustDepKindInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dep_kinds: Option<Vec<RustDepKindInfo>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -451,10 +451,10 @@ mod test {
             name: "test_name".to_string(),
             crate_root_url: "test_crate_url".into(),
             kind: RustTargetKind::default(),
-            crate_types: vec![RustCrateType::default()],
+            crate_types: Some(vec![RustCrateType::default()]),
             edition: RustEdition::default(),
             doctest: false,
-            required_features: BTreeSet::from(["test_feature".into()]),
+            required_features: Some(BTreeSet::from(["test_feature".into()])),
         };
 
         assert_json_snapshot!(target, @r#"
@@ -600,7 +600,7 @@ mod test {
         let dependency = RustDependency {
             name: Some("test_name".to_string()),
             pkg: "test_target".to_string(),
-            dep_kinds: vec![RustDepKindInfo::default()],
+            dep_kinds: Some(vec![RustDepKindInfo::default()]),
         };
 
         assert_json_snapshot!(dependency, @r#"

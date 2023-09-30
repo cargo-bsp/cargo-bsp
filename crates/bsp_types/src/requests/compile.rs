@@ -27,8 +27,8 @@ pub struct CompileParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<Identifier>,
     /// Optional arguments to the compilation process.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub arguments: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -77,7 +77,7 @@ mod tests {
         let test_data = CompileParams {
             targets: vec![BuildTargetIdentifier::default()],
             origin_id: Some("test_message".into()),
-            arguments: vec!["test_argument".to_string()],
+            arguments: Some(vec!["test_argument".to_string()]),
         };
 
         test_deserialization(

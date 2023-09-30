@@ -72,8 +72,8 @@ pub struct Diagnostic {
     pub message: String,
     /// An array of related diagnostic information, e.g. when symbol-names within
     /// a scope collide all definitions can be marked via this property.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub related_information: Vec<DiagnosticRelatedInformation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub related_information: Option<Vec<DiagnosticRelatedInformation>>,
     /// Additional metadata about the diagnostic.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<DiagnosticTag>,

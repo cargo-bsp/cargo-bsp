@@ -10,7 +10,7 @@ pub(crate) trait CommandCreationDetails {
 
 impl CommandCreationDetails for CompileParams {
     fn get_command_arguments(&self) -> Vec<String> {
-        self.arguments.clone()
+        self.arguments.clone().unwrap_or_default()
     }
 
     fn get_command_type() -> CommandType {
@@ -20,7 +20,7 @@ impl CommandCreationDetails for CompileParams {
 
 impl CommandCreationDetails for RunParams {
     fn get_command_arguments(&self) -> Vec<String> {
-        self.arguments.clone()
+        self.arguments.clone().unwrap_or_default()
     }
 
     fn get_command_type() -> CommandType {
@@ -36,7 +36,7 @@ impl CommandCreationDetails for TestParams {
             "unstable-options".into(),
             "--format=json".into(),
         ];
-        args.extend(self.arguments.clone());
+        args.extend(self.arguments.clone().unwrap_or_default());
         args
     }
 

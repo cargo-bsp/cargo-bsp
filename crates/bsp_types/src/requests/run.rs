@@ -36,8 +36,8 @@ pub struct RunParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<Identifier>,
     /// Optional arguments to the executed application.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub arguments: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<String>>,
     /// Language-specific metadata for this execution.
     /// See ScalaMainClass as an example.
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
@@ -86,7 +86,7 @@ mod tests {
         let test_data = RunParams {
             target: BuildTargetIdentifier::default(),
             origin_id: Some("test_originId".into()),
-            arguments: vec!["test_argument".to_string()],
+            arguments: Some(vec!["test_argument".to_string()]),
             data: Some(RunParamsData::Other(OtherData {
                 data_kind: "test_dataKind".to_string(),
                 data: serde_json::json!({"dataKey": "dataValue"}),

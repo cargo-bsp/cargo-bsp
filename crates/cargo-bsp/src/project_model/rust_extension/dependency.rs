@@ -62,7 +62,9 @@ fn metadata_node_dep_to_rust_dependency(node_dep: &cargo_metadata::NodeDep) -> R
     RustDependency {
         name: Some(node_dep.name.clone()),
         pkg: node_dep.pkg.to_string(),
-        dep_kinds: metadata_dep_kinds_info_to_rust_dep_kinds_info(&node_dep.dep_kinds),
+        dep_kinds: Some(metadata_dep_kinds_info_to_rust_dep_kinds_info(
+            &node_dep.dep_kinds,
+        )),
     }
 }
 

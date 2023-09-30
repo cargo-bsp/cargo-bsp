@@ -20,7 +20,7 @@ pub(super) fn generate_random_id() -> Identifier {
 pub(super) fn generate_task_id(parent: &TaskId) -> TaskId {
     TaskId {
         id: generate_random_id(),
-        parents: vec![parent.id.clone()],
+        parents: Some(vec![parent.id.clone()]),
     }
 }
 

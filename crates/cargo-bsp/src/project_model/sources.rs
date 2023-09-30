@@ -20,7 +20,7 @@ pub fn get_sources_for_target(
     SourcesItem {
         target: id.clone(),
         sources: list_target_sources(target_details),
-        roots: vec![file_uri(package_path)],
+        roots: Some(vec![file_uri(package_path)]),
     }
 }
 

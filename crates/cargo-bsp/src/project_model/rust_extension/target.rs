@@ -47,14 +47,15 @@ pub(crate) fn metadata_targets_to_rust_extension_targets(
                 name: mt.name.clone(),
                 crate_root_url: file_uri(mt.src_path.to_string()),
                 kind: metadata_kind_to_rust_extension_kind(mt.kind.get(0).unwrap().as_str()), // Cargo metadata target always has at least one kind.
-                crate_types: metadata_crate_types_to_rust_extension_crate_types(
+                crate_types: Some(metadata_crate_types_to_rust_extension_crate_types(
                     mt.crate_types.clone(),
+                )),
+                required_features: Some(
+                    mt.required_features
+                        .iter()
+                        .map(|f| Feature::from(f.as_str()))
+                        .collect(),
                 ),
-                required_features: mt
-                    .required_features
-                    .iter()
-                    .map(|f| Feature::from(f.as_str()))
-                    .collect(),
                 doctest: mt.doctest,
                 edition: metadata_edition_to_bsp_edition(mt.edition),
             }

@@ -64,12 +64,12 @@ pub struct BuildTarget {
     /// May be presented in the user interface.
     /// Should be unique if possible.
     /// The id.uri is used if None.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     /// The directory where this target belongs to. Multiple build targets are allowed to map
     /// to the same base directory, and a build target is not required to have a base directory.
     /// A base directory does not determine the sources of a target, see buildTarget/sources.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_directory: Option<URI>,
     /// Free-form string tags to categorize or label this build target.
     /// For example, can be used by the client to:
@@ -88,7 +88,7 @@ pub struct BuildTarget {
     pub capabilities: BuildTargetCapabilities,
     /// Language-specific metadata about this target.
     /// See ScalaBuildTarget as an example.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<BuildTargetData>,
 }
 

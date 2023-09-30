@@ -37,8 +37,8 @@ pub struct SourcesItem {
     pub sources: Vec<SourceItem>,
     /// The root directories from where source files should be relativized.
     /// Example: ["file://Users/name/dev/metals/src/main/scala"]
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roots: Vec<URI>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roots: Option<Vec<URI>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -125,7 +125,7 @@ mod tests {
         let test_data = SourcesItem {
             target: BuildTargetIdentifier::default(),
             sources: vec![SourceItem::default()],
-            roots: vec![URI::default()],
+            roots: Some(vec![URI::default()]),
         };
 
         assert_json_snapshot!(test_data,
