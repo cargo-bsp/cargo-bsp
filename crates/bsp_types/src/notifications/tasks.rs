@@ -58,14 +58,14 @@ pub struct TaskStartParams {
     /// Unique id of the task with optional reference to parent task id
     pub task_id: TaskId,
     /// Timestamp of when the event started in milliseconds since Epoch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_time: Option<i64>,
     /// Message describing the task.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// Optional metadata about the task.
     /// Objects for specific tasks like compile, test, etc are specified in the protocol.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskStartData>,
 }
 
@@ -109,23 +109,23 @@ pub struct TaskProgressParams {
     /// Unique id of the task with optional reference to parent task id
     pub task_id: TaskId,
     /// Timestamp of when the event started in milliseconds since Epoch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_time: Option<i64>,
     /// Message describing the task.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// If known, total amount of work units in this task.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total: Option<i64>,
     /// If known, completed amount of work units in this task.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub progress: Option<i64>,
     /// Name of a work unit. For example, "files" or "tests". May be empty.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
     /// Optional metadata about the task.
     /// Objects for specific tasks like compile, test, etc are specified in the protocol.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskProgressData>,
 }
 
@@ -152,16 +152,16 @@ pub struct TaskFinishParams {
     /// Unique id of the task with optional reference to parent task id
     pub task_id: TaskId,
     /// Timestamp of when the event started in milliseconds since Epoch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_time: Option<i64>,
     /// Message describing the task.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// Task completion status.
     pub status: StatusCode,
     /// Optional metadata about the task.
     /// Objects for specific tasks like compile, test, etc are specified in the protocol.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TaskFinishData>,
 }
 
@@ -219,17 +219,17 @@ pub struct CompileReport {
     /// The build target that was compiled.
     pub target: BuildTargetIdentifier,
     /// An optional request id to know the origin of this report.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<Identifier>,
     /// The total number of reported errors compiling this target.
     pub errors: i32,
     /// The total number of reported warnings compiling the target.
     pub warnings: i32,
     /// The total number of milliseconds it took to compile the target.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<i64>,
     /// The compilation was a noOp compilation.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub no_op: Option<bool>,
 }
 
@@ -246,7 +246,7 @@ pub struct TestTask {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestReport {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_id: Option<Identifier>,
     /// The build target that was compiled.
     pub target: BuildTargetIdentifier,
@@ -261,7 +261,7 @@ pub struct TestReport {
     /// The total number of skipped tests.
     pub skipped: i32,
     /// The total number of milliseconds tests take to run (e.g. doesn't include compile times).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<i64>,
 }
 
@@ -271,7 +271,7 @@ pub struct TestStart {
     /// Name or description of the test.
     pub display_name: String,
     /// Source location of the test, as LSP location.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
 }
 
@@ -281,16 +281,16 @@ pub struct TestFinish {
     /// Name or description of the test.
     pub display_name: String,
     /// Information about completion of the test, for example an error message.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// Completion status of the test.
     pub status: TestStatus,
     /// Source location of the test, as LSP location.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<Location>,
     /// Optionally, structured metadata about the test completion.
     /// For example: stack traces, expected/actual values.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<TestFinishData>,
 }
 

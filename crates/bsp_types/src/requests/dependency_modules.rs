@@ -44,7 +44,7 @@ pub struct DependencyModule {
     pub version: String,
     /// Language-specific metadata about this module.
     /// See MavenDependencyModule as an example.
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<DependencyModuleData>,
 }
 
