@@ -14,7 +14,7 @@ use bsp_types::notifications::{
     TestStart, TestStatus, TestTask,
 };
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{Identifier, OriginId, StatusCode};
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -22,7 +22,7 @@ use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_actor_state::{SuiteTaskProgress, TaskState};
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::execution_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
@@ -36,7 +36,7 @@ use crate::cargo_communication::execution::utils::{
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -100,7 +100,7 @@ where
         };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
-            self.params.origin_id().map(|id| id.0.into()),
+            self.params.origin_id().map(|id| OriginId::new(id.0)),
             build_target_id,
             AbsPath::assert(&abs_root_path),
         );
@@ -140,7 +140,7 @@ where
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             r#type: message_type,
             task: Some(self.state.compile_state.task_id.clone()),
-            origin_id: self.params.origin_id().map(|id| id.0.into()),
+            origin_id: self.params.origin_id().map(|id| OriginId::new(id.0)),
             message: global_msg.message,
         });
     }
@@ -149,9 +149,10 @@ where
         self.build_targets.iter().for_each(|id| {
             // We can unwrap here, as for all iterated ids, the target state was created.
             let compile_target_state = self.state.compile_state.target_states.get(id).unwrap();
+            #[allow(deprecated)]
             let compile_report = TaskFinishData::compile_report(CompileReport {
                 target: id.clone(),
-                origin_id: self.params.origin_id().map(|id| id.0.into()),
+                origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
                 errors: self.state.compile_state.errors,
                 warnings: self.state.compile_state.warnings,
                 time: Some(get_current_time() - compile_target_state.start_time),

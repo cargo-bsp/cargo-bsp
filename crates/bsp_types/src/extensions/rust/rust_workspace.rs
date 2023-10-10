@@ -7,9 +7,6 @@ use crate::extensions::{Feature, FeatureDependencyGraph, RustEdition};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, EnvironmentVariables, URI};
 
-#[derive(Debug)]
-pub enum RustWorkspace {}
-
 /// The Rust workspace request is sent from the client to the server to query for
 /// the information about project's workspace for the given list of build targets.
 ///
@@ -17,6 +14,9 @@ pub enum RustWorkspace {}
 ///
 /// The request may take a long time, as it may require building a project to some extent
 /// (for example with `cargo check` command).
+#[derive(Debug)]
+pub enum RustWorkspace {}
+
 impl Request for RustWorkspace {
     type Params = RustWorkspaceParams;
     type Result = RustWorkspaceResult;
@@ -36,17 +36,17 @@ pub struct RustWorkspaceParams {
 #[serde(transparent)]
 pub struct RustRawDependencies(pub BTreeMap<String, Vec<RustRawDependency>>);
 
+impl RustRawDependencies {
+    pub fn new(input: BTreeMap<String, Vec<RustRawDependency>>) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for RustRawDependencies {
     type Target = BTreeMap<String, Vec<RustRawDependency>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<BTreeMap<String, Vec<RustRawDependency>>> for RustRawDependencies {
-    fn from(input: BTreeMap<String, Vec<RustRawDependency>>) -> Self {
-        Self(input)
     }
 }
 
@@ -56,17 +56,17 @@ impl From<BTreeMap<String, Vec<RustRawDependency>>> for RustRawDependencies {
 #[serde(transparent)]
 pub struct RustDependencies(pub BTreeMap<String, Vec<RustDependency>>);
 
+impl RustDependencies {
+    pub fn new(input: BTreeMap<String, Vec<RustDependency>>) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for RustDependencies {
     type Target = BTreeMap<String, Vec<RustDependency>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<BTreeMap<String, Vec<RustDependency>>> for RustDependencies {
-    fn from(input: BTreeMap<String, Vec<RustDependency>>) -> Self {
-        Self(input)
     }
 }
 
@@ -111,11 +111,10 @@ pub struct RustRawDependency {
     pub features: BTreeSet<Feature>,
 }
 
-/// `RustBuildTarget` is a basic data structure that contains rust-specific
-/// metadata for compiling a target containing Rust sources.
+/// `RustTarget` contains data of the target as defined in Cargo metadata.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RustBuildTarget {
+pub struct RustTarget {
     /// The name of the target.
     pub name: String,
     /// Path to the root module of the crate.
@@ -229,10 +228,10 @@ pub struct RustPackage {
     pub source: Option<String>,
     /// Corresponds to source files which can be compiled into a crate from this package.
     /// Contains only resolved targets without conflicts.
-    pub resolved_targets: Vec<RustBuildTarget>,
+    pub resolved_targets: Vec<RustTarget>,
     /// Same as `resolvedTargets`, but contains all targets from this package.
     /// `targets` should be the subset of `allTargets`.
-    pub all_targets: Vec<RustBuildTarget>,
+    pub all_targets: Vec<RustTarget>,
     /// Set of features defined for the package (including optional dependencies).
     /// Each feature maps to an array of features or dependencies it enables.
     /// The entry named "default" defines which features are enabled by default.
@@ -308,17 +307,17 @@ pub struct RustDependency {
 #[serde(transparent)]
 pub struct RustCfgOptions(pub BTreeMap<String, Vec<String>>);
 
+impl RustCfgOptions {
+    pub fn new(input: BTreeMap<String, Vec<String>>) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for RustCfgOptions {
     type Target = BTreeMap<String, Vec<String>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<BTreeMap<String, Vec<String>>> for RustCfgOptions {
-    fn from(input: BTreeMap<String, Vec<String>>) -> Self {
-        Self(input)
     }
 }
 
@@ -348,16 +347,14 @@ mod test {
     fn rust_workspace_result() {
         let result = RustWorkspaceResult {
             packages: vec![RustPackage::default()],
-            raw_dependencies: BTreeMap::from([(
+            raw_dependencies: RustRawDependencies::new(BTreeMap::from([(
                 "package_id".to_string(),
                 vec![RustRawDependency::default()],
-            )])
-            .into(),
-            dependencies: BTreeMap::from([(
+            )])),
+            dependencies: RustDependencies::new(BTreeMap::from([(
                 "package_id".to_string(),
                 vec![RustDependency::default()],
-            )])
-            .into(),
+            )])),
             resolved_targets: vec![BuildTargetIdentifier::default()],
         };
 
@@ -447,7 +444,7 @@ mod test {
 
     #[test]
     fn rust_target() {
-        let target = RustBuildTarget {
+        let target = RustTarget {
             name: "test_name".to_string(),
             crate_root_url: "test_crate_url".into(),
             kind: RustTargetKind::default(),
@@ -473,7 +470,7 @@ mod test {
         }
         "#);
 
-        assert_json_snapshot!(RustBuildTarget::default(), @r#"
+        assert_json_snapshot!(RustTarget::default(), @r#"
         {
           "name": "",
           "crateRootUrl": "",
@@ -494,18 +491,21 @@ mod test {
             origin: RustPackageOrigin::WORKSPACE,
             edition: RustEdition::default(),
             source: Some("test_source".to_string()),
-            resolved_targets: vec![RustBuildTarget::default()],
-            all_targets: vec![RustBuildTarget::default()],
-            features: BTreeMap::from([(
+            resolved_targets: vec![RustTarget::default()],
+            all_targets: vec![RustTarget::default()],
+            features: FeatureDependencyGraph::new(BTreeMap::from([(
                 Feature::from("test_feature"),
                 BTreeSet::from([Feature::from("test_feature_dependency")]),
-            )])
-            .into(),
+            )])),
             enabled_features: BTreeSet::from(["test_feature".into()]),
-            cfg_options: Some(
-                BTreeMap::from([("test_cfg".to_string(), vec!["test_option".to_string()])]).into(),
-            ),
-            env: Some(BTreeMap::from([("key".to_string(), "value".to_string())]).into()),
+            cfg_options: Some(RustCfgOptions::new(BTreeMap::from([(
+                "test_cfg".to_string(),
+                vec!["test_option".to_string()],
+            )]))),
+            env: Some(EnvironmentVariables::new(BTreeMap::from([(
+                "key".to_string(),
+                "value".to_string(),
+            )]))),
             out_dir_url: Some("test_out_dir_url".into()),
             proc_macro_artifact: Some(URI::default()),
         };

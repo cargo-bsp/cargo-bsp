@@ -72,20 +72,21 @@ pub fn resolve_raw_dependencies(
     metadata: &cargo_metadata::Metadata,
     packages: &[RustPackage],
 ) -> RustRawDependencies {
-    packages
-        .iter()
-        .filter_map(|p| metadata.packages.iter().find(|wp| wp.id.repr == p.id))
-        .map(|p| {
-            let dependencies = p
-                .dependencies
-                .iter()
-                .cloned()
-                .map(package_dependency_to_rust_raw_dependency)
-                .collect::<Vec<RustRawDependency>>();
-            (p.id.repr.clone(), dependencies)
-        })
-        .collect::<BTreeMap<String, Vec<RustRawDependency>>>()
-        .into()
+    RustRawDependencies::new(
+        packages
+            .iter()
+            .filter_map(|p| metadata.packages.iter().find(|wp| wp.id.repr == p.id))
+            .map(|p| {
+                let dependencies = p
+                    .dependencies
+                    .iter()
+                    .cloned()
+                    .map(package_dependency_to_rust_raw_dependency)
+                    .collect::<Vec<RustRawDependency>>();
+                (p.id.repr.clone(), dependencies)
+            })
+            .collect::<BTreeMap<String, Vec<RustRawDependency>>>(),
+    )
 }
 
 pub fn resolve_rust_dependencies(
@@ -94,20 +95,21 @@ pub fn resolve_rust_dependencies(
 ) -> RustDependencies {
     let nodes = get_nodes_from_metadata(metadata);
 
-    packages
-        .iter()
-        .filter_map(|p| {
-            let id = p.id.clone();
-            find_node(&nodes, &id, "Skipping dependency.").map(|node| (id, node))
-        })
-        .map(|(id, node)| {
-            let dependencies = node
-                .deps
-                .iter()
-                .map(metadata_node_dep_to_rust_dependency)
-                .collect::<Vec<RustDependency>>();
-            (id, dependencies)
-        })
-        .collect::<BTreeMap<String, Vec<RustDependency>>>()
-        .into()
+    RustDependencies::new(
+        packages
+            .iter()
+            .filter_map(|p| {
+                let id = p.id.clone();
+                find_node(&nodes, &id, "Skipping dependency.").map(|node| (id, node))
+            })
+            .map(|(id, node)| {
+                let dependencies = node
+                    .deps
+                    .iter()
+                    .map(metadata_node_dep_to_rust_dependency)
+                    .collect::<Vec<RustDependency>>();
+                (id, dependencies)
+            })
+            .collect::<BTreeMap<String, Vec<RustDependency>>>(),
+    )
 }

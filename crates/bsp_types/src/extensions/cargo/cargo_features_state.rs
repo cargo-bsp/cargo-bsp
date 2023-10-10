@@ -1,16 +1,17 @@
-use crate::extensions::{Feature, FeatureDependencyGraph};
-use crate::BuildTargetIdentifier;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-use crate::requests::Request;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
-pub enum CargoFeaturesState {}
+use crate::extensions::{Feature, FeatureDependencyGraph};
+use crate::requests::Request;
+use crate::BuildTargetIdentifier;
 
 /// The cargo features state request is sent from the client to the server to
 /// query for the current state of the Cargo features. Provides also mapping
 /// between Cargo packages and build target identifiers.
+#[derive(Debug)]
+pub enum CargoFeaturesState {}
+
 impl Request for CargoFeaturesState {
     type Params = ();
     type Result = CargoFeaturesStateResult;
@@ -56,7 +57,10 @@ mod tests {
         PackageFeatures {
             package_id: pid.into(),
             enabled_features: vec![f1.into()].into_iter().collect(),
-            available_features: BTreeMap::from([(f1.into(), BTreeSet::new())]).into(),
+            available_features: FeatureDependencyGraph::new(BTreeMap::from([(
+                f1.into(),
+                BTreeSet::new(),
+            )])),
             targets: vec![
                 BuildTargetIdentifier {
                     uri: TARGET_ID.into(),

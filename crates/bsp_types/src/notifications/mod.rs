@@ -9,7 +9,6 @@ pub use messages::*;
 pub use publish_diagnostics::*;
 pub use tasks::*;
 
-mod cancel;
 mod did_change_build_target;
 mod exit_build;
 mod initialized_build;
@@ -33,6 +32,8 @@ pub struct TaskId {
     /// relationship of tasks makes it possible to render tasks in
     /// a tree-like user interface or inspect what caused a certain task
     /// execution.
+    /// OriginId should not be included in the parents field, there is a separate
+    /// field for that.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parents: Option<Vec<Identifier>>,
 }
@@ -40,16 +41,21 @@ pub struct TaskId {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
-    /// Line position within a file. First line of a file is 0.
+    /// Line position in a document (zero-based).
     pub line: i32,
-    /// Character position within a line. First character of a line is 0.
+    /// Character offset on a line in a document (zero-based)
+    ///
+    /// If the character value is greater than the line length it defaults back
+    /// to the line length.
     pub character: i32,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {
+    /// The range's start position.
     pub start: Position,
+    /// The range's end position.
     pub end: Position,
 }
 

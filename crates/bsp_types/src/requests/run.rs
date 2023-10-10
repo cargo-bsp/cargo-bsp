@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode};
+use crate::{BuildTargetIdentifier, EnvironmentVariables, Identifier, OtherData, StatusCode, URI};
 
 /// The run request is sent from the client to the server to run a build target. The
 /// server communicates during the initialize handshake whether this method is
@@ -38,6 +38,12 @@ pub struct RunParams {
     /// Optional arguments to the executed application.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Vec<String>>,
+    /// Optional environment variables to set before running the application.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_variables: Option<EnvironmentVariables>,
+    /// Optional working directory
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<URI>,
     /// Language-specific metadata for this execution.
     /// See ScalaMainClass as an example.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -87,6 +93,8 @@ mod tests {
             target: BuildTargetIdentifier::default(),
             origin_id: Some("test_originId".into()),
             arguments: Some(vec!["test_argument".to_string()]),
+            environment_variables: Some(EnvironmentVariables::default()),
+            working_directory: Some(URI::default()),
             data: Some(RunParamsData::Other(OtherData {
                 data_kind: "test_dataKind".to_string(),
                 data: serde_json::json!({"dataKey": "dataValue"}),
@@ -94,7 +102,7 @@ mod tests {
         };
 
         test_deserialization(
-            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            r#"{"target":{"uri":""},"originId":"test_originId","arguments":["test_argument"],"environmentVariables":{},"workingDirectory":"","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
             &test_data,
         );
 

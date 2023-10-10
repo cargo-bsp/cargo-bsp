@@ -4,23 +4,23 @@
 use bsp_types::requests::{CompileParams, RunParams, TestParams};
 use bsp_types::Identifier;
 
-pub trait OriginId {
+pub trait WithOriginId {
     fn origin_id(&self) -> Option<Identifier>;
 }
 
-impl OriginId for CompileParams {
+impl WithOriginId for CompileParams {
     fn origin_id(&self) -> Option<Identifier> {
         self.origin_id.clone()
     }
 }
 
-impl OriginId for RunParams {
+impl WithOriginId for RunParams {
     fn origin_id(&self) -> Option<Identifier> {
         self.origin_id.clone()
     }
 }
 
-impl OriginId for TestParams {
+impl WithOriginId for TestParams {
     fn origin_id(&self) -> Option<Identifier> {
         self.origin_id.clone()
     }

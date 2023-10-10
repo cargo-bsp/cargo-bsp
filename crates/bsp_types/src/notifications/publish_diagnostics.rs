@@ -2,11 +2,9 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Location, Notification, Range};
-use crate::{BuildTargetIdentifier, OtherData, RequestId, TextDocumentIdentifier, URI};
+use crate::{BuildTargetIdentifier, OriginId, OtherData, TextDocumentIdentifier, URI};
 
 /// The Diagnostics notification are sent from the server to the client to signal results of validation runs.
-///
-/// Diagnostic is defined as it is in the LSP.
 ///
 /// When reset is true, the client must clean all previous diagnostics associated with the same textDocument and
 /// buildTarget and set instead the diagnostics in the request. This is the same behaviour as PublishDiagnosticsParams
@@ -40,7 +38,7 @@ pub struct PublishDiagnosticsParams {
     pub build_target: BuildTargetIdentifier,
     /// The request id that originated this notification.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<RequestId>,
+    pub origin_id: Option<OriginId>,
     /// The diagnostics to be published by the client.
     pub diagnostics: Vec<Diagnostic>,
     /// Whether the client should clear the previous diagnostics
@@ -48,7 +46,7 @@ pub struct PublishDiagnosticsParams {
     pub reset: bool,
 }
 
-// TODO: Update in protocol. Struct not copied from bsp4rs because some fields are missing in smithy model
+/// Diagnostic is defined as it is in the LSP.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
@@ -60,7 +58,7 @@ pub struct Diagnostic {
     pub severity: Option<DiagnosticSeverity>,
     /// The diagnostic's code, which might appear in the user interface.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
+    pub code: Option<DiagnosticCode>,
     /// An optional property to describe the error code.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_description: Option<CodeDescription>,
@@ -70,15 +68,16 @@ pub struct Diagnostic {
     pub source: Option<String>,
     /// The diagnostic's message.
     pub message: String,
+    /// Additional metadata about the diagnostic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<DiagnosticTag>>,
     /// An array of related diagnostic information, e.g. when symbol-names within
     /// a scope collide all definitions can be marked via this property.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub related_information: Option<Vec<DiagnosticRelatedInformation>>,
-    /// Additional metadata about the diagnostic.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<DiagnosticTag>,
-    /// A data entry field that is preserved between a `textDocument/publishDiagnostics` notification
-    /// and a `textDocument/codeAction` request.
+    /// A data entry field that is preserved between a
+    /// `textDocument/publishDiagnostics` notification and
+    /// `textDocument/codeAction` request.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<DiagnosticData>,
 }
@@ -97,9 +96,18 @@ pub enum DiagnosticData {
 
 impl DiagnosticData {}
 
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DiagnosticCode {
+    String(String),
+    I32(i32),
+}
+
+/// Structure to capture a description for an error code.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeDescription {
+    /// An URI to open with more information about the diagnostic error.
     pub href: URI,
 }
 
@@ -121,9 +129,13 @@ pub struct DiagnosticRelatedInformation {
 #[repr(u8)]
 pub enum DiagnosticSeverity {
     #[default]
+    /// Reports an error.
     Error = 1,
+    /// Reports a warning.
     Warning = 2,
+    /// Reports an information.
     Information = 3,
+    /// Reports a hint.
     Hint = 4,
 }
 
@@ -134,7 +146,8 @@ pub struct DiagnosticTag(pub i32);
 impl DiagnosticTag {
     /// Unused or unnecessary code.
     ///
-    /// Clients are allowed to render diagnostics with this tag faded out instead of having an error squiggle.
+    /// Clients are allowed to render diagnostics with this tag faded out
+    /// instead of having an error squiggle.
     pub const UNNECESSARY: DiagnosticTag = DiagnosticTag::new(1);
     /// Deprecated or obsolete code.
     ///

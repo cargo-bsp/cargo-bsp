@@ -12,9 +12,7 @@ use crate::server::global_state::GlobalStateSnapshot;
 use bsp_types::notifications::TaskId;
 
 pub(super) fn generate_random_id() -> Identifier {
-    Alphanumeric
-        .sample_string(&mut rand::thread_rng(), 36)
-        .into()
+    Identifier::new(Alphanumeric.sample_string(&mut rand::thread_rng(), 36))
 }
 
 pub(super) fn generate_task_id(parent: &TaskId) -> TaskId {

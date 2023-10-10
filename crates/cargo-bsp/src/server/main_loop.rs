@@ -3,16 +3,18 @@
 
 use std::time::Instant;
 
-use bsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
+use bsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use crossbeam_channel::{select, Receiver};
 
 use bsp_types;
+use bsp_types::extensions::CancelRequest;
 use bsp_types::notifications::Notification as _;
 
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::{handlers, Result};
+use crate::utils::request_id::bsp_request_id_to_lsp_request_id;
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -148,11 +150,8 @@ impl GlobalState {
             not: Some(not),
             global_state: self,
         }
-        .on::<lsp_types::notification::Cancel>(|this, params| {
-            let id: RequestId = match params.id {
-                lsp_types::NumberOrString::Number(id) => id.into(),
-                lsp_types::NumberOrString::String(id) => id.into(),
-            };
+        .on::<CancelRequest>(|this, params| {
+            let id = bsp_request_id_to_lsp_request_id(params.id);
             this.cancel(id);
             Ok(())
         })?

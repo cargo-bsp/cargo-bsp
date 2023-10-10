@@ -8,17 +8,17 @@ use std::collections::{BTreeMap, BTreeSet};
 #[serde(transparent)]
 pub struct Feature(pub String);
 
+impl Feature {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for Feature {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<String> for Feature {
-    fn from(input: String) -> Self {
-        Self(input)
     }
 }
 
@@ -28,21 +28,23 @@ impl From<&str> for Feature {
     }
 }
 
+/// The feature dependency graph is a mapping between
+/// feature and the features it turns on
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FeatureDependencyGraph(pub BTreeMap<Feature, BTreeSet<Feature>>);
+
+impl FeatureDependencyGraph {
+    pub fn new(input: BTreeMap<Feature, BTreeSet<Feature>>) -> Self {
+        Self(input)
+    }
+}
 
 impl std::ops::Deref for FeatureDependencyGraph {
     type Target = BTreeMap<Feature, BTreeSet<Feature>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<BTreeMap<Feature, BTreeSet<Feature>>> for FeatureDependencyGraph {
-    fn from(input: BTreeMap<Feature, BTreeSet<Feature>>) -> Self {
-        Self(input)
     }
 }
 

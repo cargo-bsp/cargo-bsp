@@ -18,7 +18,7 @@ use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_actor_unit_graph::UnitGraphStatusCode;
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::utils::targets_ids_to_targets_details;
 use crate::cargo_communication::request_handle::RequestHandle;
 use crate::server::global_state::GlobalStateSnapshot;
@@ -32,7 +32,7 @@ impl RequestHandle {
     ) -> io::Result<RequestHandle>
     where
         R: Request + 'static,
-        R::Params: CreateUnitGraphCommand + CreateCommand + ParamsTarget + OriginId + Send,
+        R::Params: CreateUnitGraphCommand + CreateCommand + ParamsTarget + WithOriginId + Send,
         R::Result: CargoResult,
     {
         let root_path = global_state.config.root_path();
@@ -69,7 +69,7 @@ impl RequestHandle {
 fn run_commands<R>(mut actor: ExecutionActor<R, CargoHandle>, requested_cmd: &mut Command)
 where
     R: Request + 'static,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId + Send,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId + Send,
     R::Result: CargoResult,
 {
     actor.report_root_task_start();

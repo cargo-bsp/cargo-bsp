@@ -29,9 +29,7 @@ pub struct DebugSessionParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum NamedDebugSessionParamsData {
-    ScalaTestSuites(Vec<String>),
-}
+pub enum NamedDebugSessionParamsData {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -40,11 +38,7 @@ pub enum DebugSessionParamsData {
     Other(OtherData),
 }
 
-impl DebugSessionParamsData {
-    pub fn scala_test_suites(data: Vec<String>) -> Self {
-        Self::Named(NamedDebugSessionParamsData::ScalaTestSuites(data))
-    }
-}
+impl DebugSessionParamsData {}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

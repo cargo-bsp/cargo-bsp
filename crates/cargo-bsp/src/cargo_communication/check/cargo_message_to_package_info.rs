@@ -12,7 +12,7 @@ const DYNAMIC_LIBRARY_EXTENSIONS: [&str; 3] = ["dll", "so", "dylib"];
 const PROC_MACRO: &str = "proc-macro";
 
 pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> RustCfgOptions {
-    script.map_or(BTreeMap::new().into(), |s| {
+    script.map_or(RustCfgOptions::new(BTreeMap::new()), |s| {
         let mut cfg_options: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         s.cfgs.iter().for_each(|cfg| {
@@ -33,7 +33,7 @@ pub(super) fn map_cfg_options(script: Option<&BuildScript>) -> RustCfgOptions {
             }
         });
 
-        cfg_options.into()
+        RustCfgOptions::new(cfg_options)
     })
 }
 
@@ -82,7 +82,7 @@ pub(super) fn map_env(script: Option<&BuildScript>, package: &Package) -> Enviro
             env.insert(k.clone(), v.clone());
         }
     }
-    env.into()
+    EnvironmentVariables::new(env)
 }
 
 pub(super) fn map_out_dir_url(script: Option<&BuildScript>) -> Option<URI> {
@@ -102,5 +102,5 @@ pub(super) fn map_proc_macro_artifact(artifacts: &[Artifact]) -> Option<URI> {
                 .iter()
                 .any(|&e| f.extension().map_or(false, |ex| ex == e))
         })
-        .map(|f| f.to_string().into())
+        .map(|f| URI::new(f.to_string()))
 }

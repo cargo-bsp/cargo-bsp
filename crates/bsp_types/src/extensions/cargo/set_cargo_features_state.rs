@@ -5,12 +5,12 @@ use std::collections::BTreeSet;
 use crate::requests::Request;
 use crate::StatusCode;
 
-#[derive(Debug)]
-pub enum SetCargoFeatures {}
-
 /// The enable cargo features request is sent from the client to the server to
 /// set provided features collection as a new state for
 /// the specified Cargo package.
+#[derive(Debug)]
+pub enum SetCargoFeatures {}
+
 impl Request for SetCargoFeatures {
     type Params = SetCargoFeaturesParams;
     type Result = SetCargoFeaturesResult;

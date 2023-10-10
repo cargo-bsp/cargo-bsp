@@ -42,6 +42,7 @@ pub struct SuiteResults {
 
 impl SuiteResults {
     pub fn to_test_report(&self, target: BuildTargetIdentifier) -> TaskFinishData {
+        #[allow(deprecated)]
         TaskFinishData::test_report(TestReport {
             origin_id: None,
             target,

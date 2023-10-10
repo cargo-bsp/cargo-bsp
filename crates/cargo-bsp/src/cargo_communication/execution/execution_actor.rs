@@ -42,7 +42,7 @@ use crate::cargo_communication::execution::execution_actor_state::{
 };
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
 use bsp_types::notifications::{CompileTask, MessageType, TaskStartData};
 use bsp_types::requests::Request;
@@ -70,7 +70,7 @@ where
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -257,7 +257,7 @@ pub mod tests {
     ) -> TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+        R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
         R::Result: CargoResult,
     {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
@@ -393,6 +393,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Started unit graph command",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -408,6 +409,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished unit graph command",
+                    "originId": "test_origin_id",
                     "status": 2,
                     "taskId": {
                       "id": "random_task_id",
@@ -458,6 +460,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished unit graph command",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -502,6 +505,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Started compilation",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -525,6 +529,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-task",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": "[random_task_id]"
@@ -546,6 +551,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-task",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": "[random_task_id]"
@@ -558,6 +564,7 @@ pub mod tests {
                   "method": "build/taskFinish",
                   "params": {
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id"
@@ -604,6 +611,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 3,
                 "taskId": {
                   "id": "test_origin_id"
@@ -703,6 +711,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "{\"package_id\":\"test_pkg_id\",\"manifest_path\":\"test_manifest_path\",\"target\":{\"name\":\"test_target\",\"kind\":[\"test_kind\"],\"crate_types\":[\"test_crate_type\"],\"required-features\":[],\"src_path\":\"test_src_path\",\"edition\":\"2015\",\"doctest\":true,\"test\":true,\"doc\":true},\"profile\":{\"opt_level\":\"test_opt_level\",\"debuginfo\":0,\"debug_assertions\":false,\"overflow_checks\":false,\"test\":false},\"features\":[\"test_feature\"],\"filenames\":[\"test_filename\"],\"executable\":\"test_executable\",\"fresh\":false}",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -741,6 +750,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "{\"package_id\":\"test_pkg_id\",\"linked_libs\":[\"test_linked_lib\"],\"linked_paths\":[\"test_linked_path\"],\"cfgs\":[\"test_cfg\"],\"env\":[[\"test_env\",\"test_env\"]],\"out_dir\":\"test_out_dir\"}",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -793,7 +803,6 @@ pub mod tests {
                             "line": 0
                           }
                         },
-                        "relatedInformation": [],
                         "severity": 1,
                         "source": "cargo"
                       }
@@ -844,6 +853,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -872,6 +882,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -889,6 +900,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished compilation",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -949,6 +961,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -966,6 +979,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished compilation",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -1094,6 +1108,8 @@ pub mod tests {
                 },
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: Some(vec![TEST_ARGUMENTS.into()]),
+                environment_variables: None,
+                working_directory: None,
                 data: None,
             }
         }
@@ -1147,6 +1163,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Started target execution",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -1169,6 +1186,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target execution",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1187,6 +1205,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
@@ -1307,6 +1326,8 @@ pub mod tests {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
                 arguments: Some(vec![TEST_ARGUMENTS.into()]),
+                environment_variables: None,
+                working_directory: None,
                 data: None,
             }
         }
@@ -1361,6 +1382,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Started target testing",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -1384,6 +1406,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target testing",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1404,6 +1427,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
@@ -1459,6 +1483,7 @@ pub mod tests {
                 },
                 "dataKind": "test-task",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1524,6 +1549,7 @@ pub mod tests {
                 },
                 "dataKind": "test-report",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1568,6 +1594,7 @@ pub mod tests {
                 },
                 "dataKind": "test-start",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1624,6 +1651,7 @@ pub mod tests {
                       },
                       "dataKind": "test-finish",
                       "eventTime": "timestamp",
+                      "originId": "test_origin_id",
                       "status": 1,
                       "taskId": {
                         "id": "random_task_id",

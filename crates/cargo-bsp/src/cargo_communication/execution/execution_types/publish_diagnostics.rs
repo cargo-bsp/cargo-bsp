@@ -10,10 +10,10 @@ use paths::AbsPath;
 use url::Url;
 
 use bsp_types::notifications::{
-    CodeDescription, Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, DiagnosticTag,
-    Location, Position, PublishDiagnosticsParams, Range,
+    CodeDescription, Diagnostic, DiagnosticCode as Code, DiagnosticRelatedInformation,
+    DiagnosticSeverity, DiagnosticTag, Location, Position, PublishDiagnosticsParams, Range,
 };
-use bsp_types::{BuildTargetIdentifier, RequestId, TextDocumentIdentifier, URI};
+use bsp_types::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
 
 /// Diagnostics are sent to the client as `publishDiagnostic` notification.
 /// GlobalMessage is sent to the client as `logMessage` notification.
@@ -44,7 +44,7 @@ enum MappedRustChildDiagnostic {
 /// If the diagnostic has no primary span it will be classified as `GlobalMessage`.
 pub fn map_cargo_diagnostic_to_bsp(
     diagnostic: &MetadataDiagnostic,
-    origin_id: Option<RequestId>,
+    origin_id: Option<OriginId>,
     build_target: &BuildTargetIdentifier,
     workspace_root: &AbsPath,
 ) -> DiagnosticMessage {
@@ -158,12 +158,12 @@ pub fn map_cargo_diagnostic_to_bsp(
                 range: secondary_location.range,
                 // downgrade to hint if we're pointing at the macro
                 severity: Some(DiagnosticSeverity::Hint),
-                code: code.clone(),
+                code: code.clone().map(Code::String),
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: message.clone(),
                 related_information: Some(information_for_additional_diagnostic),
-                tags: tags.clone(),
+                tags: tags.as_ref().cloned(),
                 data: None,
             };
             add_diagnostic(secondary_location.uri, diagnostic, &mut diagnostics);
@@ -173,37 +173,42 @@ pub fn map_cargo_diagnostic_to_bsp(
         let diagnostic = Diagnostic {
             range: primary_location.range.clone(),
             severity: severity.clone(),
-            code: code.clone(),
+            code: code.clone().map(Code::String),
             code_description: code_description.clone(),
             source: Some(source.clone()),
             message: message.clone(),
-            related_information: Some(
-                related_info_macro_calls
+            related_information: {
+                let info = related_info_macro_calls
                     .iter()
                     .cloned()
                     .chain(subdiagnostics.iter().cloned())
-                    .collect::<Vec<_>>(),
-            ),
-            tags: tags.clone(),
+                    .collect::<Vec<_>>();
+                if info.is_empty() {
+                    None
+                } else {
+                    Some(info)
+                }
+            },
+            tags: tags.as_ref().cloned(),
             data: None,
         };
         add_diagnostic(primary_location.uri.clone(), diagnostic, &mut diagnostics);
 
         // Emit hint-level diagnostics for all `related_information` entries such as "help"s.
         let back_ref = DiagnosticRelatedInformation {
-            location: primary_location.clone(),
+            location: primary_location,
             message: "original diagnostic".to_string(),
         };
         for sub in &subdiagnostics {
             let diagnostic = Diagnostic {
                 range: sub.location.range.clone(),
                 severity: Some(DiagnosticSeverity::Hint),
-                code: code.clone(),
+                code: code.clone().map(Code::String),
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: sub.message.clone(),
                 related_information: Some(vec![back_ref.clone()]),
-                tags: vec![], // don't apply modifiers again
+                tags: None, // don't apply modifiers again
                 data: None,
             };
             add_diagnostic(sub.location.uri.clone(), diagnostic, &mut diagnostics);
@@ -214,7 +219,7 @@ pub fn map_cargo_diagnostic_to_bsp(
 
 fn create_diagnostics(
     diagnostics: HashMap<URI, Vec<Diagnostic>>,
-    origin_id: Option<RequestId>,
+    origin_id: Option<OriginId>,
     build_target: &BuildTargetIdentifier,
 ) -> Vec<PublishDiagnosticsParams> {
     diagnostics
@@ -286,7 +291,7 @@ fn clippy_code_description(code: Option<&str>) -> Option<CodeDescription> {
     })
 }
 
-fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Vec<DiagnosticTag> {
+fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Option<Vec<DiagnosticTag>> {
     let mut tags = vec![];
     if let Some(code) = code {
         let code = code.code.as_str();
@@ -307,7 +312,11 @@ fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Vec<DiagnosticTag> {
             tags.push(DiagnosticTag::DEPRECATED);
         }
     }
-    tags
+    if tags.is_empty() {
+        None
+    } else {
+        Some(tags)
+    }
 }
 
 /// Returns a `Url` object from a given path, will lowercase drive letters if present.

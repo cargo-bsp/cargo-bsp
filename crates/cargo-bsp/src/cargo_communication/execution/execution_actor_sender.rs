@@ -14,19 +14,19 @@ use bsp_types::notifications::{
     TaskId, TaskProgressParams, TaskStartData, TaskStartParams,
 };
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{Identifier, OriginId, StatusCode};
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::utils::get_current_time;
 
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + OriginId,
+    R::Params: CreateUnitGraphCommand + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -85,6 +85,7 @@ where
     ) {
         self.send_notification::<OnBuildTaskStart>(TaskStartParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             data,
@@ -101,6 +102,7 @@ where
     ) {
         self.send_notification::<OnBuildTaskProgress>(TaskProgressParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             total,
@@ -119,6 +121,7 @@ where
     ) {
         self.send_notification::<OnBuildTaskFinish>(TaskFinishParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             status,
@@ -136,7 +139,7 @@ where
         self.send_notification::<OnBuildLogMessage>(LogMessageParams {
             r#type: message_type,
             task: Some(task_id),
-            origin_id: self.params.origin_id().map(|id| id.0.into()),
+            origin_id: self.params.origin_id().map(|id| OriginId::new(id.0)),
             message,
         });
     }

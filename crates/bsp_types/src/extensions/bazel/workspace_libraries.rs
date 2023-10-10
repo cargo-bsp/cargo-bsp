@@ -33,17 +33,17 @@ pub struct LibraryItem {
 #[serde(transparent)]
 pub struct Jar(pub String);
 
+impl Jar {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for Jar {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<String> for Jar {
-    fn from(input: String) -> Self {
-        Self(input)
     }
 }
 

@@ -35,12 +35,13 @@ pub trait CreateFeatureDependencyGraph {
 
 impl CreateFeatureDependencyGraph for FeatureDependencyGraph {
     fn create_features_dependency_graph(metadata_package: &Package) -> Self {
-        metadata_package
-            .features
-            .clone()
-            .into_iter()
-            .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
-            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
-            .into()
+        Self::new(
+            metadata_package
+                .features
+                .clone()
+                .into_iter()
+                .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
+                .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+        )
     }
 }

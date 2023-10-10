@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::BTreeMap;
 
-use crate::extensions::{CargoBuildTarget, RustBuildTarget};
+use crate::extensions::CargoBuildTarget;
 
 /// A resource identifier that is a valid URI according to rfc3986:
 /// https://tools.ietf.org/html/rfc3986
@@ -10,17 +10,17 @@ use crate::extensions::{CargoBuildTarget, RustBuildTarget};
 #[serde(transparent)]
 pub struct URI(pub String);
 
+impl URI {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for URI {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<String> for URI {
-    fn from(input: String) -> Self {
-        Self(input)
     }
 }
 
@@ -58,7 +58,7 @@ pub struct TextDocumentIdentifier {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTarget {
-    /// The target’s unique identifier
+    /// The target's unique identifier
     pub id: BuildTargetIdentifier,
     /// A human readable name for this target.
     /// May be presented in the user interface.
@@ -97,7 +97,6 @@ pub struct BuildTarget {
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
 pub enum NamedBuildTargetData {
     Cargo(CargoBuildTarget),
-    Rust(RustBuildTarget),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -111,9 +110,6 @@ impl BuildTargetData {
     pub fn cargo(data: CargoBuildTarget) -> Self {
         Self::Named(NamedBuildTargetData::Cargo(data))
     }
-    pub fn rust(data: RustBuildTarget) -> Self {
-        Self::Named(NamedBuildTargetData::Rust(data))
-    }
 }
 
 /// A unique identifier for a target, can use any URI-compatible encoding as long as it is unique within the workspace.
@@ -121,7 +117,7 @@ impl BuildTargetData {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildTargetIdentifier {
-    /// The target’s Uri
+    /// The target's Uri
     pub uri: URI,
 }
 
@@ -152,7 +148,6 @@ impl BuildTargetTag {
     /// The original motivation to add the "manual" tag comes from a similar functionality
     /// that exists in Bazel, where targets with this tag have to be specified explicitly
     /// on the command line.
-    ///
     pub const MANUAL: BuildTargetTag = BuildTargetTag::new("manual");
     /// Target should be ignored by IDEs.
     pub const NO_IDE: BuildTargetTag = BuildTargetTag::new("no-ide");
@@ -190,17 +185,17 @@ pub struct BuildTargetCapabilities {
 #[serde(transparent)]
 pub struct LanguageId(pub String);
 
+impl LanguageId {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
 impl std::ops::Deref for LanguageId {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<String> for LanguageId {
-    fn from(input: String) -> Self {
-        Self(input)
     }
 }
 
@@ -225,11 +220,15 @@ pub enum StatusCode {
     Cancelled = 3,
 }
 
-/// Map representing the environment variables used in BSP extensions.
-/// Each key represents an environment variable name and each value represents the corresponding value to be set.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EnvironmentVariables(pub BTreeMap<String, String>);
+
+impl EnvironmentVariables {
+    pub fn new(input: BTreeMap<String, String>) -> Self {
+        Self(input)
+    }
+}
 
 impl std::ops::Deref for EnvironmentVariables {
     type Target = BTreeMap<String, String>;
@@ -239,27 +238,21 @@ impl std::ops::Deref for EnvironmentVariables {
     }
 }
 
-impl From<BTreeMap<String, String>> for EnvironmentVariables {
-    fn from(input: BTreeMap<String, String>) -> Self {
-        Self(input)
-    }
-}
-
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Identifier(pub String);
+
+impl Identifier {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
 
 impl std::ops::Deref for Identifier {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl From<String> for Identifier {
-    fn from(input: String) -> Self {
-        Self(input)
     }
 }
 
@@ -272,9 +265,15 @@ impl From<&str> for Identifier {
 /// Represents the identifier of a BSP request.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct RequestId(pub String);
+pub struct OriginId(pub String);
 
-impl std::ops::Deref for RequestId {
+impl OriginId {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
+impl std::ops::Deref for OriginId {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
@@ -282,13 +281,7 @@ impl std::ops::Deref for RequestId {
     }
 }
 
-impl From<String> for RequestId {
-    fn from(input: String) -> Self {
-        Self(input)
-    }
-}
-
-impl From<&str> for RequestId {
+impl From<&str> for OriginId {
     fn from(input: &str) -> Self {
         Self(input.to_string())
     }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Identifier, OtherData, StatusCode};
+use crate::{BuildTargetIdentifier, EnvironmentVariables, Identifier, OtherData, StatusCode, URI};
 
 /// The test build target request is sent from the client to the server to test the
 /// given list of build targets. The server communicates during the initialize
@@ -27,6 +27,12 @@ pub struct TestParams {
     /// Optional arguments to the test execution engine.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Vec<String>>,
+    /// Optional environment variables to set before running the tests.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_variables: Option<EnvironmentVariables>,
+    /// Optional working directory
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<URI>,
     /// Language-specific metadata about for this test execution.
     /// See ScalaTestParams as an example.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -36,7 +42,9 @@ pub struct TestParams {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
-pub enum NamedTestParamsData {}
+pub enum NamedTestParamsData {
+    ScalaTestSuites(Vec<String>),
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -45,7 +53,11 @@ pub enum TestParamsData {
     Other(OtherData),
 }
 
-impl TestParamsData {}
+impl TestParamsData {
+    pub fn scala_test_suites(data: Vec<String>) -> Self {
+        Self::Named(NamedTestParamsData::ScalaTestSuites(data))
+    }
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,6 +108,8 @@ mod tests {
             targets: vec![BuildTargetIdentifier::default()],
             origin_id: Some("test_originId".into()),
             arguments: Some(vec!["test_argument".to_string()]),
+            environment_variables: Some(EnvironmentVariables::default()),
+            working_directory: Some(URI::default()),
             data: Some(TestParamsData::Other(OtherData {
                 data_kind: "test_dataKind".to_string(),
                 data: serde_json::json!({"dataKey": "dataValue"}),
@@ -103,7 +117,7 @@ mod tests {
         };
 
         test_deserialization(
-            r#"{"targets":[{"uri":""}],"originId":"test_originId","arguments":["test_argument"],"dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
+            r#"{"targets":[{"uri":""}],"originId":"test_originId","arguments":["test_argument"],"environmentVariables":{},"workingDirectory":"","dataKind":"test_dataKind","data":{"dataKey":"dataValue"}}"#,
             &test_data,
         );
 

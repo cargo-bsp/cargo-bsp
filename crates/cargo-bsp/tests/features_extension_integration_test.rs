@@ -161,10 +161,11 @@ fn feature_with_dependencies(id: i8, dependencies: Vec<i8>) -> (Feature, BTreeSe
 
 #[test]
 fn cargo_features_state() {
-    let mut available_features: FeatureDependencyGraph = (0..4)
-        .map(|id| feature_with_dependencies(id, vec![id + 1]))
-        .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
-        .into();
+    let mut available_features: FeatureDependencyGraph = FeatureDependencyGraph::new(
+        (0..4)
+            .map(|id| feature_with_dependencies(id, vec![id + 1]))
+            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+    );
     // Add an f4 on which f3 depends
     available_features.0.insert(feature(4), BTreeSet::new());
 

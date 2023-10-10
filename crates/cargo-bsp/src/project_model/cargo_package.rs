@@ -198,16 +198,17 @@ mod tests {
     }
 
     fn create_package_features(slice_map: &[(&str, &[&str])]) -> FeatureDependencyGraph {
-        slice_map
-            .iter()
-            .map(|&(k, v)| {
-                (
-                    Feature::from(k),
-                    v.iter().map(|&s| Feature::from(s)).collect(),
-                )
-            })
-            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>()
-            .into()
+        FeatureDependencyGraph::new(
+            slice_map
+                .iter()
+                .map(|&(k, v)| {
+                    (
+                        Feature::from(k),
+                        v.iter().map(|&s| Feature::from(s)).collect(),
+                    )
+                })
+                .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+        )
     }
 
     fn default_cargo_package_with_features(
