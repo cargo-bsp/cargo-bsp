@@ -13,7 +13,9 @@ mod did_change_build_target;
 mod exit_build;
 mod initialized_build;
 mod messages;
+mod print;
 mod publish_diagnostics;
+mod read_stdin;
 mod tasks;
 
 pub trait Notification {
