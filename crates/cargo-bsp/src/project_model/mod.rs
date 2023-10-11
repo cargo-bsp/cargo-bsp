@@ -1,8 +1,8 @@
 //! [`ProjectModel`] obtains and stores information about the Rust project.
 
-use bsp_types::basic_bsp_structures::RustEdition;
-use bsp_types::extensions::{Feature, FeaturesDependencyGraph};
+use bsp_types::extensions::{Feature, FeatureDependencyGraph, RustEdition};
 use cargo_metadata::{Edition, Package};
+use std::collections::{BTreeMap, BTreeSet};
 
 mod _unit_tests_discovery;
 pub(crate) mod build_target_mappings;
@@ -13,6 +13,8 @@ pub(crate) mod rust_extension;
 pub(crate) mod sources;
 pub(crate) mod target_details;
 pub mod workspace;
+
+pub const RUST_ID: &str = "rust";
 
 pub(crate) fn metadata_edition_to_bsp_edition(metadata_edition: Edition) -> RustEdition {
     RustEdition::new(metadata_edition.as_str())
@@ -27,17 +29,19 @@ impl DefaultFeature for Feature {
     }
 }
 
-pub trait CreateFeaturesDependencyGraph {
+pub trait CreateFeatureDependencyGraph {
     fn create_features_dependency_graph(metadata_package: &Package) -> Self;
 }
 
-impl CreateFeaturesDependencyGraph for FeaturesDependencyGraph {
+impl CreateFeatureDependencyGraph for FeatureDependencyGraph {
     fn create_features_dependency_graph(metadata_package: &Package) -> Self {
-        metadata_package
-            .features
-            .clone()
-            .into_iter()
-            .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
-            .collect()
+        Self::new(
+            metadata_package
+                .features
+                .clone()
+                .into_iter()
+                .map(|(f, df)| (Feature(f), df.into_iter().map(Feature).collect()))
+                .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+        )
     }
 }

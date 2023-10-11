@@ -20,7 +20,7 @@ pub fn get_sources_for_target(
     SourcesItem {
         target: id.clone(),
         sources: list_target_sources(target_details),
-        roots: vec![file_uri(package_path)],
+        roots: Some(vec![file_uri(package_path)]),
     }
 }
 
@@ -143,7 +143,7 @@ mod tests {
             for case in cases {
                 let source_item = create_source_item(case.path);
                 assert_eq!(source_item, case.expected);
-                assert!(source_item.uri.starts_with("file://"));
+                assert!(source_item.uri.0.starts_with("file://"));
             }
         }
     }
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn get_sources_for_target_test() {
         let test_id = BuildTargetIdentifier {
-            uri: "testId".to_string(),
+            uri: "testId".into(),
         };
         let test_target_details = TargetDetails {
             kind: CargoTargetKind::Test,

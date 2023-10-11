@@ -1,9 +1,13 @@
 use crate::requests::Request;
 
+/// Like the language server protocol, the shutdown build request is sent from the
+/// client to the server. It asks the server to shut down, but to not exit
+/// (otherwise the response might not be delivered correctly to the client). There
+/// is a separate exit notification that asks the server to exit.
 #[derive(Debug)]
-pub enum ShutdownBuild {}
+pub enum BuildShutdown {}
 
-impl Request for ShutdownBuild {
+impl Request for BuildShutdown {
     type Params = ();
     type Result = ();
     const METHOD: &'static str = "build/shutdown";
@@ -19,7 +23,7 @@ mod tests {
 
     #[test]
     fn shutdown_build_method() {
-        assert_eq!(ShutdownBuild::METHOD, "build/shutdown");
+        assert_eq!(BuildShutdown::METHOD, "build/shutdown");
     }
 
     #[test]

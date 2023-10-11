@@ -3,11 +3,11 @@
 //! creation of notifications and responses for the client (especially the state
 //! sets and stores TaskIds of all tasks that may potentially be started).
 
-use bsp_types::BuildTargetIdentifier;
+use bsp_types::{BuildTargetIdentifier, Identifier};
 use std::collections::HashMap;
 
 use bsp_types::notifications::TaskId;
-use bsp_types::requests::{Request, Run, Test};
+use bsp_types::requests::{BuildTargetRun, BuildTargetTest, Request};
 
 use crate::cargo_communication::execution::utils::{
     generate_random_id, generate_task_id, get_current_time,
@@ -113,10 +113,10 @@ impl CompileState {
 impl TaskState {
     fn new<R: Request>(root_task_id: TaskId) -> TaskState {
         match R::METHOD {
-            Run::METHOD => TaskState::Run(RunState {
+            BuildTargetRun::METHOD => TaskState::Run(RunState {
                 task_id: generate_task_id(&root_task_id),
             }),
-            Test::METHOD => {
+            BuildTargetTest::METHOD => {
                 let test_task_id = generate_task_id(&root_task_id);
                 TaskState::Test(TestState {
                     suite_task_id: generate_task_id(&test_task_id),
@@ -131,12 +131,12 @@ impl TaskState {
 
 impl ExecutionActorState {
     pub fn new<R: Request>(
-        origin_id: Option<String>,
+        origin_id: Option<Identifier>,
         build_targets: &[BuildTargetIdentifier],
     ) -> ExecutionActorState {
         let root_task_id = TaskId {
             id: origin_id.unwrap_or(generate_random_id()),
-            parents: vec![],
+            parents: None,
         };
         ExecutionActorState {
             root_task_id: root_task_id.clone(),

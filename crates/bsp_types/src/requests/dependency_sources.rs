@@ -1,34 +1,46 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
+/// The build target dependency sources request is sent from the client to the
+/// server to query for the sources of build target dependencies that are external
+/// to the workspace. The dependency sources response must not include source files
+/// that belong to a build target within the workspace, see `buildTarget/sources`.
+///
+/// The server communicates during the initialize handshake whether this method is
+/// supported or not. This method can for example be used by a language server on
+/// `textDocument/definition` to "Go to definition" from project sources to
+/// dependency sources.
 #[derive(Debug)]
-pub enum DependencySources {}
+pub enum BuildTargetDependencySources {}
 
-impl Request for DependencySources {
+impl Request for BuildTargetDependencySources {
     type Params = DependencySourcesParams;
     type Result = DependencySourcesResult;
     const METHOD: &'static str = "buildTarget/dependencySources";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencySourcesParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencySourcesResult {
     pub items: Vec<DependencySourcesItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencySourcesItem {
     pub target: BuildTargetIdentifier,
-    /** List of resources containing source files of the
-    target's dependencies.
-    Can be source files, jar files, zip files, or directories. */
-    pub sources: Vec<Uri>,
+    /// List of resources containing source files of the
+    /// target's dependencies.
+    /// Can be source files, jar files, zip files, or directories.
+    pub sources: Vec<URI>,
 }
 
 #[cfg(test)]
@@ -41,7 +53,10 @@ mod tests {
 
     #[test]
     fn dependency_sources_method() {
-        assert_eq!(DependencySources::METHOD, "buildTarget/dependencySources");
+        assert_eq!(
+            BuildTargetDependencySources::METHOD,
+            "buildTarget/dependencySources"
+        );
     }
 
     #[test]
@@ -88,7 +103,7 @@ mod tests {
     fn dependency_sources_item() {
         let test_data = DependencySourcesItem {
             target: BuildTargetIdentifier::default(),
-            sources: vec![Uri::default()],
+            sources: vec![URI::default()],
         };
 
         assert_json_snapshot!(test_data,

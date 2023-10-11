@@ -45,7 +45,7 @@ fn create_initialize_result(config: &Config) -> InitializeBuildResult {
     InitializeBuildResult {
         display_name: "test".to_string(),
         version: "0.0.1".to_string(),
-        bsp_version: "2.0.0".to_string(),
+        bsp_version: bsp_types::PROTOCOL_VERSION.to_string(),
         capabilities: server_capabilities(config),
         data: None,
     }

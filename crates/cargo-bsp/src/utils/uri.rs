@@ -2,8 +2,8 @@
 
 use std::fmt::Display;
 
-use bsp_types::Uri;
+use bsp_types::URI;
 
-pub fn file_uri<T: Display>(path: T) -> Uri {
-    format!("file://{}", path)
+pub fn file_uri<T: Display>(path: T) -> URI {
+    URI(format!("file://{}", path))
 }

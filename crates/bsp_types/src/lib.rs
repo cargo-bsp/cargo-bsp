@@ -8,6 +8,8 @@ pub mod requests;
 pub mod extensions;
 pub mod notifications;
 
+pub const PROTOCOL_VERSION: &str = "2.1.0";
+
 pub mod tests {
     use serde::Deserialize;
 

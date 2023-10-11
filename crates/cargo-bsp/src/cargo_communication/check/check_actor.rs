@@ -133,8 +133,8 @@ where
                 // We can unwrap, as there would be no RustWorkspaceResult without this package.
                 let package = packages.iter().find(|&p| p.id == package_id).unwrap();
 
-                p.cfg_options = map_cfg_options(script);
-                p.env = map_env(script, package);
+                p.cfg_options = Some(map_cfg_options(script));
+                p.env = Some(map_env(script, package));
                 p.out_dir_url = map_out_dir_url(script);
                 p.proc_macro_artifact = map_proc_macro_artifact(artifacts);
                 p

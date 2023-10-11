@@ -3,17 +3,18 @@
 
 use bsp_server::Response;
 use bsp_types::extensions::{
-    CargoFeaturesState, CargoFeaturesStateResult, Feature, FeaturesDependencyGraph,
-    PackageFeatures, SetCargoFeatures, SetCargoFeaturesParams, SetCargoFeaturesResult,
+    CargoFeaturesState, CargoFeaturesStateResult, Feature, FeatureDependencyGraph, PackageFeatures,
+    SetCargoFeatures, SetCargoFeaturesParams, SetCargoFeaturesResult,
 };
 use bsp_types::requests::Request;
 use bsp_types::StatusCode;
 use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
 use serde_json::to_string;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env::{current_dir, set_current_dir};
 use std::fs::File;
 use std::io::Write;
+use std::ops::Deref;
 use std::process::Command;
 use tempfile::tempdir;
 
@@ -26,7 +27,7 @@ use common::{spawn_server_with_proper_life_time, Client};
 
 struct FeaturesState {
     enabled_features: BTreeSet<Feature>,
-    available_features: FeaturesDependencyGraph,
+    available_features: FeatureDependencyGraph,
 }
 
 fn send_cargo_feature_state_request(cl: &mut Client) {
@@ -62,7 +63,7 @@ fn send_set_features_request_and_check_result(
     check_set_features_response_status_code(cl.recv_resp());
 }
 
-fn overwrite_cargo_toml_with_features(features: &FeaturesDependencyGraph) {
+fn overwrite_cargo_toml_with_features(features: &FeatureDependencyGraph) {
     const TEST_PROJECT_AUTHOR: &str = "Test Author";
     const TEST_PROJECT_VERSION: &str = "0.0.1";
 
@@ -72,7 +73,7 @@ fn overwrite_cargo_toml_with_features(features: &FeaturesDependencyGraph) {
         .version(TEST_PROJECT_VERSION)
         .author(TEST_PROJECT_AUTHOR);
 
-    for (f, dependencies) in features {
+    for (f, dependencies) in features.deref() {
         // feature added to the Cargo.toml builder
         let mut toml_feature = TomlFeature::new(&f.0);
         dependencies.iter().for_each(|dep| {
@@ -88,7 +89,7 @@ fn overwrite_cargo_toml_with_features(features: &FeaturesDependencyGraph) {
         .unwrap();
 }
 
-fn create_mock_rust_project(features: &FeaturesDependencyGraph) {
+fn create_mock_rust_project(features: &FeatureDependencyGraph) {
     Command::new(toolchain::cargo())
         .args(["init", ".", "--name", TEST_PROJECT_NAME])
         .output()
@@ -97,7 +98,7 @@ fn create_mock_rust_project(features: &FeaturesDependencyGraph) {
     overwrite_cargo_toml_with_features(features);
 }
 
-fn run_test<F>(features: &FeaturesDependencyGraph, test: F)
+fn run_test<F>(features: &FeatureDependencyGraph, test: F)
 where
     F: Fn(&mut Client),
 {
@@ -126,7 +127,7 @@ fn features_state_from_response(package: PackageFeatures) -> FeaturesState {
 
 fn check_package_state(
     package: PackageFeatures,
-    expected_available: &FeaturesDependencyGraph,
+    expected_available: &FeatureDependencyGraph,
     expected_state: &BTreeSet<Feature>,
 ) {
     let features_state = features_state_from_response(package);
@@ -139,7 +140,7 @@ fn check_package_state(
 
 fn request_state_and_check_it(
     cl: &mut Client,
-    expected_available: &FeaturesDependencyGraph,
+    expected_available: &FeatureDependencyGraph,
     expected_state: &BTreeSet<Feature>,
 ) {
     send_cargo_feature_state_request(cl);
@@ -151,7 +152,7 @@ fn feature(id: i8) -> Feature {
     Feature(format!("f{}", id))
 }
 
-fn feature_with_dependencies(id: i8, dependencies: Vec<i8>) -> (Feature, Vec<Feature>) {
+fn feature_with_dependencies(id: i8, dependencies: Vec<i8>) -> (Feature, BTreeSet<Feature>) {
     (
         feature(id),
         dependencies.iter().map(|d| feature(*d)).collect(),
@@ -160,11 +161,13 @@ fn feature_with_dependencies(id: i8, dependencies: Vec<i8>) -> (Feature, Vec<Fea
 
 #[test]
 fn cargo_features_state() {
-    let mut available_features: FeaturesDependencyGraph = (0..4)
-        .map(|id| feature_with_dependencies(id, vec![id + 1]))
-        .collect::<FeaturesDependencyGraph>();
+    let mut available_features: FeatureDependencyGraph = FeatureDependencyGraph::new(
+        (0..4)
+            .map(|id| feature_with_dependencies(id, vec![id + 1]))
+            .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+    );
     // Add an f4 on which f3 depends
-    available_features.insert(feature(4), vec![]);
+    available_features.0.insert(feature(4), BTreeSet::new());
 
     let test_fn = |cl: &mut Client| {
         let mut state = BTreeSet::new();

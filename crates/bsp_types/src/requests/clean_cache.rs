@@ -3,27 +3,39 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::BuildTargetIdentifier;
 
+/// The clean cache request is sent from the client to the server to reset any state
+/// associated with a given build target. The state can live either in the build
+/// tool or in the file system.
+///
+/// The build tool defines the exact semantics of the clean cache request:
+///
+/// 1. Stateless build tools are free to ignore the request and respond with a
+///    successful response.
+/// 2. Stateful build tools must ensure that invoking compilation on a target that
+///    has been cleaned results in a full compilation.
 #[derive(Debug)]
-pub enum CleanCache {}
+pub enum BuildTargetCleanCache {}
 
-impl Request for CleanCache {
+impl Request for BuildTargetCleanCache {
     type Params = CleanCacheParams;
     type Result = CleanCacheResult;
     const METHOD: &'static str = "buildTarget/cleanCache";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanCacheParams {
-    /** The build targets to clean. */
+    /// The build targets to clean.
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanCacheResult {
-    /** Optional message to display to the user. */
+    /// Optional message to display to the user.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    /** Indicates whether the clean cache request was performed or not. */
+    /// Indicates whether the clean cache request was performed or not.
     pub cleaned: bool,
 }
 
@@ -37,7 +49,7 @@ mod tests {
 
     #[test]
     fn clean_cache_method() {
-        assert_eq!(CleanCache::METHOD, "buildTarget/cleanCache");
+        assert_eq!(BuildTargetCleanCache::METHOD, "buildTarget/cleanCache");
     }
 
     #[test]

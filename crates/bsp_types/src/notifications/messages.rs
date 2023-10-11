@@ -2,70 +2,77 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::notifications::{Notification, TaskId};
+use crate::OriginId;
 
+/// The show message notification is sent from a server to a client to ask the client to display a particular message in the user interface.
+///
+/// A build/showMessage notification is similar to LSP's window/showMessage, except for a few additions like id and originId.
 #[derive(Debug)]
-pub enum ShowMessage {}
+pub enum OnBuildShowMessage {}
 
-impl Notification for ShowMessage {
+impl Notification for OnBuildShowMessage {
     type Params = ShowMessageParams;
     const METHOD: &'static str = "build/showMessage";
 }
 
+/// The log message notification is sent from a server to a client to ask the client to log a particular message in its console.
+///
+/// A build/logMessage notification is similar to LSP's window/logMessage, except for a few additions like id and originId.
 #[derive(Debug)]
-pub enum LogMessage {}
+pub enum OnBuildLogMessage {}
 
-impl Notification for LogMessage {
+impl Notification for OnBuildLogMessage {
     type Params = LogMessageParams;
     const METHOD: &'static str = "build/logMessage";
 }
 
-/** Show message notification */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageParams {
-    /** The message type. See {@link MessageType}. */
-    #[serde(rename = "type")]
-    pub message_type: MessageType,
-
-    /** The task id if any. */
+    /// the message type.
+    pub r#type: MessageType,
+    /// The task id if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task: Option<TaskId>,
-
-    /** The request id that originated this notification. */
+    /// The request id that originated this notification.
+    /// The originId field helps clients know which request originated a notification in case several requests are handled by the
+    /// client at the same time. It will only be populated if the client defined it in the request that triggered this notification.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
-
-    /** The actual message. */
+    pub origin_id: Option<OriginId>,
+    /// The actual message.
     pub message: String,
 }
 
-/** Log message notification params */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogMessageParams {
-    /** The message type. See {@link MessageType}. */
-    #[serde(rename = "type")]
-    pub message_type: MessageType,
-
-    /** The task id if any. */
+    /// the message type.
+    pub r#type: MessageType,
+    /// The task id if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task: Option<TaskId>,
-
-    /** The request id that originated this notification. */
+    /// The request id that originated this notification.
+    /// The originId field helps clients know which request originated a notification in case several requests are handled by the
+    /// client at the same time. It will only be populated if the client defined it in the request that triggered this notification.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_id: Option<String>,
-
-    /** The actual message. */
+    pub origin_id: Option<OriginId>,
+    /// The actual message.
     pub message: String,
 }
 
-#[derive(Debug, PartialEq, Serialize_repr, Deserialize_repr, Default, Clone)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize_repr, Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum MessageType {
     #[default]
+    /// An error message.
     Error = 1,
+    /// A warning message.
     Warning = 2,
+    /// An information message.
     Info = 3,
+    /// A log message.
     Log = 4,
 }
 
@@ -77,20 +84,20 @@ mod tests {
 
     #[test]
     fn show_message_method() {
-        assert_eq!(ShowMessage::METHOD, "build/showMessage");
+        assert_eq!(OnBuildShowMessage::METHOD, "build/showMessage");
     }
 
     #[test]
     fn log_message_method() {
-        assert_eq!(LogMessage::METHOD, "build/logMessage");
+        assert_eq!(OnBuildLogMessage::METHOD, "build/logMessage");
     }
 
     #[test]
     fn show_message_params() {
         let test_data = ShowMessageParams {
-            message_type: MessageType::Error,
+            r#type: MessageType::Error,
             task: Some(TaskId::default()),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             message: "test_message".to_string(),
         };
 
@@ -119,9 +126,9 @@ mod tests {
     #[test]
     fn log_message_params() {
         let test_data = LogMessageParams {
-            message_type: MessageType::default(),
+            r#type: MessageType::default(),
             task: Some(TaskId::default()),
-            origin_id: Some("test_originId".to_string()),
+            origin_id: Some("test_originId".into()),
             message: "test_message".to_string(),
         };
 

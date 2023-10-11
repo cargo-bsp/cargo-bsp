@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use bsp_types::notifications::{TaskDataWithKind, TestFinishData, TestReportData, TestStatus};
+use bsp_types::notifications::{TaskFinishData, TestFinish, TestReport, TestStatus};
 use bsp_types::BuildTargetIdentifier;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,15 +41,17 @@ pub struct SuiteResults {
 }
 
 impl SuiteResults {
-    pub fn to_test_report(&self, target: BuildTargetIdentifier) -> TaskDataWithKind {
-        TaskDataWithKind::TestReport(TestReportData {
+    pub fn to_test_report(&self, target: BuildTargetIdentifier) -> TaskFinishData {
+        #[allow(deprecated)]
+        TaskFinishData::test_report(TestReport {
+            origin_id: None,
             target,
             passed: self.passed,
             failed: self.failed,
             ignored: self.ignored,
             cancelled: 0,
             skipped: self.filtered_out,
-            time: Some((self.exec_time * 1000.0) as i32),
+            time: Some((self.exec_time * 1000.0) as i64),
         })
     }
 }
@@ -93,14 +95,13 @@ impl TestResult {
         (!true_stdout.is_empty()).then_some(true_stdout)
     }
 
-    pub fn map_to_test_notification(self, status: TestStatus) -> TestFinishData {
-        TestFinishData {
+    pub fn map_to_test_notification(self, status: TestStatus) -> TestFinish {
+        TestFinish {
             display_name: self.name,
             message: self.stdout,
             status,
             // TODO add location of build target
             location: None,
-            data_kind: None,
             data: None,
         }
     }

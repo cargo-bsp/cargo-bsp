@@ -49,7 +49,7 @@ impl Config {
     pub(crate) fn from_initialize_params(
         initialize_params: InitializeBuildParams,
     ) -> Result<Config> {
-        let root_path = Url::try_from(initialize_params.root_uri.as_str())
+        let root_path = Url::try_from(initialize_params.root_uri.0.as_str())
             .ok()
             .and_then(|it| it.to_file_path().ok())
             .unwrap_or(env::current_dir()?);

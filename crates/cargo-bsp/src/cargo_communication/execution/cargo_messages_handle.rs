@@ -4,17 +4,17 @@
 use cargo_metadata::diagnostic::DiagnosticLevel;
 use cargo_metadata::{BuildFinished, CompilerMessage, Message};
 use log::warn;
-use lsp_types::DiagnosticSeverity;
 use path_absolutize::*;
 use paths::AbsPath;
 
 use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::notifications::{
-    CompileReportData, LogMessage, LogMessageParams, MessageType, PublishDiagnostics,
-    PublishDiagnosticsParams, TaskDataWithKind, TaskId, TestStartData, TestStatus, TestTaskData,
+    CompileReport, DiagnosticSeverity, LogMessageParams, MessageType, OnBuildLogMessage,
+    OnBuildPublishDiagnostics, PublishDiagnosticsParams, TaskFinishData, TaskId, TaskStartData,
+    TestStart, TestStatus, TestTask,
 };
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{Identifier, OriginId, StatusCode};
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
@@ -22,7 +22,7 @@ use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_actor_state::{SuiteTaskProgress, TaskState};
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::execution_types::publish_diagnostics::{
     map_cargo_diagnostic_to_bsp, DiagnosticMessage, GlobalMessage,
 };
@@ -36,7 +36,7 @@ use crate::cargo_communication::execution::utils::{
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -100,7 +100,7 @@ where
         };
         let diagnostic_msg = map_cargo_diagnostic_to_bsp(
             &msg.message,
-            self.params.origin_id(),
+            self.params.origin_id().map(|id| OriginId::new(id.0)),
             build_target_id,
             AbsPath::assert(&abs_root_path),
         );
@@ -116,15 +116,15 @@ where
         diagnostics.into_iter().for_each(|diagnostic| {
             // Count errors and warnings.
             diagnostic.diagnostics.iter().for_each(|d| {
-                if let Some(severity) = d.severity {
+                if let Some(severity) = &d.severity {
                     match severity {
-                        DiagnosticSeverity::ERROR => self.state.compile_state.errors += 1,
-                        DiagnosticSeverity::WARNING => self.state.compile_state.warnings += 1,
+                        DiagnosticSeverity::Error => self.state.compile_state.errors += 1,
+                        DiagnosticSeverity::Warning => self.state.compile_state.warnings += 1,
                         _ => (),
                     }
                 }
             });
-            self.send_notification::<PublishDiagnostics>(diagnostic);
+            self.send_notification::<OnBuildPublishDiagnostics>(diagnostic);
         })
     }
 
@@ -137,10 +137,10 @@ where
             }
             _ => MessageType::Log,
         };
-        self.send_notification::<LogMessage>(LogMessageParams {
-            message_type,
+        self.send_notification::<OnBuildLogMessage>(LogMessageParams {
+            r#type: message_type,
             task: Some(self.state.compile_state.task_id.clone()),
-            origin_id: self.params.origin_id(),
+            origin_id: self.params.origin_id().map(|id| OriginId::new(id.0)),
             message: global_msg.message,
         });
     }
@@ -149,12 +149,13 @@ where
         self.build_targets.iter().for_each(|id| {
             // We can unwrap here, as for all iterated ids, the target state was created.
             let compile_target_state = self.state.compile_state.target_states.get(id).unwrap();
-            let compile_report = TaskDataWithKind::CompileReport(CompileReportData {
+            #[allow(deprecated)]
+            let compile_report = TaskFinishData::compile_report(CompileReport {
                 target: id.clone(),
-                origin_id: self.params.origin_id(),
+                origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
                 errors: self.state.compile_state.errors,
                 warnings: self.state.compile_state.warnings,
-                time: Some((get_current_time() - compile_target_state.start_time) as i32),
+                time: Some(get_current_time() - compile_target_state.start_time),
                 no_op: None,
             });
             self.report_task_finish(
@@ -223,7 +224,7 @@ where
                     self.report_task_start(
                         task_id,
                         None,
-                        Some(TaskDataWithKind::TestTask(TestTaskData { target })),
+                        Some(TaskStartData::test_task(TestTask { target })),
                     );
                 }
                 SuiteEvent::Ok(result) | SuiteEvent::Failed(result) => {
@@ -263,7 +264,7 @@ where
                     self.report_task_start(
                         test_task_id,
                         None,
-                        Some(TaskDataWithKind::TestStart(TestStartData {
+                        Some(TaskStartData::test_start(TestStart {
                             display_name: started.name,
                             // TODO add location of build target
                             location: None,
@@ -292,7 +293,7 @@ where
                     id,
                     StatusCode::Ok,
                     None,
-                    Some(TaskDataWithKind::TestFinish(
+                    Some(TaskFinishData::test_finish(
                         test_result.map_to_test_notification(status),
                     )),
                 );

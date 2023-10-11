@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Debug)]
 pub struct UnitGraph {
-    #[serde(rename = "version")]
-    _version: i64,
+    r#version: i64,
     units: Vec<Unit>,
 }
 
@@ -31,7 +30,7 @@ mod tests {
     #[test]
     fn unit_graph() {
         let test_unit_graph = UnitGraph {
-            _version: 1,
+            r#version: 1,
             units: vec![Unit::default(); 3],
         };
 

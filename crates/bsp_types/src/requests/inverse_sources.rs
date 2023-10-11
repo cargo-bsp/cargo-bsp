@@ -3,22 +3,28 @@ use serde::{Deserialize, Serialize};
 use crate::requests::Request;
 use crate::{BuildTargetIdentifier, TextDocumentIdentifier};
 
+/// The inverse sources request is sent from the client to the server to query for
+/// the list of build targets containing a text document. The server communicates
+/// during the initialize handshake whether this method is supported or not. This
+/// request can be viewed as the inverse of `buildTarget/sources`, except it only
+/// works for text documents and not directories.
 #[derive(Debug)]
-pub enum InverseSources {}
+pub enum BuildTargetInverseSources {}
 
-impl Request for InverseSources {
+impl Request for BuildTargetInverseSources {
     type Params = InverseSourcesParams;
     type Result = InverseSourcesResult;
-    const METHOD: &'static str = "textDocument/inverseSources";
+    const METHOD: &'static str = "buildTarget/inverseSources";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InverseSourcesParams {
     pub text_document: TextDocumentIdentifier,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InverseSourcesResult {
     pub targets: Vec<BuildTargetIdentifier>,
 }
@@ -33,7 +39,10 @@ mod tests {
 
     #[test]
     fn inverse_sources_method() {
-        assert_eq!(InverseSources::METHOD, "textDocument/inverseSources");
+        assert_eq!(
+            BuildTargetInverseSources::METHOD,
+            "buildTarget/inverseSources"
+        );
     }
 
     #[test]

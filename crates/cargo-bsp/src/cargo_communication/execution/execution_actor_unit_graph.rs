@@ -13,7 +13,7 @@ use crate::cargo_communication::cargo_types::params_target::ParamsTarget;
 use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::execution_types::unit_graph::UnitGraph;
 
 // There is no Err StatusCode, as even if the unit graph command did not end up
@@ -28,7 +28,7 @@ pub enum UnitGraphStatusCode {
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {

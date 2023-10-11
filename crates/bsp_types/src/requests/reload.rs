@@ -1,9 +1,13 @@
 use crate::requests::Request;
 
+/// The `reload` request is sent from the client to instruct the build server to reload
+/// the build configuration. This request should be supported by build tools that keep
+/// their state in memory. If the `reload` request returns with an error, it's expected
+/// that other requests respond with the previously known "good" state.
 #[derive(Debug)]
-pub enum Reload {}
+pub enum WorkspaceReload {}
 
-impl Request for Reload {
+impl Request for WorkspaceReload {
     type Params = ();
     type Result = ();
     const METHOD: &'static str = "workspace/reload";
@@ -19,7 +23,7 @@ mod tests {
 
     #[test]
     fn reload_method() {
-        assert_eq!(Reload::METHOD, "workspace/reload");
+        assert_eq!(WorkspaceReload::METHOD, "workspace/reload");
     }
 
     #[test]

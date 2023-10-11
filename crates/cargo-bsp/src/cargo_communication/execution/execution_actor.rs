@@ -42,9 +42,9 @@ use crate::cargo_communication::execution::execution_actor_state::{
 };
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
-use bsp_types::notifications::{CompileTaskData, MessageType, TaskDataWithKind};
+use bsp_types::notifications::{CompileTask, MessageType, TaskStartData};
 use bsp_types::requests::Request;
 use bsp_types::{BuildTargetIdentifier, StatusCode};
 
@@ -70,7 +70,7 @@ where
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+    R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -150,7 +150,7 @@ where
             self.report_task_start(
                 self.state.compile_state.get_target_task_id(id),
                 None,
-                Some(TaskDataWithKind::CompileTask(CompileTaskData {
+                Some(TaskStartData::compile_task(CompileTask {
                     target: id.clone(),
                 })),
             );
@@ -211,7 +211,7 @@ pub mod tests {
     use crate::cargo_communication::utils::{test_package, test_target, test_target_id};
     use crate::utils::tests::no_more_msg;
     use bsp_server::Message;
-    use bsp_types::requests::{Compile, CompileParams};
+    use bsp_types::requests::CompileParams;
     use bsp_types::BuildTargetIdentifier;
     use cargo_metadata::camino::Utf8PathBuf;
     use cargo_metadata::Message::BuildFinished as BuildFinishedEnum;
@@ -257,7 +257,7 @@ pub mod tests {
     ) -> TestEndpoints<R>
     where
         R: Request,
-        R::Params: CreateUnitGraphCommand + ParamsTarget + OriginId,
+        R::Params: CreateUnitGraphCommand + ParamsTarget + WithOriginId,
         R::Result: CargoResult,
     {
         let (sender_to_main, receiver_from_actor) = unbounded::<Message>();
@@ -325,6 +325,7 @@ pub mod tests {
     mod compile_request_tests {
         use super::*;
         use crate::cargo_communication::utils::test_target_id;
+        use bsp_types::requests::BuildTargetCompile;
         use std::io;
 
         fn default_compile_params(test_case: TestCase) -> CompileParams {
@@ -335,13 +336,13 @@ pub mod tests {
             CompileParams {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
             }
         }
 
         fn mock_cargo_handler(
             receiver_from_cargo: Receiver<CargoMessage>,
-        ) -> TestEndpoints<Compile> {
+        ) -> TestEndpoints<BuildTargetCompile> {
             let mut mock_cargo_handle = MockCargoHandler::new();
             // There is no robust way to return ExitStatus hence we return Error. In consequence the
             // status code of response is 2(Error).
@@ -351,7 +352,7 @@ pub mod tests {
             mock_cargo_handle
                 .expect_receiver()
                 .return_const(receiver_from_cargo);
-            default_req_actor::<Compile>(
+            default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -392,6 +393,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Started unit graph command",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -407,6 +409,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished unit graph command",
+                    "originId": "test_origin_id",
                     "status": 2,
                     "taskId": {
                       "id": "random_task_id",
@@ -457,6 +460,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished unit graph command",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -501,6 +505,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Started compilation",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -524,6 +529,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-task",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": "[random_task_id]"
@@ -545,6 +551,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-task",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": "[random_task_id]"
@@ -557,6 +564,7 @@ pub mod tests {
                   "method": "build/taskFinish",
                   "params": {
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id"
@@ -587,7 +595,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(
+            } = default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -603,6 +611,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 3,
                 "taskId": {
                   "id": "test_origin_id"
@@ -634,7 +643,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Compile>(
+            } = default_req_actor::<BuildTargetCompile>(
                 mock_cargo_handle,
                 default_compile_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -684,7 +693,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -702,6 +711,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "{\"package_id\":\"test_pkg_id\",\"manifest_path\":\"test_manifest_path\",\"target\":{\"name\":\"test_target\",\"kind\":[\"test_kind\"],\"crate_types\":[\"test_crate_type\"],\"required-features\":[],\"src_path\":\"test_src_path\",\"edition\":\"2015\",\"doctest\":true,\"test\":true,\"doc\":true},\"profile\":{\"opt_level\":\"test_opt_level\",\"debuginfo\":0,\"debug_assertions\":false,\"overflow_checks\":false,\"test\":false},\"features\":[\"test_feature\"],\"filenames\":[\"test_filename\"],\"executable\":\"test_executable\",\"fresh\":false}",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -723,7 +733,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -740,6 +750,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "{\"package_id\":\"test_pkg_id\",\"linked_libs\":[\"test_linked_lib\"],\"linked_paths\":[\"test_linked_path\"],\"cfgs\":[\"test_cfg\"],\"env\":[[\"test_env\",\"test_env\"]],\"out_dir\":\"test_out_dir\"}",
+                    "originId": "test_origin_id",
                     "taskId": {
                       "id": "random_task_id",
                       "parents": [
@@ -760,7 +771,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -814,7 +825,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::MultipleTargets),
                     TestCase::MultipleTargets,
@@ -842,6 +853,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -870,6 +882,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -887,6 +900,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished compilation",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -909,7 +923,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Compile>(
+                } = default_req_actor::<BuildTargetCompile>(
                     MockCargoHandler::new(),
                     default_compile_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -947,6 +961,7 @@ pub mod tests {
                     },
                     "dataKind": "compile-report",
                     "eventTime": "timestamp",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -964,6 +979,7 @@ pub mod tests {
                   "params": {
                     "eventTime": "timestamp",
                     "message": "Finished compilation",
+                    "originId": "test_origin_id",
                     "status": 1,
                     "taskId": {
                       "id": "random_task_id",
@@ -1077,7 +1093,7 @@ pub mod tests {
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
-        use bsp_types::requests::{Run, RunParams};
+        use bsp_types::requests::{BuildTargetRun, RunParams};
         use cargo_metadata::Message::TextLine;
         use serde_json::to_string;
         use std::io;
@@ -1091,8 +1107,9 @@ pub mod tests {
                     uri: TEST_TARGET.into(),
                 },
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
-                data_kind: None,
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
+                environment_variables: None,
+                working_directory: None,
                 data: None,
             }
         }
@@ -1113,7 +1130,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 mock_cargo_handle,
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1146,6 +1163,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Started target execution",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -1168,6 +1186,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target execution",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1186,6 +1205,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
@@ -1213,7 +1233,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 MockCargoHandler::new(),
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1249,7 +1269,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Run>(
+            } = default_req_actor::<BuildTargetRun>(
                 MockCargoHandler::new(),
                 default_run_params(),
                 TestCase::OneTarget,
@@ -1289,7 +1309,7 @@ pub mod tests {
             TestType,
         };
         use crate::cargo_communication::utils::test_target_id;
-        use bsp_types::requests::{Test, TestParams};
+        use bsp_types::requests::{BuildTargetTest, TestParams};
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
         use serde_json::to_string;
@@ -1305,8 +1325,9 @@ pub mod tests {
             TestParams {
                 targets,
                 origin_id: Some(TEST_ORIGIN_ID.into()),
-                arguments: vec![TEST_ARGUMENTS.into()],
-                data_kind: None,
+                arguments: Some(vec![TEST_ARGUMENTS.into()]),
+                environment_variables: None,
+                working_directory: None,
                 data: None,
             }
         }
@@ -1327,7 +1348,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 mock_cargo_handle,
                 default_test_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -1361,6 +1382,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Started target testing",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": [
@@ -1384,6 +1406,7 @@ pub mod tests {
               "params": {
                 "eventTime": "timestamp",
                 "message": "Finished target testing",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1404,6 +1427,7 @@ pub mod tests {
               "method": "build/taskFinish",
               "params": {
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "test_origin_id"
@@ -1432,7 +1456,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -1459,6 +1483,7 @@ pub mod tests {
                 },
                 "dataKind": "test-task",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1487,7 +1512,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::MultipleTargets),
                 TestCase::MultipleTargets,
@@ -1495,7 +1520,7 @@ pub mod tests {
 
             if let TaskState::Test(ref mut test_state) = req_actor.state.task_state {
                 test_state.current_build_target = Some(BuildTargetIdentifier {
-                    uri: TEST_TARGET2.to_string(),
+                    uri: TEST_TARGET2.into(),
                 })
             }
 
@@ -1524,6 +1549,7 @@ pub mod tests {
                 },
                 "dataKind": "test-report",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "status": 1,
                 "taskId": {
                   "id": "random_task_id",
@@ -1542,7 +1568,7 @@ pub mod tests {
                 receiver_from_actor,
                 _cancel_sender,
                 ..
-            } = default_req_actor::<Test>(
+            } = default_req_actor::<BuildTargetTest>(
                 MockCargoHandler::new(),
                 default_test_params(TestCase::OneTarget),
                 TestCase::OneTarget,
@@ -1568,6 +1594,7 @@ pub mod tests {
                 },
                 "dataKind": "test-start",
                 "eventTime": "timestamp",
+                "originId": "test_origin_id",
                 "taskId": {
                   "id": "random_task_id",
                   "parents": "[random_task_id]"
@@ -1590,7 +1617,7 @@ pub mod tests {
                     receiver_from_actor,
                     _cancel_sender,
                     ..
-                } = default_req_actor::<Test>(
+                } = default_req_actor::<BuildTargetTest>(
                     MockCargoHandler::new(),
                     default_test_params(TestCase::OneTarget),
                     TestCase::OneTarget,
@@ -1611,7 +1638,7 @@ pub mod tests {
                     ".params.taskId.parents" => format!("[{RANDOM_TASK_ID}]"),
                     ".params.eventTime" => TIMESTAMP,
                     ".params.data.status" => dynamic_redaction(move |value, _path| {
-                        assert_eq!(value.as_u64().unwrap(), expected_status as u64);
+                        assert_eq!(value.as_u64().unwrap(), expected_status.clone() as u64);
                         "CORRECT_STATUS"
                     }),
                 } ,@r#"
@@ -1624,6 +1651,7 @@ pub mod tests {
                       },
                       "dataKind": "test-finish",
                       "eventTime": "timestamp",
+                      "originId": "test_origin_id",
                       "status": 1,
                       "taskId": {
                         "id": "random_task_id",

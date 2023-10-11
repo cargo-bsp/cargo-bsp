@@ -9,24 +9,24 @@ use serde_json::to_value;
 
 use crate::cargo_communication::cargo_handle::CargoHandler;
 use bsp_types::notifications::{
-    LogMessage, LogMessageParams, MessageType, Notification as NotificationTrait, TaskDataWithKind,
-    TaskFinish, TaskFinishParams, TaskId, TaskProgress, TaskProgressParams, TaskStart,
-    TaskStartParams,
+    LogMessageParams, MessageType, Notification as NotificationTrait, OnBuildLogMessage,
+    OnBuildTaskFinish, OnBuildTaskProgress, OnBuildTaskStart, TaskFinishData, TaskFinishParams,
+    TaskId, TaskProgressParams, TaskStartData, TaskStartParams,
 };
 use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::{Identifier, OriginId, StatusCode};
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
-use crate::cargo_communication::execution::execution_types::origin_id::OriginId;
+use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::utils::get_current_time;
 
 impl<R, C> ExecutionActor<R, C>
 where
     R: Request,
-    R::Params: CreateUnitGraphCommand + OriginId,
+    R::Params: CreateUnitGraphCommand + WithOriginId,
     R::Result: CargoResult,
     C: CargoHandler<CargoMessage>,
 {
@@ -81,10 +81,11 @@ where
         &self,
         task_id: TaskId,
         message: Option<String>,
-        data: Option<TaskDataWithKind>,
+        data: Option<TaskStartData>,
     ) {
-        self.send_notification::<TaskStart>(TaskStartParams {
+        self.send_notification::<OnBuildTaskStart>(TaskStartParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             data,
@@ -99,8 +100,9 @@ where
         progress: Option<i64>,
         unit: Option<String>,
     ) {
-        self.send_notification::<TaskProgress>(TaskProgressParams {
+        self.send_notification::<OnBuildTaskProgress>(TaskProgressParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             total,
@@ -115,10 +117,11 @@ where
         task_id: TaskId,
         status: StatusCode,
         message: Option<String>,
-        data: Option<TaskDataWithKind>,
+        data: Option<TaskFinishData>,
     ) {
-        self.send_notification::<TaskFinish>(TaskFinishParams {
+        self.send_notification::<OnBuildTaskFinish>(TaskFinishParams {
             task_id,
+            origin_id: self.params.origin_id().map(|id| Identifier::new(id.0)),
             event_time: Some(get_current_time()),
             message,
             status,
@@ -133,10 +136,10 @@ where
         task_id: Option<TaskId>,
     ) {
         let task_id = task_id.unwrap_or(self.state.get_task_id());
-        self.send_notification::<LogMessage>(LogMessageParams {
-            message_type,
+        self.send_notification::<OnBuildLogMessage>(LogMessageParams {
+            r#type: message_type,
             task: Some(task_id),
-            origin_id: self.params.origin_id(),
+            origin_id: self.params.origin_id().map(|id| OriginId::new(id.0)),
             message,
         });
     }

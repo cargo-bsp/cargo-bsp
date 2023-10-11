@@ -3,20 +3,21 @@
 //! which allows toggling the features, not yet added to the BSP documentation).
 
 use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::ops::Deref;
+
 use std::rc::Rc;
 
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::extensions::{Feature, FeaturesDependencyGraph, PackageFeatures};
+use bsp_types::extensions::{Feature, FeatureDependencyGraph, PackageFeatures};
 use bsp_types::{BuildTarget, BuildTargetIdentifier};
 
 use crate::project_model::build_target_mappings::{
     bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
 };
 use crate::project_model::package_dependency::PackageDependency;
-use crate::project_model::CreateFeaturesDependencyGraph;
-use crate::project_model::DefaultFeature;
+use crate::project_model::{CreateFeatureDependencyGraph, DefaultFeature};
 
 #[derive(Default, Debug, Clone)]
 pub struct CargoPackage {
@@ -41,7 +42,7 @@ pub struct CargoPackage {
 
     /// Hashmap where key is a feature name and the value are names of other features it enables.
     /// Includes pair for default features if default is defined
-    pub package_features: FeaturesDependencyGraph,
+    pub package_features: FeatureDependencyGraph,
 }
 
 impl CargoPackage {
@@ -50,7 +51,7 @@ impl CargoPackage {
         all_packages: &[cargo_metadata::Package],
     ) -> Self {
         let package_features =
-            FeaturesDependencyGraph::create_features_dependency_graph(metadata_package);
+            FeatureDependencyGraph::create_features_dependency_graph(metadata_package);
 
         let mut enabled_features = BTreeSet::new();
         // Add `default` to enabled features set if `default` feature is defined
@@ -80,8 +81,8 @@ impl CargoPackage {
     /// We assume that optional dependency can only be turned on by a feature that has the form:
     /// "dep:package_name" or "package_name/feature_name"
     fn feature_enables_dependency(feature: &Feature, dependency_name: &String) -> bool {
-        feature.0 == format!("dep:{}", dependency_name)
-            || feature.0.starts_with(&format!("{}/", dependency_name))
+        feature.deref().eq(&format!("dep:{}", dependency_name))
+            || feature.starts_with(&format!("{}/", dependency_name))
     }
 
     /// Checks if a feature was defined in the `Cargo.toml`. Used to skip features that have the form:
@@ -196,16 +197,18 @@ mod tests {
         slices.iter().map(|&f| Feature::from(f)).collect()
     }
 
-    fn create_package_features(slice_map: &[(&str, &[&str])]) -> BTreeMap<Feature, Vec<Feature>> {
-        slice_map
-            .iter()
-            .map(|&(k, v)| {
-                (
-                    Feature::from(k),
-                    v.iter().map(|&s| Feature::from(s)).collect(),
-                )
-            })
-            .collect()
+    fn create_package_features(slice_map: &[(&str, &[&str])]) -> FeatureDependencyGraph {
+        FeatureDependencyGraph::new(
+            slice_map
+                .iter()
+                .map(|&(k, v)| {
+                    (
+                        Feature::from(k),
+                        v.iter().map(|&s| Feature::from(s)).collect(),
+                    )
+                })
+                .collect::<BTreeMap<Feature, BTreeSet<Feature>>>(),
+        )
     }
 
     fn default_cargo_package_with_features(

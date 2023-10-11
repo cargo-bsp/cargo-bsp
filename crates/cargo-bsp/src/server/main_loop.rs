@@ -3,16 +3,18 @@
 
 use std::time::Instant;
 
-use bsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
+use bsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use crossbeam_channel::{select, Receiver};
 
 use bsp_types;
+use bsp_types::extensions::CancelRequest;
 use bsp_types::notifications::Notification as _;
 
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
 use crate::server::global_state::GlobalState;
 use crate::server::{handlers, Result};
+use crate::utils::request_id::bsp_request_id_to_lsp_request_id;
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     GlobalState::new(connection.sender, config).run(connection.receiver)
@@ -32,7 +34,7 @@ impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
             if let Event::Bsp(Message::Notification(not)) = &event {
-                if not.method == bsp_types::notifications::ExitBuild::METHOD {
+                if not.method == bsp_types::notifications::OnBuildExit::METHOD {
                     if !self.shutdown_requested {
                         break;
                     }
@@ -88,7 +90,7 @@ impl GlobalState {
             req: Some(req),
             global_state: self,
         };
-        dispatcher.on_sync_mut::<bsp_types::requests::ShutdownBuild>(|s, ()| {
+        dispatcher.on_sync_mut::<bsp_types::requests::BuildShutdown>(|s, ()| {
             s.shutdown_requested = true;
             Ok(())
         });
@@ -109,29 +111,38 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::Reload>(handlers::handle_reload)
+            .on_sync_mut::<bsp_types::requests::WorkspaceReload>(handlers::handle_reload)
             .on_sync_mut::<bsp_types::extensions::SetCargoFeatures>(
                 handlers::handle_set_cargo_features,
             )
             .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
                 handlers::handle_workspace_build_targets,
             )
-            .on_sync::<bsp_types::requests::Sources>(handlers::handle_sources)
-            .on_sync::<bsp_types::requests::Resources>(handlers::handle_resources)
-            .on_sync::<bsp_types::requests::CleanCache>(handlers::handle_clean_cache)
-            .on_sync::<bsp_types::requests::DependencyModules>(handlers::handle_dependency_modules)
-            .on_sync::<bsp_types::requests::DependencySources>(handlers::handle_dependency_sources)
-            .on_sync::<bsp_types::requests::InverseSources>(handlers::handle_inverse_sources)
-            .on_sync::<bsp_types::requests::OutputPaths>(handlers::handle_output_paths)
-            .on_sync::<bsp_types::requests::WorkspaceLibraries>(
+            .on_sync::<bsp_types::requests::BuildTargetSources>(handlers::handle_sources)
+            .on_sync::<bsp_types::requests::BuildTargetResources>(handlers::handle_resources)
+            .on_sync::<bsp_types::requests::BuildTargetCleanCache>(handlers::handle_clean_cache)
+            .on_sync::<bsp_types::requests::BuildTargetDependencyModules>(
+                handlers::handle_dependency_modules,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetDependencySources>(
+                handlers::handle_dependency_sources,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetInverseSources>(
+                handlers::handle_inverse_sources,
+            )
+            .on_sync::<bsp_types::requests::BuildTargetOutputPaths>(handlers::handle_output_paths)
+            .on_sync::<bsp_types::extensions::WorkspaceLibraries>(
                 handlers::handle_workspace_libraries,
+            )
+            .on_sync::<bsp_types::extensions::WorkspaceDirectories>(
+                handlers::handle_workspace_directories,
             )
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
-            .on_cargo_run::<bsp_types::requests::Compile>()
-            .on_cargo_run::<bsp_types::requests::Run>()
-            .on_cargo_run::<bsp_types::requests::Test>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetCompile>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetRun>()
+            .on_cargo_run::<bsp_types::requests::BuildTargetTest>()
             .on_cargo_check_run::<bsp_types::extensions::RustWorkspace>()
             .finish();
     }
@@ -142,11 +153,8 @@ impl GlobalState {
             not: Some(not),
             global_state: self,
         }
-        .on::<lsp_types::notification::Cancel>(|this, params| {
-            let id: RequestId = match params.id {
-                lsp_types::NumberOrString::Number(id) => id.into(),
-                lsp_types::NumberOrString::String(id) => id.into(),
-            };
+        .on::<CancelRequest>(|this, params| {
+            let id = bsp_request_id_to_lsp_request_id(params.id);
             this.cancel(id);
             Ok(())
         })?

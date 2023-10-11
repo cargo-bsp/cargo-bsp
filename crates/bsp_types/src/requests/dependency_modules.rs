@@ -1,52 +1,66 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::requests::Request;
-use crate::BuildTargetIdentifier;
+use crate::{BuildTargetIdentifier, OtherData};
 
+/// The build target dependency modules request is sent from the client to the
+/// server to query for the libraries of build target dependencies that are external
+/// to the workspace including meta information about library and their sources.
+/// It's an extended version of `buildTarget/sources`.
 #[derive(Debug)]
-pub enum DependencyModules {}
+pub enum BuildTargetDependencyModules {}
 
-impl Request for DependencyModules {
+impl Request for BuildTargetDependencyModules {
     type Params = DependencyModulesParams;
     type Result = DependencyModulesResult;
     const METHOD: &'static str = "buildTarget/dependencyModules";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesResult {
     pub items: Vec<DependencyModulesItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DependencyModulesItem {
     pub target: BuildTargetIdentifier,
     pub modules: Vec<DependencyModule>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DependencyModule {
-    /** Module name */
+    /// Module name
     pub name: String,
-
-    /** Module version */
+    /// Module version
     pub version: String,
-
-    /** Kind of data to expect in the `data` field. If this field is not set, the kind of data is not specified. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_kind: Option<String>,
-
-    /** Language-specific metadata about this module.
-    See MavenDependencyModule as an example. */
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    /// Language-specific metadata about this module.
+    /// See MavenDependencyModule as an example.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<DependencyModuleData>,
 }
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "dataKind", content = "data")]
+pub enum NamedDependencyModuleData {}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DependencyModuleData {
+    Named(NamedDependencyModuleData),
+    Other(OtherData),
+}
+
+impl DependencyModuleData {}
 
 #[cfg(test)]
 mod tests {
@@ -58,7 +72,10 @@ mod tests {
 
     #[test]
     fn dependency_modules_method() {
-        assert_eq!(DependencyModules::METHOD, "buildTarget/dependencyModules");
+        assert_eq!(
+            BuildTargetDependencyModules::METHOD,
+            "buildTarget/dependencyModules"
+        );
     }
 
     #[test]
@@ -140,8 +157,10 @@ mod tests {
         let test_data = DependencyModule {
             name: "test_name".to_string(),
             version: "test_version".to_string(),
-            data_kind: Some("test_dataKind".to_string()),
-            data: Some(serde_json::json!({"dataKey": "dataValue"})),
+            data: Some(DependencyModuleData::Other(OtherData {
+                data_kind: "test_dataKind".to_string(),
+                data: serde_json::json!({"dataKey": "dataValue"}),
+            })),
         };
 
         assert_json_snapshot!(test_data,

@@ -1,32 +1,25 @@
-use serde::{Deserialize, Serialize};
-
 use crate::notifications::Notification;
 
+/// Like the language server protocol, the initialized notification is sent from the
+/// client to the server after the client received the result of the initialize
+/// request but before the client is sending any other request or notification to
+/// the server. The server can use the initialized notification for example to
+/// initialize intensive computation such as dependency resolution or compilation.
+/// The initialized notification may only be sent once.
 #[derive(Debug)]
-pub enum InitializedBuild {}
+pub enum OnBuildInitialized {}
 
-impl Notification for InitializedBuild {
-    type Params = InitializedBuildParams;
+impl Notification for OnBuildInitialized {
+    type Params = ();
     const METHOD: &'static str = "build/initialized";
 }
 
-/** Initialized Build notification params */
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-pub struct InitializedBuildParams {}
-
 #[cfg(test)]
 mod tests {
-    use crate::tests::test_deserialization;
-
     use super::*;
 
     #[test]
     fn initialized_build_method() {
-        assert_eq!(InitializedBuild::METHOD, "build/initialized");
-    }
-
-    #[test]
-    fn initialized_build_params() {
-        test_deserialization(r#"{}"#, &InitializedBuildParams {});
+        assert_eq!(OnBuildInitialized::METHOD, "build/initialized");
     }
 }

@@ -7,9 +7,13 @@ use cargo_metadata::diagnostic::{
 };
 use itertools::Itertools;
 use paths::AbsPath;
+use url::Url;
 
-use bsp_types::notifications::{Diagnostic, PublishDiagnosticsParams};
-use bsp_types::{BuildTargetIdentifier, TextDocumentIdentifier};
+use bsp_types::notifications::{
+    CodeDescription, Diagnostic, DiagnosticCode as Code, DiagnosticRelatedInformation,
+    DiagnosticSeverity, DiagnosticTag, Location, Position, PublishDiagnosticsParams, Range,
+};
+use bsp_types::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
 
 /// Diagnostics are sent to the client as `publishDiagnostic` notification.
 /// GlobalMessage is sent to the client as `logMessage` notification.
@@ -24,7 +28,7 @@ pub struct GlobalMessage {
 }
 
 enum MappedRustChildDiagnostic {
-    RelatedDiagnostic(lsp_types::DiagnosticRelatedInformation),
+    RelatedDiagnostic(DiagnosticRelatedInformation),
     MessageLine(String),
 }
 
@@ -40,7 +44,7 @@ enum MappedRustChildDiagnostic {
 /// If the diagnostic has no primary span it will be classified as `GlobalMessage`.
 pub fn map_cargo_diagnostic_to_bsp(
     diagnostic: &MetadataDiagnostic,
-    origin_id: Option<String>,
+    origin_id: Option<OriginId>,
     build_target: &BuildTargetIdentifier,
     workspace_root: &AbsPath,
 ) -> DiagnosticMessage {
@@ -104,7 +108,7 @@ pub fn map_cargo_diagnostic_to_bsp(
         }
     }
 
-    let mut diagnostics: HashMap<lsp_types::Url, Vec<Diagnostic>> = HashMap::new();
+    let mut diagnostics: HashMap<URI, Vec<Diagnostic>> = HashMap::new();
 
     for primary_span in &primary_spans {
         let primary_location = primary_location(workspace_root, primary_span);
@@ -136,7 +140,7 @@ pub fn map_cargo_diagnostic_to_bsp(
             if secondary_location == primary_location {
                 continue;
             }
-            related_info_macro_calls.push(lsp_types::DiagnosticRelatedInformation {
+            related_info_macro_calls.push(DiagnosticRelatedInformation {
                 location: secondary_location.clone(),
                 message: if is_in_macro_call {
                     "Error originated from macro call here".to_string()
@@ -145,17 +149,16 @@ pub fn map_cargo_diagnostic_to_bsp(
                 },
             });
             // For the additional in-macro diagnostic we add the inverse message pointing to the error location in code.
-            let information_for_additional_diagnostic =
-                vec![lsp_types::DiagnosticRelatedInformation {
-                    location: primary_location.clone(),
-                    message: "Exact error occurred here".to_string(),
-                }];
+            let information_for_additional_diagnostic = vec![DiagnosticRelatedInformation {
+                location: primary_location.clone(),
+                message: "Exact error occurred here".to_string(),
+            }];
 
-            let diagnostic = lsp_types::Diagnostic {
+            let diagnostic = Diagnostic {
                 range: secondary_location.range,
                 // downgrade to hint if we're pointing at the macro
-                severity: Some(lsp_types::DiagnosticSeverity::HINT),
-                code: code.clone().map(lsp_types::NumberOrString::String),
+                severity: Some(DiagnosticSeverity::Hint),
+                code: code.clone().map(Code::String),
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: message.clone(),
@@ -167,10 +170,10 @@ pub fn map_cargo_diagnostic_to_bsp(
         }
 
         // Emit the primary diagnostic.
-        let diagnostic = lsp_types::Diagnostic {
-            range: primary_location.range,
-            severity,
-            code: code.clone().map(lsp_types::NumberOrString::String),
+        let diagnostic = Diagnostic {
+            range: primary_location.range.clone(),
+            severity: severity.clone(),
+            code: code.clone().map(Code::String),
             code_description: code_description.clone(),
             source: Some(source.clone()),
             message: message.clone(),
@@ -192,15 +195,15 @@ pub fn map_cargo_diagnostic_to_bsp(
         add_diagnostic(primary_location.uri.clone(), diagnostic, &mut diagnostics);
 
         // Emit hint-level diagnostics for all `related_information` entries such as "help"s.
-        let back_ref = lsp_types::DiagnosticRelatedInformation {
+        let back_ref = DiagnosticRelatedInformation {
             location: primary_location,
             message: "original diagnostic".to_string(),
         };
         for sub in &subdiagnostics {
-            let diagnostic = lsp_types::Diagnostic {
-                range: sub.location.range,
-                severity: Some(lsp_types::DiagnosticSeverity::HINT),
-                code: code.clone().map(lsp_types::NumberOrString::String),
+            let diagnostic = Diagnostic {
+                range: sub.location.range.clone(),
+                severity: Some(DiagnosticSeverity::Hint),
+                code: code.clone().map(Code::String),
                 code_description: code_description.clone(),
                 source: Some(source.clone()),
                 message: sub.message.clone(),
@@ -215,16 +218,14 @@ pub fn map_cargo_diagnostic_to_bsp(
 }
 
 fn create_diagnostics(
-    diagnostics: HashMap<lsp_types::Url, Vec<Diagnostic>>,
-    origin_id: Option<String>,
+    diagnostics: HashMap<URI, Vec<Diagnostic>>,
+    origin_id: Option<OriginId>,
     build_target: &BuildTargetIdentifier,
 ) -> Vec<PublishDiagnosticsParams> {
     diagnostics
         .into_iter()
         .map(|(url, diagnostic)| PublishDiagnosticsParams {
-            text_document: TextDocumentIdentifier {
-                uri: url.to_string(),
-            },
+            text_document: TextDocumentIdentifier { uri: url },
             build_target: build_target.clone(),
             origin_id: origin_id.clone(),
             diagnostics: diagnostic,
@@ -234,9 +235,9 @@ fn create_diagnostics(
 }
 
 fn add_diagnostic(
-    url: lsp_types::Url,
+    url: URI,
     diagnostic: Diagnostic,
-    diagnostics: &mut HashMap<lsp_types::Url, Vec<Diagnostic>>,
+    diagnostics: &mut HashMap<URI, Vec<Diagnostic>>,
 ) {
     if let std::collections::hash_map::Entry::Vacant(e) = diagnostics.entry(url.clone()) {
         e.insert(vec![diagnostic]);
@@ -245,20 +246,20 @@ fn add_diagnostic(
     }
 }
 
-fn diagnostic_severity(level: DiagnosticLevel) -> Option<lsp_types::DiagnosticSeverity> {
+fn diagnostic_severity(level: DiagnosticLevel) -> Option<DiagnosticSeverity> {
     let res = match level {
-        DiagnosticLevel::Ice => lsp_types::DiagnosticSeverity::ERROR,
-        DiagnosticLevel::Error => lsp_types::DiagnosticSeverity::ERROR,
-        DiagnosticLevel::Warning => lsp_types::DiagnosticSeverity::WARNING,
-        DiagnosticLevel::FailureNote => lsp_types::DiagnosticSeverity::INFORMATION,
-        DiagnosticLevel::Note => lsp_types::DiagnosticSeverity::INFORMATION,
-        DiagnosticLevel::Help => lsp_types::DiagnosticSeverity::HINT,
+        DiagnosticLevel::Ice => DiagnosticSeverity::Error,
+        DiagnosticLevel::Error => DiagnosticSeverity::Error,
+        DiagnosticLevel::Warning => DiagnosticSeverity::Warning,
+        DiagnosticLevel::FailureNote => DiagnosticSeverity::Information,
+        DiagnosticLevel::Note => DiagnosticSeverity::Information,
+        DiagnosticLevel::Help => DiagnosticSeverity::Hint,
         _ => return None,
     };
     Some(res)
 }
 
-fn rustc_code_description(code: Option<&str>) -> Option<lsp_types::CodeDescription> {
+fn rustc_code_description(code: Option<&str>) -> Option<CodeDescription> {
     code.filter(|code| {
         let mut chars = code.chars();
         chars.next().map_or(false, |c| c == 'E')
@@ -266,27 +267,31 @@ fn rustc_code_description(code: Option<&str>) -> Option<lsp_types::CodeDescripti
             && chars.next().is_none()
     })
     .and_then(|code| {
-        lsp_types::Url::parse(&format!(
+        Url::parse(&format!(
             "https://doc.rust-lang.org/error-index.html#{}",
             code
         ))
         .ok()
-        .map(|href| lsp_types::CodeDescription { href })
+        .map(|href| CodeDescription {
+            href: URI(href.to_string()),
+        })
     })
 }
 
-fn clippy_code_description(code: Option<&str>) -> Option<lsp_types::CodeDescription> {
+fn clippy_code_description(code: Option<&str>) -> Option<CodeDescription> {
     code.and_then(|code| {
-        lsp_types::Url::parse(&format!(
+        Url::parse(&format!(
             "https://rust-lang.github.io/rust-clippy/master/index.html#{}",
             code
         ))
         .ok()
-        .map(|href| lsp_types::CodeDescription { href })
+        .map(|href| CodeDescription {
+            href: URI(href.to_string()),
+        })
     })
 }
 
-fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Option<Vec<lsp_types::DiagnosticTag>> {
+fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Option<Vec<DiagnosticTag>> {
     let mut tags = vec![];
     if let Some(code) = code {
         let code = code.code.as_str();
@@ -300,11 +305,11 @@ fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Option<Vec<lsp_types::Diagn
                 | "unused_macros"
                 | "unused_variables"
         ) {
-            tags.push(lsp_types::DiagnosticTag::UNNECESSARY);
+            tags.push(DiagnosticTag::UNNECESSARY);
         }
 
         if matches!(code, "deprecated") {
-            tags.push(lsp_types::DiagnosticTag::DEPRECATED);
+            tags.push(DiagnosticTag::DEPRECATED);
         }
     }
     if tags.is_empty() {
@@ -318,8 +323,8 @@ fn diagnostic_tags(code: &Option<DiagnosticCode>) -> Option<Vec<lsp_types::Diagn
 /// This will only happen when processing windows paths.
 ///
 /// When processing non-windows path, this is essentially the same as `Url::from_file_path`.
-fn url_from_abs_path(path: &AbsPath) -> lsp_types::Url {
-    let url = lsp_types::Url::from_file_path(path).unwrap();
+fn url_from_abs_path(path: &AbsPath) -> Url {
+    let url = Url::from_file_path(path).unwrap();
     match path.as_ref().components().next() {
         Some(std::path::Component::Prefix(prefix))
             if matches!(
@@ -346,24 +351,20 @@ fn url_from_abs_path(path: &AbsPath) -> lsp_types::Url {
     // string in place.
     let mut url: String = url.into();
     url[driver_letter_range].make_ascii_lowercase();
-    lsp_types::Url::parse(&url).unwrap()
+    Url::parse(&url).unwrap()
 }
 
 /// Converts line_offset and column_offset from 1-based to 0-based.
-fn position(
-    span: &DiagnosticSpan,
-    line_offset: usize,
-    column_offset: usize,
-) -> lsp_types::Position {
+fn position(span: &DiagnosticSpan, line_offset: usize, column_offset: usize) -> Position {
     let line_index = line_offset - span.line_start;
 
     let mut true_column_offset = column_offset;
     if let Some(line) = span.text.get(line_index) {
         if line.text.chars().count() == line.text.len() {
             // all one byte utf-8 char
-            return lsp_types::Position {
-                line: (line_offset as u32).saturating_sub(1),
-                character: (column_offset as u32).saturating_sub(1),
+            return Position {
+                line: (line_offset as u32).saturating_sub(1) as i32,
+                character: (column_offset as u32).saturating_sub(1) as i32,
             };
         }
         let mut char_offset = 0;
@@ -376,24 +377,27 @@ fn position(
         }
     }
 
-    lsp_types::Position {
-        line: (line_offset as u32).saturating_sub(1),
-        character: (true_column_offset as u32).saturating_sub(1),
+    Position {
+        line: (line_offset as u32).saturating_sub(1) as i32,
+        character: (true_column_offset as u32).saturating_sub(1) as i32,
     }
 }
 
 /// Converts a cargo span to a LSP location
-fn location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> lsp_types::Location {
+fn location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> Location {
     let file_name = workspace_root.join(&span.file_name);
     let uri = url_from_abs_path(&file_name);
 
     let range = {
-        lsp_types::Range::new(
-            position(span, span.line_start, span.column_start),
-            position(span, span.line_end, span.column_end),
-        )
+        Range {
+            start: position(span, span.line_start, span.column_start),
+            end: position(span, span.line_end, span.column_end),
+        }
     };
-    lsp_types::Location::new(uri, range)
+    Location {
+        uri: URI(uri.to_string()),
+        range,
+    }
 }
 
 /// Converts a non-primary cargo span to a LSP related information.
@@ -401,10 +405,10 @@ fn location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> lsp_types::Locat
 fn diagnostic_related_information(
     workspace_root: &AbsPath,
     span: &DiagnosticSpan,
-) -> Option<lsp_types::DiagnosticRelatedInformation> {
+) -> Option<DiagnosticRelatedInformation> {
     let message = span.label.clone()?;
     let location = location(workspace_root, span);
-    Some(lsp_types::DiagnosticRelatedInformation { location, message })
+    Some(DiagnosticRelatedInformation { location, message })
 }
 
 fn map_rust_child_diagnostic(
@@ -437,7 +441,7 @@ fn map_rust_child_diagnostic(
         message.push_str(&suggestions);
     }
 
-    MappedRustChildDiagnostic::RelatedDiagnostic(lsp_types::DiagnosticRelatedInformation {
+    MappedRustChildDiagnostic::RelatedDiagnostic(DiagnosticRelatedInformation {
         location: location(workspace_root, spans[0]),
         message,
     })
@@ -447,7 +451,7 @@ fn map_rust_child_diagnostic(
 ///
 /// This takes locations pointing into the standard library, or generally outside the current
 /// workspace into account and tries to avoid those, in case macros are involved.
-fn primary_location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> lsp_types::Location {
+fn primary_location(workspace_root: &AbsPath, span: &DiagnosticSpan) -> Location {
     let span_stack = std::iter::successors(Some(span), |span| Some(&span.expansion.as_ref()?.span));
     for span in span_stack.clone() {
         let abs_path = workspace_root.join(&span.file_name);

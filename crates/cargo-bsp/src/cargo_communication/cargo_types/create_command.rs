@@ -124,7 +124,7 @@ mod tests {
 
     fn test_compile_params() -> CompileParams {
         CompileParams {
-            arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()],
+            arguments: Some(vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()]),
             ..Default::default()
         }
     }
@@ -161,7 +161,7 @@ mod tests {
 
     fn test_run_params() -> RunParams {
         RunParams {
-            arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()],
+            arguments: Some(vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()]),
             ..RunParams::default()
         }
     }
@@ -192,7 +192,7 @@ mod tests {
 
     fn test_test_params() -> TestParams {
         TestParams {
-            arguments: vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()],
+            arguments: Some(vec![TEST_ARGS[0].to_string(), TEST_ARGS[1].to_string()]),
             ..TestParams::default()
         }
     }

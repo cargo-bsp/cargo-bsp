@@ -2,6 +2,7 @@
 
 use crate::project_model::target_details::TargetDetails;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};
+use std::ops::Deref;
 
 #[derive(Debug, Deserialize_enum_str, Serialize_enum_str, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -23,9 +24,9 @@ impl TargetDetails {
             false => Some(
                 self.enabled_features
                     .iter()
-                    .filter_map(|f| match f.0.as_str() {
+                    .filter_map(|f| match f.as_str() {
                         "default" => None,
-                        _ => Some(f.0.clone()),
+                        _ => Some(f.deref().clone()),
                     })
                     .collect::<Vec<String>>()
                     .join(", "),

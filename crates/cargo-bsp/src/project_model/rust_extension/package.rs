@@ -7,17 +7,17 @@ use crate::project_model::rust_extension::{
     find_node, get_nodes_from_metadata, target::metadata_targets_to_rust_extension_targets,
 };
 use crate::project_model::workspace::ProjectWorkspace;
-use crate::project_model::{metadata_edition_to_bsp_edition, CreateFeaturesDependencyGraph};
+use crate::project_model::{metadata_edition_to_bsp_edition, CreateFeatureDependencyGraph};
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::{Feature, FeaturesDependencyGraph, RustPackage, RustPackageOrigin};
+use bsp_types::extensions::{Feature, FeatureDependencyGraph, RustPackage, RustPackageOrigin};
 use bsp_types::BuildTargetIdentifier;
 use std::collections::{BTreeSet, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {
     if workspace.is_package_part_of_workspace(&package.id) {
-        package.origin = RustPackageOrigin::Workspace;
+        package.origin = RustPackageOrigin::WORKSPACE;
     } else {
-        package.origin = RustPackageOrigin::Dependency;
+        package.origin = RustPackageOrigin::DEPENDENCY;
     }
 }
 
@@ -46,7 +46,7 @@ fn set_and_resolve_enabled_features(
 fn metadata_package_to_rust_extension_package(
     metadata_package: cargo_metadata::Package,
 ) -> RustPackage {
-    let features = FeaturesDependencyGraph::create_features_dependency_graph(&metadata_package);
+    let features = FeatureDependencyGraph::create_features_dependency_graph(&metadata_package);
     let all_targets = metadata_targets_to_rust_extension_targets(metadata_package.targets);
     RustPackage {
         id: metadata_package.id.clone().to_string(),

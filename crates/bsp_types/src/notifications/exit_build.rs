@@ -1,9 +1,11 @@
 use crate::notifications::Notification;
 
+/// Like the language server protocol, a notification to ask the server to exit its process. The server should exit with success code 0
+/// if the shutdown request has been received before; otherwise with error code 1.
 #[derive(Debug)]
-pub enum ExitBuild {}
+pub enum OnBuildExit {}
 
-impl Notification for ExitBuild {
+impl Notification for OnBuildExit {
     type Params = ();
     const METHOD: &'static str = "build/exit";
 }
@@ -16,7 +18,7 @@ mod tests {
 
     #[test]
     fn exit_build_method() {
-        assert_eq!(ExitBuild::METHOD, "build/exit");
+        assert_eq!(OnBuildExit::METHOD, "build/exit");
     }
 
     #[test]

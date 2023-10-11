@@ -15,17 +15,43 @@ impl Request for WorkspaceLibraries {
     const METHOD: &'static str = "workspace/libraries";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceLibrariesResult {
     pub libraries: Vec<LibraryItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryItem {
     pub id: BuildTargetIdentifier,
     pub dependencies: Vec<BuildTargetIdentifier>,
-    pub jars: Vec<String>,
+    pub jars: Vec<Jar>,
+    pub source_jars: Vec<Jar>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Jar(pub String);
+
+impl Jar {
+    pub fn new(input: String) -> Self {
+        Self(input)
+    }
+}
+
+impl std::ops::Deref for Jar {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<&str> for Jar {
+    fn from(input: &str) -> Self {
+        Self(input.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -52,7 +78,8 @@ mod tests {
                 "uri": ""
               },
               "dependencies": [],
-              "jars": []
+              "jars": [],
+              "sourceJars": []
             }
           ]
         }
@@ -64,7 +91,8 @@ mod tests {
         let test_data = LibraryItem {
             id: BuildTargetIdentifier::default(),
             dependencies: vec![BuildTargetIdentifier::default()],
-            jars: vec!["test_jar".to_string()],
+            jars: vec!["test_jar".into()],
+            source_jars: vec!["test_jar".into()],
         };
 
         assert_json_snapshot!(test_data, @r#"
@@ -79,6 +107,9 @@ mod tests {
           ],
           "jars": [
             "test_jar"
+          ],
+          "sourceJars": [
+            "test_jar"
           ]
         }
         "#);
@@ -88,7 +119,8 @@ mod tests {
             "uri": ""
           },
           "dependencies": [],
-          "jars": []
+          "jars": [],
+          "sourceJars": []
         }
         "#);
     }

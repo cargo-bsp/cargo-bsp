@@ -1,32 +1,44 @@
 use serde::{Deserialize, Serialize};
 
 use crate::requests::Request;
-use crate::{BuildTargetIdentifier, Uri};
+use crate::{BuildTargetIdentifier, URI};
 
+/// The build target resources request is sent from the client to the server to
+/// query for the list of resources of a given list of build targets.
+///
+/// A resource is a data dependency required to be present in the runtime classpath
+/// when a build target is run or executed. The server communicates during the
+/// initialize handshake whether this method is supported or not.
+///
+/// This request can be used by a client to highlight the resources in a project
+/// view, for example.
 #[derive(Debug)]
-pub enum Resources {}
+pub enum BuildTargetResources {}
 
-impl Request for Resources {
+impl Request for BuildTargetResources {
     type Params = ResourcesParams;
     type Result = ResourcesResult;
     const METHOD: &'static str = "buildTarget/resources";
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResourcesParams {
     pub targets: Vec<BuildTargetIdentifier>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResourcesResult {
     pub items: Vec<ResourcesItem>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResourcesItem {
     pub target: BuildTargetIdentifier,
-    /** List of resource files. */
-    pub resources: Vec<Uri>,
+    /// List of resource files.
+    pub resources: Vec<URI>,
 }
 
 #[cfg(test)]
@@ -39,7 +51,7 @@ mod tests {
 
     #[test]
     fn resources_method() {
-        assert_eq!(Resources::METHOD, "buildTarget/resources");
+        assert_eq!(BuildTargetResources::METHOD, "buildTarget/resources");
     }
 
     #[test]
@@ -86,7 +98,7 @@ mod tests {
     fn resources_item() {
         let test_data = ResourcesItem {
             target: BuildTargetIdentifier::default(),
-            resources: vec![Uri::default()],
+            resources: vec![URI::default()],
         };
 
         assert_json_snapshot!(test_data,
