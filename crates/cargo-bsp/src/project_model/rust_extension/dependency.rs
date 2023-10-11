@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use cargo_metadata::DependencyKind;
 
-use bsp_types::rust::{
+use bsp4rs::rust::{
     Feature, RustDepKind, RustDepKindInfo, RustDependencies, RustDependency, RustPackage,
     RustRawDependencies, RustRawDependency,
 };

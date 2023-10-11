@@ -7,12 +7,12 @@ use bsp_server::{Connection, Message};
 use crossbeam_channel::Receiver;
 use serde_json::to_value;
 
-use bsp_types::bsp::{
+use bsp4rs::bsp::{
     BuildInitialize, BuildShutdown, BuildTargetSources, InitializeBuildParams,
     InitializeBuildResult, SourcesParams, SourcesResult,
 };
-use bsp_types::bsp::{OnBuildExit, OnBuildInitialized};
-use bsp_types::{Notification, Request};
+use bsp4rs::bsp::{OnBuildExit, OnBuildInitialized};
+use bsp4rs::{Notification, Request};
 
 use crate::server::Result;
 

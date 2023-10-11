@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use log::error;
 use url::Url;
 
-use bsp_types::bsp::{BuildClientCapabilities, InitializeBuildParams};
+use bsp4rs::bsp::{BuildClientCapabilities, InitializeBuildParams};
 
 use crate::project_model::project_manifest::ProjectManifest;
 use crate::server::Result;

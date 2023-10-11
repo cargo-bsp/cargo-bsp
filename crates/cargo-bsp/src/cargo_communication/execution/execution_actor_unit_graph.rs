@@ -3,8 +3,8 @@
 //! steps in [`ExecutionActorState`].
 
 use crate::cargo_communication::cargo_handle::CargoHandler;
-use bsp_types::bsp::StatusCode;
-use bsp_types::Request;
+use bsp4rs::bsp::StatusCode;
+use bsp4rs::Request;
 use log::warn;
 use serde::Deserialize;
 

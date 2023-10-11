@@ -1,14 +1,14 @@
 //! Integration tests for Cargo extension of BSP. The test in this module changes working directory,
 //! when adding extra tests remember to execute them sequentially.
 
-use bsp_server::Response;
-use bsp_types::bsp::StatusCode;
-use bsp_types::cargo::{
+use bsp4rs::bsp::StatusCode;
+use bsp4rs::cargo::{
     CargoFeaturesState, CargoFeaturesStateResult, PackageFeatures, SetCargoFeatures,
     SetCargoFeaturesParams, SetCargoFeaturesResult,
 };
-use bsp_types::rust::{Feature, FeatureDependencyGraph};
-use bsp_types::Request;
+use bsp4rs::rust::{Feature, FeatureDependencyGraph};
+use bsp4rs::Request;
+use bsp_server::Response;
 use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
 use serde_json::to_string;
 use std::collections::{BTreeMap, BTreeSet};

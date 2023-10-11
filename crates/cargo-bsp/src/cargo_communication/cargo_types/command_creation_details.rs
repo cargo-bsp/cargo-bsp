@@ -1,6 +1,6 @@
 use crate::cargo_communication::cargo_types::command_utils::CommandType;
-use bsp_types::bsp::{CompileParams, RunParams, TestParams};
-use bsp_types::rust::RustWorkspaceParams;
+use bsp4rs::bsp::{CompileParams, RunParams, TestParams};
+use bsp4rs::rust::RustWorkspaceParams;
 
 pub(crate) trait CommandCreationDetails {
     fn get_command_arguments(&self) -> Vec<String>;

@@ -9,8 +9,8 @@ use itertools::Itertools;
 use paths::AbsPath;
 use url::Url;
 
-use bsp_types::bsp::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
-use bsp_types::bsp::{
+use bsp4rs::bsp::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
+use bsp4rs::bsp::{
     CodeDescription, Diagnostic, DiagnosticCode as Code, DiagnosticRelatedInformation,
     DiagnosticSeverity, DiagnosticTag, Location, Position, PublishDiagnosticsParams, Range,
 };

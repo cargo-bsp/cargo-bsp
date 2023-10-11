@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use bsp_types::rust::Feature;
+use bsp4rs::rust::Feature;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::error;
 use serde_enum_str::{Deserialize_enum_str, Serialize_enum_str};

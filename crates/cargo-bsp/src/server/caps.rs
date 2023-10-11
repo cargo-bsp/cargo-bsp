@@ -1,6 +1,6 @@
 //! Sets the server capabilities for the client.
 
-use bsp_types::bsp::{BuildServerCapabilities, CompileProvider, RunProvider, TestProvider};
+use bsp4rs::bsp::{BuildServerCapabilities, CompileProvider, RunProvider, TestProvider};
 
 use crate::server::config::Config;
 

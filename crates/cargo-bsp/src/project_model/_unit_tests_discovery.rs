@@ -29,7 +29,7 @@ use std::process::{Command, Stdio};
 use cargo_metadata::camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 
-use bsp_types::bsp::BuildTarget;
+use bsp4rs::bsp::BuildTarget;
 
 use crate::project_model::build_target_mappings::{
     build_target_id_from_name_and_path, path_parent_directory_uri,
@@ -44,10 +44,10 @@ use crate::project_model::build_target_mappings::{
 /// {
 ///    "type": "test",
 ///    "event": "discovered",
-///    "name": "bsp_types::exit_build::tests::exit_build_method",
+///    "name": "bsp4rs::exit_build::tests::exit_build_method",
 ///    "ignore": false,
 ///    "ignore_message": "",
-///    "source_path": "src/bsp_types/notifications/exit_build.rs",
+///    "source_path": "src/bsp4rs/notifications/exit_build.rs",
 ///    "start_line": 18,
 ///    "start_col": 8,
 ///    "end_line": 18,
@@ -55,10 +55,10 @@ use crate::project_model::build_target_mappings::{
 /// }
 ///
 /// CargoTestTarget {
-///     name: "bsp_types::exit_build::tests::exit_build_method",
+///     name: "bsp4rs::exit_build::tests::exit_build_method",
 ///     ignore: false,
 ///     ignore_message: "",
-///     source_path: "src/bsp_types/notifications/exit_build.rs",
+///     source_path: "src/bsp4rs/notifications/exit_build.rs",
 /// }
 /// ```
 #[derive(Debug, Serialize, Deserialize)]

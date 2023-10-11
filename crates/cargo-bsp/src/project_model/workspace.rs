@@ -11,9 +11,9 @@ use log::error;
 use rustc_version::version_meta;
 use unzip_n::unzip_n;
 
-use bsp_types::bsp::{BuildTarget, BuildTargetIdentifier, StatusCode};
-use bsp_types::cargo::PackageFeatures;
-use bsp_types::rust::Feature;
+use bsp4rs::bsp::{BuildTarget, BuildTargetIdentifier, StatusCode};
+use bsp4rs::cargo::PackageFeatures;
+use bsp4rs::rust::Feature;
 
 use crate::project_model::build_target_mappings::build_target_id_from_name_and_path;
 use crate::project_model::cargo_package::CargoPackage;

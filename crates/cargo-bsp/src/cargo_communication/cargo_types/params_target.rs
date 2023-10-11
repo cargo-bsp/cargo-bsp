@@ -2,9 +2,9 @@
 //! Necessary for getting the list of build targets from the compile/run/test/check requests.
 
 use crate::project_model::workspace::ProjectWorkspace;
-use bsp_types::bsp::BuildTargetIdentifier;
-use bsp_types::bsp::{CompileParams, RunParams, TestParams};
-use bsp_types::rust::RustWorkspaceParams;
+use bsp4rs::bsp::BuildTargetIdentifier;
+use bsp4rs::bsp::{CompileParams, RunParams, TestParams};
+use bsp4rs::rust::RustWorkspaceParams;
 
 pub(crate) trait ParamsTarget {
     fn get_targets(&self, workspace: &ProjectWorkspace) -> Vec<BuildTargetIdentifier>;
@@ -46,7 +46,7 @@ impl ParamsTarget for RustWorkspaceParams {
 pub mod tests {
     use super::*;
     use crate::cargo_communication::utils::{test_package, test_target, test_target_id};
-    use bsp_types::bsp::{BuildTargetIdentifier, TestParams};
+    use bsp4rs::bsp::{BuildTargetIdentifier, TestParams};
     use std::collections::HashMap;
 
     const PACKAGE1: &str = "package1";

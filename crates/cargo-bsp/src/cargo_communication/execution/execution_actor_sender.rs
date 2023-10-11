@@ -14,14 +14,14 @@ use crate::cargo_communication::execution::execution_types::cargo_result::CargoR
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::utils::get_current_time;
-use bsp_types::bsp::{Identifier, OriginId, StatusCode};
-use bsp_types::bsp::{
+use bsp4rs::bsp::{Identifier, OriginId, StatusCode};
+use bsp4rs::bsp::{
     LogMessageParams, MessageType, OnBuildLogMessage, OnBuildTaskFinish, OnBuildTaskProgress,
     OnBuildTaskStart, TaskFinishData, TaskFinishParams, TaskId, TaskProgressParams, TaskStartData,
     TaskStartParams,
 };
-use bsp_types::Notification as NotificationTrait;
-use bsp_types::Request;
+use bsp4rs::Notification as NotificationTrait;
+use bsp4rs::Request;
 
 impl<R, C> ExecutionActor<R, C>
 where

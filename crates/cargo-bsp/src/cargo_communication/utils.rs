@@ -1,7 +1,7 @@
 //! Additional functions used within [`CargoCommunication`] and during its testing.
 
 #[cfg(test)]
-use bsp_types::bsp::BuildTargetIdentifier;
+use bsp4rs::bsp::BuildTargetIdentifier;
 #[cfg(test)]
 use cargo_metadata::{Target, TargetBuilder};
 #[cfg(test)]

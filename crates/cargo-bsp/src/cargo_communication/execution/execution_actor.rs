@@ -44,9 +44,9 @@ use crate::cargo_communication::execution::execution_types::cargo_result::CargoR
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::project_model::workspace::{ProjectWorkspace, SrcPathToTargetId};
-use bsp_types::bsp::{BuildTargetIdentifier, StatusCode};
-use bsp_types::bsp::{CompileTask, MessageType, TaskStartData};
-use bsp_types::Request;
+use bsp4rs::bsp::{BuildTargetIdentifier, StatusCode};
+use bsp4rs::bsp::{CompileTask, MessageType, TaskStartData};
+use bsp4rs::Request;
 
 pub(crate) struct ExecutionActor<R, C>
 where
@@ -324,8 +324,8 @@ pub mod tests {
     mod compile_request_tests {
         use super::*;
         use crate::cargo_communication::utils::test_target_id;
-        use bsp_types::bsp::BuildTargetCompile;
-        use bsp_types::bsp::CompileParams;
+        use bsp4rs::bsp::BuildTargetCompile;
+        use bsp4rs::bsp::CompileParams;
         use std::io;
 
         fn default_compile_params(test_case: TestCase) -> CompileParams {
@@ -660,7 +660,7 @@ pub mod tests {
 
         mod cargo_compile_messages_tests {
             use super::*;
-            use bsp_types::bsp::BuildTargetCompile;
+            use bsp4rs::bsp::BuildTargetCompile;
             use cargo_metadata::diagnostic::{DiagnosticBuilder, DiagnosticSpanBuilder};
             use cargo_metadata::Message::{
                 BuildFinished as BuildFinishedEnum, BuildScriptExecuted, CompilerArtifact,
@@ -1094,8 +1094,8 @@ pub mod tests {
         use crate::cargo_communication::cargo_types::event::CargoMessage::{
             CargoStderr, CargoStdout,
         };
-        use bsp_types::bsp::BuildTargetIdentifier;
-        use bsp_types::bsp::{BuildTargetRun, RunParams};
+        use bsp4rs::bsp::BuildTargetIdentifier;
+        use bsp4rs::bsp::{BuildTargetRun, RunParams};
         use cargo_metadata::Message::TextLine;
         use serde_json::to_string;
         use std::io;
@@ -1311,8 +1311,8 @@ pub mod tests {
             TestType,
         };
         use crate::cargo_communication::utils::test_target_id;
-        use bsp_types::bsp::BuildTargetIdentifier;
-        use bsp_types::bsp::{BuildTargetTest, TestParams};
+        use bsp4rs::bsp::BuildTargetIdentifier;
+        use bsp4rs::bsp::{BuildTargetTest, TestParams};
         use cargo_metadata::Message::TextLine;
         use crossbeam_channel::unbounded;
         use serde_json::to_string;
@@ -1611,8 +1611,8 @@ pub mod tests {
         mod test_finish_status {
             use super::*;
             use crate::cargo_communication::execution::execution_types::test::TestEvent;
-            use bsp_types::bsp::BuildTargetTest;
-            use bsp_types::bsp::TestStatus;
+            use bsp4rs::bsp::BuildTargetTest;
+            use bsp4rs::bsp::TestStatus;
             use insta::{allow_duplicates, dynamic_redaction};
 
             fn test_finish_status(passed_status: &TestType, expected_status: TestStatus) {
