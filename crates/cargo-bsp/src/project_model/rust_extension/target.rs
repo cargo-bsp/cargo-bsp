@@ -2,7 +2,7 @@
 //! Functions in this file are partially responsible
 //! for preparing the data for RustWorkspaceRequest response.
 
-use bsp_types::extensions::{Feature, RustCrateType, RustTarget, RustTargetKind};
+use bsp_types::rust::{Feature, RustCrateType, RustTarget, RustTargetKind};
 
 use crate::project_model::metadata_edition_to_bsp_edition;
 use crate::utils::uri::file_uri;

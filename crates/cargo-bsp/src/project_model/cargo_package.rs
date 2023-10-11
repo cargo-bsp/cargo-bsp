@@ -10,8 +10,9 @@ use std::rc::Rc;
 use cargo_metadata::camino::Utf8PathBuf;
 use log::{error, warn};
 
-use bsp_types::extensions::{Feature, FeatureDependencyGraph, PackageFeatures};
-use bsp_types::{BuildTarget, BuildTargetIdentifier};
+use bsp_types::bsp::{BuildTarget, BuildTargetIdentifier};
+use bsp_types::cargo::PackageFeatures;
+use bsp_types::rust::{Feature, FeatureDependencyGraph};
 
 use crate::project_model::build_target_mappings::{
     bsp_build_target_from_cargo_target, build_target_ids_from_cargo_targets,
@@ -181,7 +182,7 @@ impl CargoPackage {
 
 #[cfg(test)]
 mod tests {
-    use bsp_types::extensions::PackageFeatures;
+    use bsp_types::rust::{Feature, FeatureDependencyGraph};
     use std::collections::{BTreeMap, BTreeSet};
     use test_case::test_case;
 
@@ -310,7 +311,7 @@ mod tests {
 
     mod test_is_dependency_enabled {
         use crate::project_model::DefaultFeature;
-        use bsp_types::extensions::Feature;
+        use bsp_types::rust::Feature;
         use ntest::timeout;
         use test_case::test_case;
 

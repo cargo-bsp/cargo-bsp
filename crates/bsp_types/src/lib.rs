@@ -1,14 +1,37 @@
-//! Implementation of the [BSP structures](https://build-server-protocol.github.io/docs/specification) in Rust.
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
-pub use basic_bsp_structures::*;
+pub mod bazel;
+pub mod bsp;
+pub mod cancel;
+pub mod cargo;
+pub mod rust;
 
-pub mod basic_bsp_structures;
-pub mod requests;
-
-pub mod extensions;
-pub mod notifications;
+use bazel::*;
+use bsp::*;
+use cancel::*;
+use cargo::*;
+use rust::*;
 
 pub const PROTOCOL_VERSION: &str = "2.1.0";
+
+pub trait Request {
+    type Params: DeserializeOwned + Serialize;
+    type Result: DeserializeOwned + Serialize;
+    const METHOD: &'static str;
+}
+
+pub trait Notification {
+    type Params: DeserializeOwned + Serialize;
+    const METHOD: &'static str;
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OtherData {
+    pub data_kind: String,
+    pub data: serde_json::Value,
+}
 
 pub mod tests {
     use serde::Deserialize;

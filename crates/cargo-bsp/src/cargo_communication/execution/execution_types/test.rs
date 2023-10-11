@@ -4,8 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use bsp_types::notifications::{TaskFinishData, TestFinish, TestReport, TestStatus};
-use bsp_types::BuildTargetIdentifier;
+use bsp_types::bsp::BuildTargetIdentifier;
+use bsp_types::bsp::{TaskFinishData, TestFinish, TestReport, TestStatus};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]

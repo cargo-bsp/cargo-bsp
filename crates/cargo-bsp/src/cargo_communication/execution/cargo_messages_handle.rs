@@ -8,13 +8,13 @@ use path_absolutize::*;
 use paths::AbsPath;
 
 use crate::cargo_communication::cargo_handle::CargoHandler;
-use bsp_types::notifications::{
+use bsp_types::bsp::{
     CompileReport, DiagnosticSeverity, LogMessageParams, MessageType, OnBuildLogMessage,
     OnBuildPublishDiagnostics, PublishDiagnosticsParams, TaskFinishData, TaskId, TaskStartData,
     TestStart, TestStatus, TestTask,
 };
-use bsp_types::requests::Request;
-use bsp_types::{Identifier, OriginId, StatusCode};
+use bsp_types::bsp::{Identifier, OriginId, StatusCode};
+use bsp_types::Request;
 
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::cargo_types::params_target::ParamsTarget;

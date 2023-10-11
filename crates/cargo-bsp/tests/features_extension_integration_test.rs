@@ -2,12 +2,13 @@
 //! when adding extra tests remember to execute them sequentially.
 
 use bsp_server::Response;
-use bsp_types::extensions::{
-    CargoFeaturesState, CargoFeaturesStateResult, Feature, FeatureDependencyGraph, PackageFeatures,
-    SetCargoFeatures, SetCargoFeaturesParams, SetCargoFeaturesResult,
+use bsp_types::bsp::StatusCode;
+use bsp_types::cargo::{
+    CargoFeaturesState, CargoFeaturesStateResult, PackageFeatures, SetCargoFeatures,
+    SetCargoFeaturesParams, SetCargoFeaturesResult,
 };
-use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::rust::{Feature, FeatureDependencyGraph};
+use bsp_types::Request;
 use cargo_toml_builder::{types::Feature as TomlFeature, CargoToml};
 use serde_json::to_string;
 use std::collections::{BTreeMap, BTreeSet};

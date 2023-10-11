@@ -7,8 +7,8 @@ use std::process::Command;
 use bsp_server::{Message, RequestId};
 use crossbeam_channel::unbounded;
 
-use bsp_types::requests::Request;
-use bsp_types::StatusCode;
+use bsp_types::bsp::StatusCode;
+use bsp_types::Request;
 
 use crate::cargo_communication::cargo_handle::CargoHandle;
 use crate::cargo_communication::cargo_types::create_command::CreateCommand;

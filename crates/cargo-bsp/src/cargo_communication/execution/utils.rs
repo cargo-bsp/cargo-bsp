@@ -4,12 +4,12 @@ use log::warn;
 use std::io;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bsp_types::{BuildTargetIdentifier, Identifier};
+use bsp_types::bsp::{BuildTargetIdentifier, Identifier};
 use rand::distributions::{Alphanumeric, DistString};
 
 use crate::project_model::target_details::TargetDetails;
 use crate::server::global_state::GlobalStateSnapshot;
-use bsp_types::notifications::TaskId;
+use bsp_types::bsp::TaskId;
 
 pub(super) fn generate_random_id() -> Identifier {
     Identifier::new(Alphanumeric.sample_string(&mut rand::thread_rng(), 36))

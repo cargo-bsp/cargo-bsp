@@ -9,8 +9,8 @@ use crate::project_model::rust_extension::{
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::project_model::{metadata_edition_to_bsp_edition, CreateFeatureDependencyGraph};
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::{Feature, FeatureDependencyGraph, RustPackage, RustPackageOrigin};
-use bsp_types::BuildTargetIdentifier;
+use bsp_types::bsp::BuildTargetIdentifier;
+use bsp_types::rust::{Feature, FeatureDependencyGraph, RustPackage, RustPackageOrigin};
 use std::collections::{BTreeSet, HashSet, VecDeque};
 
 fn resolve_origin(package: &mut RustPackage, workspace: &ProjectWorkspace) {

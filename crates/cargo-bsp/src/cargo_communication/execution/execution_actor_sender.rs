@@ -8,20 +8,20 @@ use bsp_server::{ErrorCode, Message, Notification, Response, ResponseError};
 use serde_json::to_value;
 
 use crate::cargo_communication::cargo_handle::CargoHandler;
-use bsp_types::notifications::{
-    LogMessageParams, MessageType, Notification as NotificationTrait, OnBuildLogMessage,
-    OnBuildTaskFinish, OnBuildTaskProgress, OnBuildTaskStart, TaskFinishData, TaskFinishParams,
-    TaskId, TaskProgressParams, TaskStartData, TaskStartParams,
-};
-use bsp_types::requests::Request;
-use bsp_types::{Identifier, OriginId, StatusCode};
-
 use crate::cargo_communication::cargo_types::event::CargoMessage;
 use crate::cargo_communication::execution::execution_actor::ExecutionActor;
 use crate::cargo_communication::execution::execution_types::cargo_result::CargoResult;
 use crate::cargo_communication::execution::execution_types::create_unit_graph_command::CreateUnitGraphCommand;
 use crate::cargo_communication::execution::execution_types::origin_id::WithOriginId;
 use crate::cargo_communication::execution::utils::get_current_time;
+use bsp_types::bsp::{Identifier, OriginId, StatusCode};
+use bsp_types::bsp::{
+    LogMessageParams, MessageType, OnBuildLogMessage, OnBuildTaskFinish, OnBuildTaskProgress,
+    OnBuildTaskStart, TaskFinishData, TaskFinishParams, TaskId, TaskProgressParams, TaskStartData,
+    TaskStartParams,
+};
+use bsp_types::Notification as NotificationTrait;
+use bsp_types::Request;
 
 impl<R, C> ExecutionActor<R, C>
 where

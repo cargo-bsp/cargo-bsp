@@ -27,8 +27,8 @@ use crate::cargo_communication::cargo_types::command_utils::{
     targets_details_to_args, CommandType,
 };
 use crate::project_model::target_details::TargetDetails;
-use bsp_types::extensions::RustWorkspaceParams;
-use bsp_types::requests::{CompileParams, RunParams, TestParams};
+use bsp_types::bsp::{CompileParams, RunParams, TestParams};
+use bsp_types::rust::RustWorkspaceParams;
 use std::process::Command;
 
 pub(crate) trait CreateCommand: CommandCreationDetails {
@@ -91,7 +91,8 @@ mod tests {
     use super::*;
     use crate::project_model::target_details::CargoTargetKind::{Bin, Lib};
     use crate::project_model::DefaultFeature;
-    use bsp_types::extensions::Feature;
+    use bsp_types::bsp::{CompileParams, RunParams, TestParams};
+    use bsp_types::rust::{Feature, RustWorkspaceParams};
     use insta::assert_debug_snapshot;
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
@@ -269,7 +270,7 @@ mod tests {
 #[cfg(test)]
 mod feature_tests {
     use super::*;
-    use bsp_types::extensions::Feature;
+    use bsp_types::rust::Feature;
     use std::collections::BTreeSet;
     use test_case::test_case;
 

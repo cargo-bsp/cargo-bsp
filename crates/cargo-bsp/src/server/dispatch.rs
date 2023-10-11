@@ -40,7 +40,7 @@ impl<'a> RequestDispatcher<'a> {
         f: fn(&mut GlobalState, R::Params) -> Result<R::Result>,
     ) -> &mut Self
     where
-        R: bsp_types::requests::Request,
+        R: bsp_types::Request,
         R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
         R::Result: Serialize,
     {
@@ -62,7 +62,7 @@ impl<'a> RequestDispatcher<'a> {
         f: fn(GlobalStateSnapshot, R::Params) -> Result<R::Result>,
     ) -> &mut Self
     where
-        R: bsp_types::requests::Request,
+        R: bsp_types::Request,
         R::Params: DeserializeOwned + panic::UnwindSafe + fmt::Debug,
         R::Result: Serialize,
     {
@@ -84,7 +84,7 @@ impl<'a> RequestDispatcher<'a> {
     /// Dispatches a new [`RequestHandle`].
     pub(crate) fn on_cargo_run<R>(&mut self) -> &mut Self
     where
-        R: bsp_types::requests::Request + 'static,
+        R: bsp_types::Request + 'static,
         R::Params: CreateUnitGraphCommand
             + CreateCommand
             + ParamsTarget
@@ -110,7 +110,7 @@ impl<'a> RequestDispatcher<'a> {
 
     pub(crate) fn on_cargo_check_run<R>(&mut self) -> &mut Self
     where
-        R: bsp_types::requests::Request + 'static,
+        R: bsp_types::Request + 'static,
         R::Params: CreateCommand + ParamsTarget + Send + fmt::Debug,
         R::Result: Serialize,
     {
@@ -142,7 +142,7 @@ impl<'a> RequestDispatcher<'a> {
 
     fn parse<R>(&mut self) -> Option<(Request, R::Params, String)>
     where
-        R: bsp_types::requests::Request,
+        R: bsp_types::Request,
         R::Params: DeserializeOwned + fmt::Debug,
     {
         let req = match &self.req {
@@ -187,7 +187,7 @@ impl<'a> RequestDispatcher<'a> {
 
 fn result_to_response<R>(id: RequestId, result: Result<R::Result>) -> Result<Response>
 where
-    R: bsp_types::requests::Request,
+    R: bsp_types::Request,
     R::Params: DeserializeOwned,
     R::Result: Serialize,
 {
@@ -213,7 +213,7 @@ impl<'a> NotificationDispatcher<'a> {
         f: fn(&mut GlobalState, N::Params) -> Result<()>,
     ) -> Result<&mut Self>
     where
-        N: bsp_types::notifications::Notification,
+        N: bsp_types::Notification,
         N::Params: DeserializeOwned + Send,
     {
         let not = match self.not.take() {

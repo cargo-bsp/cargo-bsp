@@ -3,7 +3,7 @@
 use bsp_server::Connection;
 use log::info;
 
-use bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use bsp_types::bsp::{InitializeBuildParams, InitializeBuildResult};
 
 use crate::server;
 use crate::server::caps::server_capabilities;

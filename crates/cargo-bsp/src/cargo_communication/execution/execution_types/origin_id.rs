@@ -1,8 +1,8 @@
 //! OriginId trait implementation for the Compile/Run/TestParams. The trait allows getting
 //! origin id regardless if it is the compile, run or test request.
 
-use bsp_types::requests::{CompileParams, RunParams, TestParams};
-use bsp_types::Identifier;
+use bsp_types::bsp::Identifier;
+use bsp_types::bsp::{CompileParams, RunParams, TestParams};
 
 pub trait WithOriginId {
     fn origin_id(&self) -> Option<Identifier>;
