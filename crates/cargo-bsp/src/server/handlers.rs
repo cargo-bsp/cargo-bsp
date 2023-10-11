@@ -96,6 +96,14 @@ pub(crate) fn handle_workspace_libraries(
     Ok(bsp_types::extensions::WorkspaceLibrariesResult::default())
 }
 
+// TODO: Not properly handled yet
+pub(crate) fn handle_workspace_directories(
+    _: GlobalStateSnapshot,
+    _: (),
+) -> Result<bsp_types::extensions::WorkspaceDirectoriesResult> {
+    Ok(bsp_types::extensions::WorkspaceDirectoriesResult::default())
+}
+
 pub(crate) fn handle_reload(global_state: &mut GlobalState, _: ()) -> Result<()> {
     global_state.update_workspace_data();
     Ok(())

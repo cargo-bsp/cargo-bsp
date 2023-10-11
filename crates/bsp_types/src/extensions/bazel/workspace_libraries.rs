@@ -27,6 +27,7 @@ pub struct LibraryItem {
     pub id: BuildTargetIdentifier,
     pub dependencies: Vec<BuildTargetIdentifier>,
     pub jars: Vec<Jar>,
+    pub source_jars: Vec<Jar>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -77,7 +78,8 @@ mod tests {
                 "uri": ""
               },
               "dependencies": [],
-              "jars": []
+              "jars": [],
+              "sourceJars": []
             }
           ]
         }
@@ -90,6 +92,7 @@ mod tests {
             id: BuildTargetIdentifier::default(),
             dependencies: vec![BuildTargetIdentifier::default()],
             jars: vec!["test_jar".into()],
+            source_jars: vec!["test_jar".into()],
         };
 
         assert_json_snapshot!(test_data, @r#"
@@ -104,6 +107,9 @@ mod tests {
           ],
           "jars": [
             "test_jar"
+          ],
+          "sourceJars": [
+            "test_jar"
           ]
         }
         "#);
@@ -113,7 +119,8 @@ mod tests {
             "uri": ""
           },
           "dependencies": [],
-          "jars": []
+          "jars": [],
+          "sourceJars": []
         }
         "#);
     }

@@ -134,6 +134,9 @@ impl GlobalState {
             .on_sync::<bsp_types::extensions::WorkspaceLibraries>(
                 handlers::handle_workspace_libraries,
             )
+            .on_sync::<bsp_types::extensions::WorkspaceDirectories>(
+                handlers::handle_workspace_directories,
+            )
             .on_sync::<bsp_types::extensions::CargoFeaturesState>(
                 handlers::handle_cargo_features_state,
             )
