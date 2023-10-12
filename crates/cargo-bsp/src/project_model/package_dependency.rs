@@ -14,7 +14,8 @@ use cargo_metadata::{Dependency, DependencyKind, Package};
 use cargo_platform::Platform;
 use log::error;
 
-use bsp_types::{extensions::Feature, BuildTargetIdentifier};
+use bsp4rs::bsp::BuildTargetIdentifier;
+use bsp4rs::rust::Feature;
 
 use crate::utils::uri::file_uri;
 

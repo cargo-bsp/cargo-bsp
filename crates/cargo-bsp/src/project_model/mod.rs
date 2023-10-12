@@ -1,6 +1,6 @@
 //! [`ProjectModel`] obtains and stores information about the Rust project.
 
-use bsp_types::extensions::{Feature, FeatureDependencyGraph, RustEdition};
+use bsp4rs::rust::{Feature, FeatureDependencyGraph, RustEdition};
 use cargo_metadata::{Edition, Package};
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -20,9 +20,9 @@ Server implements Rust extension needed for connecting with [intellij-rust fork]
 
 ## Repository structure
 
-The repository is split into two crates: ```bsp-types``` and ```cargo-bsp```.
+The repository is split into two crates: ```bsp4rs``` and ```cargo-bsp```.
 
-The ```bsp-types``` crate contains all BSP structures specified in [BSP specification](https://build-server-protocol.github.io/docs/specification) rewritten into Rust.
+The ```bsp4rs``` crate contains all BSP structures specified in [BSP specification](https://build-server-protocol.github.io/docs/specification) rewritten into Rust (since [this commit](https://github.com/cargo-bsp/cargo-bsp/commit/8ef08eda226e1db9cfa1942de4579f409dc3f782) all types are generated).
 
 The ```cargo-bsp``` crate contains the implementation of the Cargo BSP server itself.
 
@@ -30,8 +30,7 @@ The ```cargo-bsp``` crate contains the implementation of the Cargo BSP server it
 
 1. Have [Rust toolchain](https://rustup.rs) installed
 2. Clone this repository and run: ```./install.sh <path>```, where ```<path>``` is the path to the Rust project. The script can be used for any new Rust project that will be imported with BSP
-
-4. Open the Rust project in IntelliJ IDEA with enabled [Build Server Protocol plugin](https://lp.jetbrains.com/new-bazel-plugin/#install) and disabled Rust plugin (if installed)
+3. Open the Rust project in IntelliJ IDEA with enabled [Build Server Protocol plugin](https://lp.jetbrains.com/new-bazel-plugin/#install) and disabled Rust plugin (if installed)
 
 ## Tests
 

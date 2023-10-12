@@ -8,8 +8,12 @@ use log::warn;
 
 use crate::project_model::metadata_edition_to_bsp_edition;
 use crate::project_model::RUST_ID;
-use bsp_types::basic_bsp_structures::*;
-use bsp_types::extensions::{CargoBuildTarget, Feature};
+use bsp4rs::bsp::{
+    BuildTarget, BuildTargetCapabilities, BuildTargetData, BuildTargetIdentifier, BuildTargetTag,
+    URI,
+};
+use bsp4rs::cargo::CargoBuildTarget;
+use bsp4rs::rust::Feature;
 
 use crate::utils::uri::file_uri;
 

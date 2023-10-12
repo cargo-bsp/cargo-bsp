@@ -23,7 +23,7 @@ use crate::cargo_communication::cargo_types::event::{CargoMessage, Event};
 use crate::cargo_communication::check::cargo_message_to_package_info::{
     map_cfg_options, map_env, map_out_dir_url, map_proc_macro_artifact,
 };
-use bsp_types::extensions::RustWorkspaceResult;
+use bsp4rs::rust::RustWorkspaceResult;
 
 pub(crate) struct CheckActor<C>
 where

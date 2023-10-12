@@ -12,8 +12,8 @@ use crate::project_model::rust_extension::dependency::{
 };
 use crate::project_model::workspace::ProjectWorkspace;
 use crate::server::Error;
-use bsp_types::extensions::RustWorkspaceResult;
-use bsp_types::BuildTargetIdentifier;
+use bsp4rs::bsp::BuildTargetIdentifier;
+use bsp4rs::rust::RustWorkspaceResult;
 use cargo_metadata::{Metadata, Node};
 use log::warn;
 

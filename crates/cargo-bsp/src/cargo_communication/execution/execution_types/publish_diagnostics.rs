@@ -9,11 +9,11 @@ use itertools::Itertools;
 use paths::AbsPath;
 use url::Url;
 
-use bsp_types::notifications::{
+use bsp4rs::bsp::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
+use bsp4rs::bsp::{
     CodeDescription, Diagnostic, DiagnosticCode as Code, DiagnosticRelatedInformation,
     DiagnosticSeverity, DiagnosticTag, Location, Position, PublishDiagnosticsParams, Range,
 };
-use bsp_types::{BuildTargetIdentifier, OriginId, TextDocumentIdentifier, URI};
 
 /// Diagnostics are sent to the client as `publishDiagnostic` notification.
 /// GlobalMessage is sent to the client as `logMessage` notification.

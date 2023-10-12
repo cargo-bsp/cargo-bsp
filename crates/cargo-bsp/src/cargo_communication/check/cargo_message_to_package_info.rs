@@ -2,8 +2,8 @@
 //! RustPackage information.
 
 use crate::utils::uri::file_uri;
-use bsp_types::extensions::RustCfgOptions;
-use bsp_types::{EnvironmentVariables, URI};
+use bsp4rs::bsp::{EnvironmentVariables, URI};
+use bsp4rs::rust::RustCfgOptions;
 use cargo_metadata::{Artifact, BuildScript, Package};
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;

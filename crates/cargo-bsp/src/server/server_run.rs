@@ -3,7 +3,7 @@
 use bsp_server::Connection;
 use log::info;
 
-use bsp_types::requests::{InitializeBuildParams, InitializeBuildResult};
+use bsp4rs::bsp::{InitializeBuildParams, InitializeBuildResult};
 
 use crate::server;
 use crate::server::caps::server_capabilities;
@@ -45,7 +45,7 @@ fn create_initialize_result(config: &Config) -> InitializeBuildResult {
     InitializeBuildResult {
         display_name: "test".to_string(),
         version: "0.0.1".to_string(),
-        bsp_version: bsp_types::PROTOCOL_VERSION.to_string(),
+        bsp_version: bsp4rs::PROTOCOL_VERSION.to_string(),
         capabilities: server_capabilities(config),
         data: None,
     }

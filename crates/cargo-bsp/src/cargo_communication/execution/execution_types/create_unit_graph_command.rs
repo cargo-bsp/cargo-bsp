@@ -12,7 +12,7 @@ use crate::cargo_communication::cargo_types::command_utils::{
     targets_details_to_args, CommandType,
 };
 use crate::project_model::target_details::TargetDetails;
-use bsp_types::requests::{CompileParams, RunParams, TestParams};
+use bsp4rs::bsp::{CompileParams, RunParams, TestParams};
 use std::process::Command;
 
 pub(crate) trait CreateUnitGraphCommand: CommandCreationDetails {

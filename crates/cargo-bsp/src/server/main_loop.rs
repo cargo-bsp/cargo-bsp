@@ -6,9 +6,9 @@ use std::time::Instant;
 use bsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use crossbeam_channel::{select, Receiver};
 
-use bsp_types;
-use bsp_types::extensions::CancelRequest;
-use bsp_types::notifications::Notification as _;
+use bsp4rs;
+use bsp4rs::cancel::CancelRequest;
+use bsp4rs::Notification as _;
 
 use crate::server::config::Config;
 use crate::server::dispatch::{NotificationDispatcher, RequestDispatcher};
@@ -34,7 +34,7 @@ impl GlobalState {
     fn run(mut self, inbox: Receiver<Message>) -> Result<()> {
         while let Some(event) = self.next_message(&inbox) {
             if let Event::Bsp(Message::Notification(not)) = &event {
-                if not.method == bsp_types::notifications::OnBuildExit::METHOD {
+                if not.method == bsp4rs::bsp::OnBuildExit::METHOD {
                     if !self.shutdown_requested {
                         break;
                     }
@@ -90,7 +90,7 @@ impl GlobalState {
             req: Some(req),
             global_state: self,
         };
-        dispatcher.on_sync_mut::<bsp_types::requests::BuildShutdown>(|s, ()| {
+        dispatcher.on_sync_mut::<bsp4rs::bsp::BuildShutdown>(|s, ()| {
             s.shutdown_requested = true;
             Ok(())
         });
@@ -111,39 +111,27 @@ impl GlobalState {
         }
 
         dispatcher
-            .on_sync_mut::<bsp_types::requests::WorkspaceReload>(handlers::handle_reload)
-            .on_sync_mut::<bsp_types::extensions::SetCargoFeatures>(
-                handlers::handle_set_cargo_features,
-            )
-            .on_sync::<bsp_types::requests::WorkspaceBuildTargets>(
-                handlers::handle_workspace_build_targets,
-            )
-            .on_sync::<bsp_types::requests::BuildTargetSources>(handlers::handle_sources)
-            .on_sync::<bsp_types::requests::BuildTargetResources>(handlers::handle_resources)
-            .on_sync::<bsp_types::requests::BuildTargetCleanCache>(handlers::handle_clean_cache)
-            .on_sync::<bsp_types::requests::BuildTargetDependencyModules>(
+            .on_sync_mut::<bsp4rs::bsp::WorkspaceReload>(handlers::handle_reload)
+            .on_sync_mut::<bsp4rs::cargo::SetCargoFeatures>(handlers::handle_set_cargo_features)
+            .on_sync::<bsp4rs::bsp::WorkspaceBuildTargets>(handlers::handle_workspace_build_targets)
+            .on_sync::<bsp4rs::bsp::BuildTargetSources>(handlers::handle_sources)
+            .on_sync::<bsp4rs::bsp::BuildTargetResources>(handlers::handle_resources)
+            .on_sync::<bsp4rs::bsp::BuildTargetCleanCache>(handlers::handle_clean_cache)
+            .on_sync::<bsp4rs::bsp::BuildTargetDependencyModules>(
                 handlers::handle_dependency_modules,
             )
-            .on_sync::<bsp_types::requests::BuildTargetDependencySources>(
+            .on_sync::<bsp4rs::bsp::BuildTargetDependencySources>(
                 handlers::handle_dependency_sources,
             )
-            .on_sync::<bsp_types::requests::BuildTargetInverseSources>(
-                handlers::handle_inverse_sources,
-            )
-            .on_sync::<bsp_types::requests::BuildTargetOutputPaths>(handlers::handle_output_paths)
-            .on_sync::<bsp_types::extensions::WorkspaceLibraries>(
-                handlers::handle_workspace_libraries,
-            )
-            .on_sync::<bsp_types::extensions::WorkspaceDirectories>(
-                handlers::handle_workspace_directories,
-            )
-            .on_sync::<bsp_types::extensions::CargoFeaturesState>(
-                handlers::handle_cargo_features_state,
-            )
-            .on_cargo_run::<bsp_types::requests::BuildTargetCompile>()
-            .on_cargo_run::<bsp_types::requests::BuildTargetRun>()
-            .on_cargo_run::<bsp_types::requests::BuildTargetTest>()
-            .on_cargo_check_run::<bsp_types::extensions::RustWorkspace>()
+            .on_sync::<bsp4rs::bsp::BuildTargetInverseSources>(handlers::handle_inverse_sources)
+            .on_sync::<bsp4rs::bsp::BuildTargetOutputPaths>(handlers::handle_output_paths)
+            .on_sync::<bsp4rs::bazel::WorkspaceLibraries>(handlers::handle_workspace_libraries)
+            .on_sync::<bsp4rs::bazel::WorkspaceDirectories>(handlers::handle_workspace_directories)
+            .on_sync::<bsp4rs::cargo::CargoFeaturesState>(handlers::handle_cargo_features_state)
+            .on_cargo_run::<bsp4rs::bsp::BuildTargetCompile>()
+            .on_cargo_run::<bsp4rs::bsp::BuildTargetRun>()
+            .on_cargo_run::<bsp4rs::bsp::BuildTargetTest>()
+            .on_cargo_check_run::<bsp4rs::rust::RustWorkspace>()
             .finish();
     }
 
@@ -170,7 +158,7 @@ mod tests {
 
         use bsp_server::Connection;
 
-        use bsp_types::requests::BuildClientCapabilities;
+        use bsp4rs::bsp::BuildClientCapabilities;
 
         use crate::server::config::Config;
         use crate::server::global_state::GlobalState;

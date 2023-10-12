@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use cargo_metadata::camino::Utf8PathBuf;
 use walkdir::WalkDir;
 
-use bsp_types::requests::{SourceItem, SourceItemKind, SourcesItem};
-use bsp_types::BuildTargetIdentifier;
+use bsp4rs::bsp::BuildTargetIdentifier;
+use bsp4rs::bsp::{SourceItem, SourceItemKind, SourcesItem};
 
 use crate::project_model::target_details::{CargoTargetKind, TargetDetails};
 use crate::utils::uri::file_uri;
@@ -82,7 +82,7 @@ mod tests {
     use insta::assert_json_snapshot;
     use tempfile::tempdir;
 
-    use bsp_types::BuildTargetIdentifier;
+    use bsp4rs::bsp::BuildTargetIdentifier;
 
     use crate::project_model::sources::get_sources_for_target;
     use crate::project_model::target_details::{CargoTargetKind, TargetDetails};
@@ -103,7 +103,7 @@ mod tests {
     }
 
     mod create_source_item {
-        use bsp_types::requests::{SourceItem, SourceItemKind};
+        use bsp4rs::bsp::{SourceItem, SourceItemKind};
 
         use crate::project_model::sources::create_source_item;
         use crate::utils::uri::file_uri;
@@ -240,7 +240,7 @@ mod tests {
         use cargo_metadata::camino::Utf8PathBuf;
         use tempfile::TempDir;
 
-        use bsp_types::requests::SourceItem;
+        use bsp4rs::bsp::SourceItem;
 
         use crate::project_model::sources::{create_source_item, list_target_sources};
         use crate::project_model::target_details::{CargoTargetKind, TargetDetails};

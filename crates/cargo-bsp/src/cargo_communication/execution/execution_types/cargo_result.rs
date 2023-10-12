@@ -2,8 +2,8 @@
 //! Allows creating the result for the client regardless if its the compile,
 //! run or test request.
 
-use bsp_types::requests::{CompileResult, RunResult, TestResult};
-use bsp_types::{Identifier, StatusCode};
+use bsp4rs::bsp::{CompileResult, RunResult, TestResult};
+use bsp4rs::bsp::{Identifier, StatusCode};
 
 pub trait CargoResult {
     fn create_result(origin_id: Option<Identifier>, status_code: StatusCode) -> Self;

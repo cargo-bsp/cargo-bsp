@@ -3,11 +3,12 @@
 //! creation of notifications and responses for the client (especially the state
 //! sets and stores TaskIds of all tasks that may potentially be started).
 
-use bsp_types::{BuildTargetIdentifier, Identifier};
+use bsp4rs::bsp::{BuildTargetIdentifier, Identifier};
 use std::collections::HashMap;
 
-use bsp_types::notifications::TaskId;
-use bsp_types::requests::{BuildTargetRun, BuildTargetTest, Request};
+use bsp4rs::bsp::TaskId;
+use bsp4rs::bsp::{BuildTargetRun, BuildTargetTest};
+use bsp4rs::Request;
 
 use crate::cargo_communication::execution::utils::{
     generate_random_id, generate_task_id, get_current_time,
